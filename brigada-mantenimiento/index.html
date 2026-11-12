@@ -1074,6 +1074,7 @@
         </div>
       </div>
     </div>
+  </div>
   <!-- ========================================================================= -->
   <!-- MODAL: PROGRAMAR BAIXA / ASSÈNCIA TEMPORAL (VACANCES, MÈDICA, DIES LLIURES) -->
   <!-- ========================================================================= -->
@@ -2073,7 +2074,9 @@
           } else {
             const remoteTasks = [];
             snapshot.forEach(docSnap => {
-              remoteTasks.push(docSnap.data());
+              const data = docSnap.data();
+              if (!data.id) data.id = docSnap.id;
+              remoteTasks.push(data);
             });
             remoteTasks.sort((a, b) => new Date(b.creatEl || 0) - new Date(a.creatEl || 0));
             APP_STATE.tasks = remoteTasks;
@@ -2731,7 +2734,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
             <td class="px-4 py-3">
               <div class="flex items-start space-x-3">
                 ${task.fotoInicial ? `
-                  <div class="w-12 h-12 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0 cursor-pointer group relative bg-gray-100" onclick="openPhotoViewer('${task.fotoInicial}', '${(task.titol || '').replace(/'/g, "\\'")}')" title="Clica per ampliar la fotografia">
+                  <div class="w-12 h-12 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0 cursor-pointer group relative bg-gray-100" onclick="openPhotoViewerById('${task.id}')" title="Clica per ampliar la fotografia">
                     <img src="${task.fotoInicial}" alt="Foto" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                     <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                       <i data-lucide="zoom-in" class="w-3.5 h-3.5 text-white"></i>
@@ -2812,10 +2815,10 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         if (task.fotoInicial) {
           fotoPreview.innerHTML = `
             <div class="flex items-center space-x-3 p-2.5 bg-gray-50 rounded-xl border border-gray-200">
-              <img src="${task.fotoInicial}" class="w-16 h-16 rounded-lg object-cover border border-gray-300 cursor-pointer shadow-xs" onclick="openPhotoViewer('${task.fotoInicial}', '${(task.titol || '').replace(/'/g, "\\'")}')" />
+              <img src="${task.fotoInicial}" class="w-16 h-16 rounded-lg object-cover border border-gray-300 cursor-pointer shadow-xs" onclick="openPhotoViewerById('${task.id}')" />
               <div class="text-xs">
                 <span class="font-bold text-[#1D3557] block">📷 Fotografia de l'avaria / incidència adjunta</span>
-                <span class="text-[11px] text-[#2A9D8F] font-semibold cursor-pointer hover:underline" onclick="openPhotoViewer('${task.fotoInicial}', '${(task.titol || '').replace(/'/g, "\\'")}')">Clica per ampliar en alta resolució</span>
+                <span class="text-[11px] text-[#2A9D8F] font-semibold cursor-pointer hover:underline" onclick="openPhotoViewerById('${task.id}')">Clica per ampliar en alta resolució</span>
               </div>
             </div>
           `;
@@ -3622,11 +3625,11 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                     <i data-lucide="camera" class="w-3.5 h-3.5 text-[#2A9D8F]"></i>
                     <span>Foto adjunta de la incidència:</span>
                   </span>
-                  <button type="button" onclick="openPhotoViewer('${task.fotoInicial}', '${(task.titol || '').replace(/'/g, "\\'")}')" class="text-xs text-[#2A9D8F] font-bold hover:underline">
+                  <button type="button" onclick="openPhotoViewerById('${task.id}')" class="text-xs text-[#2A9D8F] font-bold hover:underline">
                     Ampliar foto
                   </button>
                 </div>
-                <div class="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-100 cursor-pointer group" onclick="openPhotoViewer('${task.fotoInicial}', '${(task.titol || '').replace(/'/g, "\\'")}')">
+                <div class="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-100 cursor-pointer group" onclick="openPhotoViewerById('${task.id}')">
                   <img src="${task.fotoInicial}" alt="Foto incidència" class="w-full h-44 object-cover hover:scale-[1.01] transition-transform duration-200" />
                   <div class="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2.5 py-1 rounded-full flex items-center space-x-1 backdrop-blur-xs">
                     <i data-lucide="maximize-2" class="w-3 h-3"></i>
@@ -3655,13 +3658,13 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
             <div class="grid grid-cols-2 gap-2 pt-1">
               ${isRunning ? `
-                <button onclick="openModalFinalitzar('${task.id}')" class="min-touch py-3 bg-[#1D3557] hover:bg-[#152741] text-white font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
-                  <i data-lucide="check-square" class="w-4 h-4 text-emerald-400"></i>
-                  <span>Finalitzar i Signar</span>
-                </button>
                 <button onclick="pauseTaskMaterial('${task.id}')" class="min-touch py-3 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
                   <i data-lucide="pause-circle" class="w-4 h-4"></i>
                   <span>Pausa / Material</span>
+                </button>
+                <button onclick="openModalFinalitzar('${task.id}')" class="min-touch py-3 bg-[#1D3557] hover:bg-[#152741] text-white font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
+                  <i data-lucide="check-square" class="w-4 h-4 text-emerald-400"></i>
+                  <span>Finalitzar i Signar</span>
                 </button>
               ` : isPaused ? `
                 <button onclick="startTaskTimer('${task.id}')" class="min-touch py-3 bg-[#2A9D8F] hover:bg-[#238276] text-white font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
@@ -3677,8 +3680,8 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                   <i data-lucide="play" class="w-4 h-4"></i>
                   <span>Iniciar Feina</span>
                 </button>
-                <button onclick="openModalFinalitzar('${task.id}')" class="min-touch py-3 bg-gray-100 hover:bg-gray-200 text-[#1D3557] border border-gray-300 font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
-                  <i data-lucide="check-square" class="w-4 h-4 text-emerald-600"></i>
+                <button onclick="openModalFinalitzar('${task.id}')" class="min-touch py-3 bg-[#1D3557] hover:bg-[#152741] text-white font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
+                  <i data-lucide="check-square" class="w-4 h-4 text-emerald-400"></i>
                   <span>Finalitzar i Signar</span>
                 </button>
               `}
@@ -3736,6 +3739,13 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
     function closePhotoViewer() {
       const modal = document.getElementById('photo-viewer-modal');
       if (modal) modal.classList.add('hidden');
+    }
+
+    function openPhotoViewerById(taskId) {
+      const task = APP_STATE.tasks.find(t => t.id === taskId);
+      if (task && task.fotoInicial) {
+        openPhotoViewer(task.fotoInicial, `${task.id} - ${task.titol || 'Fotografia'}`);
+      }
     }
 
     // -------------------------------------------------------------------------
@@ -3841,7 +3851,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               <p class="text-[11px] text-gray-500">${task.nucli} · ${task.via}</p>
             </div>
             ${task.fotoInicial ? `
-              <div class="flex flex-col items-center flex-shrink-0 cursor-pointer" onclick="openPhotoViewer('${task.fotoInicial}', '${(task.titol || '').replace(/'/g, "\\'")}')" title="Clica per ampliar">
+              <div class="flex flex-col items-center flex-shrink-0 cursor-pointer" onclick="openPhotoViewerById('${task.id}')" title="Clica per ampliar">
                 <img src="${task.fotoInicial}" class="w-14 h-14 rounded-lg object-cover border border-gray-300 shadow-xs" />
                 <span class="text-[9px] text-[#2A9D8F] font-bold mt-0.5">Veure foto</span>
               </div>
