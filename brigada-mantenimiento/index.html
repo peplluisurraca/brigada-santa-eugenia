@@ -1834,6 +1834,7 @@
         }
       ]
     };
+    window.APP_STATE = APP_STATE;
 
     const FREQUENCIA_LABELS = {
       diaria: { label: "Diària", icon: "☀️", badgeClass: "bg-amber-100 text-amber-900 border-amber-300" },
@@ -2167,6 +2168,55 @@
     }
 
     // -------------------------------------------------------------------------
+    // SEGURETAT: ESCAPAT HTML I SANITITZACIÓ D'URLS (PREVENCIÓ XSS I APÒSTROFS)
+    // -------------------------------------------------------------------------
+    function esc(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+    window.esc = esc;
+
+    function sanitizeUrl(url, allowedProtocols = ['http:', 'https:', 'tel:', 'mailto:']) {
+      if (!url) return '#';
+      const trimmed = String(url).trim();
+      if (trimmed.startsWith('/') || trimmed.startsWith('#')) return trimmed;
+      try {
+        const base = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : 'http://localhost';
+        const parsed = new URL(trimmed, base);
+        if (allowedProtocols.includes(parsed.protocol)) {
+          return trimmed;
+        }
+      } catch (_) {
+        if (trimmed.startsWith('tel:')) {
+          const cleanPhone = trimmed.replace(/[^0-9+]/g, '');
+          return 'tel:' + cleanPhone;
+        }
+      }
+      return '#';
+    }
+
+    function sanitizeTel(phone) {
+      if (!phone) return '#';
+      const clean = String(phone).replace(/[^0-9+]/g, '');
+      return clean ? 'tel:' + clean : '#';
+    }
+
+    function sanitizeMapsUrl(lat, lng, query = '') {
+      if (lat && lng && !isNaN(Number(lat)) && !isNaN(Number(lng))) {
+        return 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(lat) + ',' + encodeURIComponent(lng);
+      }
+      if (query) {
+        return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(query + ', Santa Eugènia, Mallorca');
+      }
+      return '#';
+    }
+
+    // -------------------------------------------------------------------------
     // INTEGRACIÓ WHATSAPP OFICIAL (AJUNTAMENT DE SANTA EUGÈNIA)
     // Enllaços directes format: https://wa.me/34TEL?text=MENSAJE
     // -------------------------------------------------------------------------
@@ -2218,6 +2268,108 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
       return generateWhatsAppLink(operari.telefon, text);
     }
+
+
+    // -------------------------------------------------------------------------
+    // DELEGACIÓ CENTRALITZADA D'ESDEVENIMENTS D'ACCIÓ (DATA-ACTION)
+    // -------------------------------------------------------------------------
+    document.addEventListener('click', (e) => {
+      const actionEl = e.target.closest('[data-action]');
+      if (!actionEl) return;
+
+      const action = actionEl.getAttribute('data-action');
+      const id = actionEl.getAttribute('data-id');
+      const extra = actionEl.getAttribute('data-extra');
+
+      switch (action) {
+        case 'open-edit-task':
+          if (id) openEditTaskModal(id);
+          break;
+        case 'open-report':
+          if (id) openReportModal(id);
+          break;
+        case 'open-photo-viewer':
+          if (id) openPhotoViewerById(id);
+          break;
+        case 'open-photo-viewer-final':
+          if (id) openPhotoViewerFinalById(id);
+          break;
+        case 'open-baixa-op':
+          if (id) openModalBaixaTemporal(Number(id));
+          break;
+        case 'delete-baixa-op':
+          if (id && extra !== null) deleteBaixaTemporal(Number(id), Number(extra));
+          break;
+        case 'open-edit-op':
+          if (id) openEditOperatorModal(Number(id));
+          break;
+        case 'open-bulk-reassign':
+          if (id) openBulkReassignModal(Number(id));
+          break;
+        case 'toggle-op-status':
+          if (id) toggleOperatorStatus(Number(id));
+          break;
+        case 'pause-task':
+          if (id) pauseTaskMaterial(id);
+          break;
+        case 'open-finalitzar':
+          if (id) openModalFinalitzar(id);
+          break;
+        case 'start-timer':
+          if (id) startTaskTimer(id);
+          break;
+        case 'generar-ordre-programada':
+          if (id) generarOrdreFromProgramada(id);
+          break;
+        case 'toggle-programada-status':
+          if (id) toggleProgramadaStatus(id);
+          break;
+        case 'open-modal-programada':
+          openModalProgramada(id || null);
+          break;
+        case 'delete-programada':
+          if (id) deleteProgramada(id);
+          break;
+        case 'filter-nomenclator':
+          if (id) filterNomenclator(id);
+          break;
+        case 'filter-operators':
+          if (id) filterOperators(id);
+          break;
+        case 'filter-map':
+          if (id) filterMap(id);
+          break;
+        case 'set-operari-tab':
+          if (id) setOperariTab(id);
+          break;
+        case 'toggle-kpi-filter':
+          toggleKpiFilter(id || null);
+          break;
+        case 'navigate-view':
+          if (id) navigateView(id);
+          break;
+        case 'logout':
+          logoutUnified();
+          break;
+        case 'close-modal-finalitzar':
+          closeModalFinalitzar();
+          break;
+        case 'close-modal-report':
+          closeReportModal();
+          break;
+        case 'close-photo-viewer':
+          closePhotoViewer();
+          break;
+        case 'clear-signature':
+          clearSignatureCanvas();
+          break;
+        case 'confirm-finalitzar':
+          confirmTaskCompletion();
+          break;
+        default:
+          break;
+      }
+    });
 
     // -------------------------------------------------------------------------
     // HAVERSINE OFFLINE
@@ -2300,7 +2452,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               <div style="font-weight: bold; color: #1D3557; margin-bottom: 3px;">👥 Equip Assignat (${assignedOps.length}):</div>
               ${assignedOps.map(op => {
                 const disp = getOperariDisponibilitat(op);
-                return `<div style="margin-bottom: 2px;">• <strong>${op.nom}</strong> (${op.telefon}) ${disp.isTempAbsent ? '<span style="color:#7E22CE;font-weight:bold;">🏖️</span>' : ''}</div>`;
+                return `<div style="margin-bottom: 2px;">• <strong>${esc(op.nom)}</strong> (${esc(op.telefon)}) ${disp.isTempAbsent ? '<span style="color:#7E22CE;font-weight:bold;">🏖️</span>' : ''}</div>`;
               }).join('')}
             </div>
           `;
@@ -2326,22 +2478,22 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
         const popupContent = `
           <div style="font-family: Inter, sans-serif; font-size: 12px; width: 250px;">
-            <div style="font-weight: bold; color: #1D3557; margin-bottom: 2px;">${task.id} - ${task.titol}</div>
-            <div style="color: #6B7280; font-size: 11px; margin-bottom: 4px;">📍 ${task.nucli} (${task.via})</div>
+            <div style="font-weight: bold; color: #1D3557; margin-bottom: 2px;">${esc(task.id)} - ${esc(task.titol)}</div>
+            <div style="color: #6B7280; font-size: 11px; margin-bottom: 4px;">📍 ${esc(task.nucli)} (${esc(task.via)})</div>
             <div style="display: flex; gap: 4px; margin-bottom: 6px;">
               <span style="background: ${pinColor}; color: white; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">
-                ${task.estat.toUpperCase()}
+                ${esc(task.estat.toUpperCase())}
               </span>
               <span style="background: #E0F2FE; color: #0369A1; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">
-                ${CATEGORIA_LABELS[task.categoria] || task.categoria}
+                ${esc(CATEGORIA_LABELS[task.categoria] || task.categoria)}
               </span>
             </div>
             ${teamHtml}
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 4px;">
-              <button onclick="openEditTaskModal('${task.id}')" style="background: #2A9D8F; color: white; border: none; padding: 5px; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer;">
+              <button data-action="open-edit-task" data-id="${esc(task.id)}" style="background: #2A9D8F; color: white; border: none; padding: 5px; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer;">
                 ✏️ Canviar Abast
               </button>
-              <button onclick="openReportModal('${task.id}')" style="background: #1D3557; color: white; border: none; padding: 5px; border-radius: 6px; font-size: 10px; cursor: pointer;">
+              <button data-action="open-report" data-id="${esc(task.id)}" style="background: #1D3557; color: white; border: none; padding: 5px; border-radius: 6px; font-size: 10px; cursor: pointer;">
                 📄 Fitxa PDF
               </button>
             </div>
@@ -2555,7 +2707,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
             <div class="flex items-center space-x-2 bg-white/10 px-2.5 py-1.5 rounded-lg text-xs border border-white/10">
               <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               <span class="font-bold text-white hidden sm:inline">🏛️ Administrador (Cap de Brigada)</span>
-              <button onclick="logoutUnified()" class="text-[11px] bg-red-500 hover:bg-red-600 text-white font-bold px-2.5 py-1 rounded-md transition-colors shadow-xs ml-1 flex items-center space-x-1" title="Tancar Sessió">
+              <button data-action="logout" class="text-[11px] bg-red-500 hover:bg-red-600 text-white font-bold px-2.5 py-1 rounded-md transition-colors shadow-xs ml-1 flex items-center space-x-1 min-touch" title="Tancar Sessió">
                 <i data-lucide="log-out" class="w-3 h-3"></i>
                 <span>Sortir</span>
               </button>
@@ -2576,8 +2728,8 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           headerSession.innerHTML = `
             <div class="flex items-center space-x-2 bg-white/10 px-2.5 py-1.5 rounded-lg text-xs border border-white/10">
               <span class="w-2 h-2 rounded-full bg-teal-400"></span>
-              <span class="font-bold text-teal-200 truncate max-w-[130px] sm:max-w-none">👷 ${user.nom || (op ? op.nom : 'Operari')}</span>
-              <button onclick="logoutUnified()" class="text-[11px] bg-red-500 hover:bg-red-600 text-white font-bold px-2.5 py-1 rounded-md transition-colors shadow-xs ml-1 flex items-center space-x-1" title="Tancar Sessió">
+              <span class="font-bold text-teal-200 truncate max-w-[130px] sm:max-w-none">👷 ${esc(user.nom || (op ? op.nom : 'Operari'))}</span>
+              <button data-action="logout" class="text-[11px] bg-red-500 hover:bg-red-600 text-white font-bold px-2.5 py-1 rounded-md transition-colors shadow-xs ml-1 flex items-center space-x-1 min-touch" title="Tancar Sessió">
                 <i data-lucide="log-out" class="w-3 h-3"></i>
                 <span>Sortir</span>
               </button>
@@ -2848,7 +3000,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
             <td class="px-4 py-3">
               <div class="flex items-start space-x-3">
                 ${task.fotoInicial ? `
-                  <div class="w-12 h-12 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0 cursor-pointer group relative bg-gray-100" onclick="openPhotoViewerById('${task.id}')" title="Clica per ampliar la fotografia">
+                  <div class="w-12 h-12 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0 cursor-pointer group relative bg-gray-100" data-action="open-photo-viewer" data-id="${esc(task.id)}" title="Clica per ampliar la fotografia">
                     <img src="${task.fotoInicial}" alt="Foto" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                     <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                       <i data-lucide="zoom-in" class="w-3.5 h-3.5 text-white"></i>
@@ -2861,13 +3013,13 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                 `}
                 <div>
                   <div class="font-bold text-[#1D3557] flex items-center space-x-1.5 flex-wrap gap-y-1">
-                    <span>${task.id}</span>
+                    <span>${esc(task.id)}</span>
                     ${task.esImportant ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 font-bold border border-amber-300">★ IMPORTANT</span>' : ''}
                     ${task.esProgramada ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-purple-100 text-purple-900 font-bold border border-purple-300 flex items-center space-x-0.5"><span>🔄</span><span>Preventiu (${FREQUENCIA_LABELS[task.frequencia]?.label || task.frequencia})</span></span>` : ''}
                     ${assignedOps.length > 1 ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-teal-50 text-teal-700 font-semibold border border-teal-200">👥 Equip</span>' : ''}
                   </div>
-                  <p class="text-xs text-gray-900 font-medium mt-0.5">${task.titol}</p>
-                  <p class="text-[11px] text-gray-500 line-clamp-1 italic">${task.descripcio || 'Sense descripció addicional'}</p>
+                  <p class="text-xs text-gray-900 font-medium mt-0.5">${esc(task.titol)}</p>
+                  <p class="text-[11px] text-gray-500 line-clamp-1 italic">${esc(task.descripcio || 'Sense descripció addicional')}</p>
                 </div>
               </div>
             </td>
@@ -2877,8 +3029,8 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               </span>
             </td>
             <td class="px-4 py-3 text-xs">
-              <p class="font-medium text-gray-900">${task.nucli}</p>
-              <p class="text-gray-500 font-mono text-[11px]">${task.via}</p>
+              <p class="font-medium text-gray-900">${esc(task.nucli)}</p>
+              <p class="text-gray-500 font-mono text-[11px]">${esc(task.via)}</p>
             </td>
             <td class="px-4 py-3 text-xs">
               <span class="capitalize font-semibold ${task.prioritat === 'urgent' ? 'text-red-600 font-bold' : 'text-gray-700'}">${task.prioritat}</span>
@@ -2890,11 +3042,11 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               </span>
             </td>
             <td class="px-4 py-3 text-right space-x-1 whitespace-nowrap">
-              <button onclick="openEditTaskModal('${task.id}')" title="Modificar Abast o Reassignar Equip" class="px-2.5 py-1.5 text-xs font-semibold text-[#1D3557] bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 inline-flex items-center space-x-1">
+              <button data-action="open-edit-task" data-id="${esc(task.id)}" title="Modificar Abast o Reassignar Equip" class="px-2.5 py-1.5 text-xs font-semibold text-[#1D3557] bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 inline-flex items-center space-x-1 min-touch">
                 <i data-lucide="edit-3" class="w-3.5 h-3.5 text-[#2A9D8F]"></i>
                 <span>Canviar Abast / Equip</span>
               </button>
-              <button onclick="openReportModal('${task.id}')" title="Generar Informe / PDF" class="p-1.5 text-gray-600 hover:text-[#1D3557] rounded-lg hover:bg-gray-100 inline-flex">
+              <button data-action="open-report" data-id="${esc(task.id)}" title="Generar Informe / PDF" class="p-1.5 text-gray-600 hover:text-[#1D3557] rounded-lg hover:bg-gray-100 inline-flex min-touch">
                 <i data-lucide="file-text" class="w-4 h-4"></i>
               </button>
             </td>
@@ -2910,7 +3062,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
     // MODAL DE GESTIÓ D'ABAST I REASSIGNACIÓ D'EQUIP D'OPERARIS
     // -------------------------------------------------------------------------
     function openEditTaskModal(taskId) {
-      const task = APP_STATE.tasks.find(t => t.id === taskId);
+      const task = APP_STATE.tasks.find(t => String(t.id) === String(taskId));
       if (!task) return;
 
       document.getElementById('edit-tasca-id').value = task.id;
@@ -2929,10 +3081,10 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         if (task.fotoInicial) {
           fotoPreview.innerHTML = `
             <div class="flex items-center space-x-3 p-2.5 bg-gray-50 rounded-xl border border-gray-200">
-              <img src="${task.fotoInicial}" class="w-16 h-16 rounded-lg object-cover border border-gray-300 cursor-pointer shadow-xs" onclick="openPhotoViewerById('${task.id}')" />
+              <img src="${task.fotoInicial}" class="w-16 h-16 rounded-lg object-cover border border-gray-300 cursor-pointer shadow-xs" data-action="open-photo-viewer" data-id="${esc(task.id)}" />
               <div class="text-xs">
                 <span class="font-bold text-[#1D3557] block">📷 Fotografia de l'avaria / incidència adjunta</span>
-                <span class="text-[11px] text-[#2A9D8F] font-semibold cursor-pointer hover:underline" onclick="openPhotoViewerById('${task.id}')">Clica per ampliar en alta resolució</span>
+                <span class="text-[11px] text-[#2A9D8F] font-semibold cursor-pointer hover:underline" data-action="open-photo-viewer" data-id="${esc(task.id)}">Clica per ampliar en alta resolució</span>
               </div>
             </div>
           `;
@@ -2973,7 +3125,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
     }
 
     function updateEditTaskWhatsAppButtons(taskId) {
-      const task = APP_STATE.tasks.find(t => t.id === taskId);
+      const task = APP_STATE.tasks.find(t => String(t.id) === String(taskId));
       if (!task) return;
 
       const checkedInputs = document.querySelectorAll('input[name="edit-operari-checkbox"]:checked');
@@ -3223,8 +3375,8 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                     ${op.nom.charAt(0)}
                   </div>
                   <div>
-                    <h4 class="font-bold text-sm text-[#1D3557] ${!op.actiu ? 'line-through text-gray-500' : ''}">${op.nom}</h4>
-                    <p class="text-xs text-gray-500 font-medium">${op.rol}</p>
+                    <h4 class="font-bold text-sm text-[#1D3557] ${!op.actiu ? 'line-through text-gray-500' : ''}">${esc(op.nom)}</h4>
+                    <p class="text-xs text-gray-500 font-medium">${esc(op.rol)}</p>
                   </div>
                 </div>
                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${disp.badgeClass}">
@@ -3234,7 +3386,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
               <div class="text-xs text-gray-600 space-y-1 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
                 <p>🔧 Especialitat: <strong class="text-gray-900">${CATEGORIA_LABELS[op.especialitat] || op.especialitat}</strong></p>
-                <p>📞 Tel: <a href="tel:${op.telefon}" class="font-medium text-[#1D3557] underline">${op.telefon}</a></p>
+                <p>📞 Tel: <a href="${sanitizeTel(op.telefon)}" class="font-medium text-[#1D3557] underline">${esc(op.telefon)}</a></p>
                 <p>🔒 Compte Auth: <span class="font-mono text-emerald-800 font-medium">op-${op.id}@brigada-santa-eugenia.local</span></p>
                 <p class="text-[11px] pt-1 border-t border-gray-200/60 flex items-center justify-between">
                   <span class="text-gray-500">Tasques en cua:</span>
@@ -3249,7 +3401,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                     <i data-lucide="calendar" class="w-3.5 h-3.5 text-purple-600"></i>
                     <span>Absències Programades (${baixes.length}):</span>
                   </span>
-                  <button onclick="openModalBaixaTemporal(${op.id})" class="text-[10px] text-purple-700 hover:text-purple-900 font-bold hover:underline flex items-center space-x-0.5">
+                  <button data-action="open-baixa-op" data-id="${esc(op.id)}" class="text-[10px] text-purple-700 hover:text-purple-900 font-bold hover:underline flex items-center space-x-0.5">
                     <i data-lucide="plus" class="w-3 h-3"></i>
                     <span>Programar</span>
                   </button>
@@ -3268,7 +3420,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                             <span class="font-mono">${formatDateShort(b.dataInici)} al ${formatDateShort(b.dataFi)}</span>
                             ${b.motiu ? `<p class="text-[9px] text-purple-700 italic truncate max-w-[170px]">${b.motiu}</p>` : ''}
                           </div>
-                          <button onclick="deleteBaixaTemporal(${op.id}, ${bIdx})" title="Eliminar absència" class="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded">
+                          <button data-action="delete-baixa-op" data-id="${esc(op.id)}" data-extra="${bIdx}" title="Eliminar absència" class="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded">
                             <i data-lucide="trash-2" class="w-3 h-3"></i>
                           </button>
                         </div>
@@ -3281,26 +3433,26 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
             <!-- Accions de Gestió Completa (Alta, Baixa, Modificació, Reassignació) -->
             <div class="space-y-1.5 pt-2 border-t border-gray-100">
-              <button onclick="openEditOperatorModal(${op.id})" class="w-full min-touch py-2 bg-blue-50 hover:bg-blue-100 text-[#1D3557] border border-blue-200 text-xs font-bold rounded-xl flex items-center justify-center space-x-1">
+              <button data-action="open-edit-op" data-id="${esc(op.id)}" class="w-full min-touch py-2 bg-blue-50 hover:bg-blue-100 text-[#1D3557] border border-blue-200 text-xs font-bold rounded-xl flex items-center justify-center space-x-1">
                 <i data-lucide="edit" class="w-3.5 h-3.5 text-[#2A9D8F]"></i>
                 <span>Editar Dades</span>
               </button>
 
               ${op.actiu ? `
-                <button onclick="openModalBaixaTemporal(${op.id})" class="w-full min-touch py-2 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-300 text-xs font-bold rounded-xl flex items-center justify-center space-x-1.5">
+                <button data-action="open-baixa-op" data-id="${esc(op.id)}" class="w-full min-touch py-2 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-300 text-xs font-bold rounded-xl flex items-center justify-center space-x-1.5">
                   <i data-lucide="calendar-plus" class="w-3.5 h-3.5 text-purple-700"></i>
                   <span>Programar Vacances / Baixa</span>
                 </button>
-                <button onclick="openBulkReassignModal(${op.id})" class="w-full min-touch py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold rounded-xl flex items-center justify-center space-x-1.5">
+                <button data-action="open-bulk-reassign" data-id="${esc(op.id)}" class="w-full min-touch py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold rounded-xl flex items-center justify-center space-x-1.5">
                   <i data-lucide="arrow-right-left" class="w-3.5 h-3.5 text-amber-700"></i>
                   <span>Reassignar tasques en bloc</span>
                 </button>
-                <button onclick="toggleOperatorStatus(${op.id})" class="w-full min-touch py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-semibold rounded-xl flex items-center justify-center space-x-1.5">
+                <button data-action="toggle-op-status" data-id="${esc(op.id)}" class="w-full min-touch py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-semibold rounded-xl flex items-center justify-center space-x-1.5">
                   <i data-lucide="user-x" class="w-3.5 h-3.5 text-red-500"></i>
                   <span>Donar de Baixa Permanent</span>
                 </button>
               ` : `
-                <button onclick="toggleOperatorStatus(${op.id})" class="w-full min-touch py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-xl flex items-center justify-center space-x-1.5">
+                <button data-action="toggle-op-status" data-id="${esc(op.id)}" class="w-full min-touch py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-xl flex items-center justify-center space-x-1.5">
                   <i data-lucide="user-check" class="w-3.5 h-3.5 text-emerald-600"></i>
                   <span>Reactivar Operari</span>
                 </button>
@@ -3708,7 +3860,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               <div class="flex items-start justify-between">
                 <div>
                   <div class="flex items-center space-x-2 flex-wrap gap-y-1">
-                    <span class="text-xs font-mono font-bold text-[#1D3557]">${task.id}</span>
+                    <span class="text-xs font-mono font-bold text-[#1D3557]">${esc(task.id)}</span>
                     <span class="px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-800 rounded-full flex items-center space-x-1">
                       <i data-lucide="check-circle" class="w-3 h-3 text-emerald-600"></i>
                       <span>RESOLTA</span>
@@ -3717,24 +3869,24 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                       ${CATEGORIA_LABELS[task.categoria] || task.categoria}
                     </span>
                   </div>
-                  <h4 class="font-bold text-base text-gray-900 leading-snug mt-1">${task.titol}</h4>
+                  <h4 class="font-bold text-base text-gray-900 leading-snug mt-1">${esc(task.titol)}</h4>
                 </div>
                 <span class="text-[11px] text-gray-500 font-medium whitespace-nowrap">${finalDateStr}</span>
               </div>
 
               <div class="flex items-center space-x-1.5 text-xs text-gray-700 bg-gray-50 p-2.5 rounded-xl border border-gray-200">
                 <i data-lucide="map-pin" class="w-4 h-4 text-[#2A9D8F] flex-shrink-0"></i>
-                <span class="font-medium">${task.nucli} · ${task.via}</span>
+                <span class="font-medium">${esc(task.nucli)} · ${esc(task.via)}</span>
               </div>
 
               ${task.descripcio ? `
-                <p class="text-xs text-gray-600">${task.descripcio}</p>
+                <p class="text-xs text-gray-600">${esc(task.descripcio)}</p>
               ` : ''}
 
               ${task.observacionsTancament ? `
                 <div class="bg-emerald-50/70 border border-emerald-200 rounded-xl p-2.5 text-xs text-emerald-950">
                   <span class="font-bold block text-emerald-900">Observacions de finalització:</span>
-                  <span class="text-emerald-800">${task.observacionsTancament}</span>
+                  <span class="text-emerald-800">${esc(task.observacionsTancament)}</span>
                 </div>
               ` : ''}
 
@@ -3747,7 +3899,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                         <i data-lucide="camera" class="w-3 h-3"></i>
                         <span>Foto inicial</span>
                       </span>
-                      <div class="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-100 cursor-pointer h-28 group" onclick="openPhotoViewerById('${task.id}')" title="Clica per ampliar">
+                      <div class="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-100 cursor-pointer h-28 group" data-action="open-photo-viewer" data-id="${esc(task.id)}" title="Clica per ampliar">
                         <img src="${task.fotoInicial}" alt="Foto inicial" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                         <div class="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[9px] px-2 py-0.5 rounded-full flex items-center space-x-0.5">
                           <i data-lucide="maximize-2" class="w-2.5 h-2.5"></i>
@@ -3763,7 +3915,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                         <i data-lucide="check-circle" class="w-3 h-3 text-emerald-600"></i>
                         <span>Foto reparació</span>
                       </span>
-                      <div class="relative rounded-xl overflow-hidden border border-emerald-300 bg-emerald-50/30 cursor-pointer h-28 group" onclick="openPhotoViewerFinalById('${task.id}')" title="Clica per ampliar">
+                      <div class="relative rounded-xl overflow-hidden border border-emerald-300 bg-emerald-50/30 cursor-pointer h-28 group" data-action="open-photo-viewer-final" data-id="${esc(task.id)}" title="Clica per ampliar">
                         <img src="${task.fotoFinal}" alt="Foto final" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                         <div class="absolute bottom-1.5 right-1.5 bg-emerald-700 text-white text-[9px] px-2 py-0.5 rounded-full flex items-center space-x-0.5">
                           <i data-lucide="maximize-2" class="w-2.5 h-2.5"></i>
@@ -3779,9 +3931,9 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               <div class="flex items-center justify-between pt-2 border-t border-gray-100 text-xs">
                 <div class="flex items-center space-x-1.5 text-gray-600">
                   <i data-lucide="pen-tool" class="w-3.5 h-3.5 text-emerald-600"></i>
-                  <span>Validat per: <strong class="text-gray-900">${task.nomSignatari || 'Operari'}</strong></span>
+                  <span>Validat per: <strong class="text-gray-900">${esc(task.nomSignatari || 'Operari')}</strong></span>
                 </div>
-                <button onclick="openReportModal('${task.id}')" class="min-touch px-3 py-1.5 bg-[#1D3557] hover:bg-[#152741] text-white rounded-xl font-bold text-xs flex items-center space-x-1 shadow-xs transition-colors">
+                <button data-action="open-report" data-id="${esc(task.id)}" class="min-touch px-3 py-1.5 bg-[#1D3557] hover:bg-[#152741] text-white rounded-xl font-bold text-xs flex items-center space-x-1 shadow-xs transition-colors">
                   <i data-lucide="file-text" class="w-3.5 h-3.5 text-teal-300"></i>
                   <span>Justificant PDF</span>
                 </button>
@@ -3878,13 +4030,13 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
             <div class="flex items-start justify-between">
               <div>
                 <div class="flex items-center space-x-2">
-                  <span class="text-xs font-mono font-bold text-[#1D3557]">${task.id}</span>
+                  <span class="text-xs font-mono font-bold text-[#1D3557]">${esc(task.id)}</span>
                   ${task.prioritat === 'urgent' ? '<span class="px-2 py-0.5 text-[10px] font-bold bg-red-100 text-red-800 rounded-full">URGENT</span>' : ''}
                   ${task.esImportant ? '<span class="px-1.5 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 rounded border border-amber-300">★ IMPORTANT</span>' : ''}
-                  ${task.esProgramada ? `<span class="px-1.5 py-0.5 text-[10px] font-bold bg-purple-100 text-purple-900 rounded border border-purple-300">🔄 Preventiu (${FREQUENCIA_LABELS[task.frequencia]?.label || task.frequencia})</span>` : ''}
+                  ${task.esProgramada ? `<span class="px-1.5 py-0.5 text-[10px] font-bold bg-purple-100 text-purple-900 rounded border border-purple-300">🔄 Preventiu (${esc(FREQUENCIA_LABELS[task.frequencia]?.label || task.frequencia)})</span>` : ''}
                   ${teammates.length > 0 ? '<span class="px-1.5 py-0.5 text-[10px] font-bold bg-teal-100 text-teal-800 rounded">👥 Equip</span>' : ''}
                 </div>
-                <h4 class="font-bold text-base text-gray-900 leading-snug mt-1">${task.titol}</h4>
+                <h4 class="font-bold text-base text-gray-900 leading-snug mt-1">${esc(task.titol)}</h4>
               </div>
               <span class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-[#1D3557]">
                 <i data-lucide="navigation" class="w-3 h-3 text-[#2A9D8F]"></i>
@@ -3897,7 +4049,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
             <div class="flex items-center justify-between bg-gray-50 p-2.5 rounded-xl border border-gray-200 text-xs">
               <div class="flex items-center space-x-1.5 text-gray-700">
                 <i data-lucide="map-pin" class="w-4 h-4 text-[#2A9D8F] flex-shrink-0"></i>
-                <span class="font-medium">${task.nucli} · ${task.via}</span>
+                <span class="font-medium">${esc(task.nucli)} · ${esc(task.via)}</span>
               </div>
               
               <a href="${gmapsUrl}" target="_blank" rel="noopener noreferrer" class="min-touch px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#1D3557] font-bold text-[11px] rounded-lg border border-blue-200 inline-flex items-center space-x-1 shadow-xs">
@@ -3907,8 +4059,8 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
             </div>
 
             <div class="text-xs text-gray-600 bg-blue-50/40 p-2 rounded-lg border border-blue-100">
-              <span class="font-semibold text-[#1D3557]">Especialitat:</span> ${CATEGORIA_LABELS[task.categoria] || task.categoria}<br/>
-              <span class="text-gray-500">${task.descripcio || 'Sense indicacions addicionals'}</span>
+              <span class="font-semibold text-[#1D3557]">Especialitat:</span> ${esc(CATEGORIA_LABELS[task.categoria] || task.categoria)}<br/>
+              <span class="text-gray-500">${esc(task.descripcio || 'Sense indicacions addicionals')}</span>
             </div>
 
             ${task.fotoInicial ? `
@@ -3918,11 +4070,11 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                     <i data-lucide="camera" class="w-3.5 h-3.5 text-[#2A9D8F]"></i>
                     <span>Foto adjunta de la incidència:</span>
                   </span>
-                  <button type="button" onclick="openPhotoViewerById('${task.id}')" class="text-xs text-[#2A9D8F] font-bold hover:underline">
+                  <button type="button" data-action="open-photo-viewer" data-id="${esc(task.id)}" class="text-xs text-[#2A9D8F] font-bold hover:underline min-touch">
                     Ampliar foto
                   </button>
                 </div>
-                <div class="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-100 cursor-pointer group" onclick="openPhotoViewerById('${task.id}')">
+                <div class="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-100 cursor-pointer group" data-action="open-photo-viewer" data-id="${esc(task.id)}">
                   <img src="${task.fotoInicial}" alt="Foto incidència" class="w-full h-44 object-cover hover:scale-[1.01] transition-transform duration-200" />
                   <div class="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2.5 py-1 rounded-full flex items-center space-x-1 backdrop-blur-xs">
                     <i data-lucide="maximize-2" class="w-3 h-3"></i>
@@ -3951,29 +4103,29 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
             <div class="grid grid-cols-2 gap-2 pt-1">
               ${isRunning ? `
-                <button onclick="pauseTaskMaterial('${task.id}')" class="min-touch py-3 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
+                <button type="button" data-action="pause-task" data-id="${esc(task.id)}" class="min-touch py-3 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
                   <i data-lucide="pause-circle" class="w-4 h-4"></i>
                   <span>Pausa / Material</span>
                 </button>
-                <button onclick="openModalFinalitzar('${task.id}')" class="min-touch py-3 bg-[#1D3557] hover:bg-[#152741] text-white font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
+                <button type="button" data-action="open-finalitzar" data-id="${esc(task.id)}" class="min-touch py-3 bg-[#1D3557] hover:bg-[#152741] text-white font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
                   <i data-lucide="check-square" class="w-4 h-4 text-emerald-400"></i>
                   <span>Finalitzar i Signar</span>
                 </button>
               ` : isPaused ? `
-                <button onclick="startTaskTimer('${task.id}')" class="min-touch py-3 bg-[#2A9D8F] hover:bg-[#238276] text-white font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
+                <button type="button" data-action="start-timer" data-id="${esc(task.id)}" class="min-touch py-3 bg-[#2A9D8F] hover:bg-[#238276] text-white font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
                   <i data-lucide="play" class="w-4 h-4"></i>
                   <span>Reprendre Feina</span>
                 </button>
-                <button onclick="openModalFinalitzar('${task.id}')" class="min-touch py-3 bg-[#1D3557] hover:bg-[#152741] text-white font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
+                <button type="button" data-action="open-finalitzar" data-id="${esc(task.id)}" class="min-touch py-3 bg-[#1D3557] hover:bg-[#152741] text-white font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
                   <i data-lucide="check-square" class="w-4 h-4 text-emerald-400"></i>
                   <span>Finalitzar i Signar</span>
                 </button>
               ` : `
-                <button onclick="startTaskTimer('${task.id}')" class="min-touch py-3 bg-[#2A9D8F] hover:bg-[#238276] text-white font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
+                <button type="button" data-action="start-timer" data-id="${esc(task.id)}" class="min-touch py-3 bg-[#2A9D8F] hover:bg-[#238276] text-white font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
                   <i data-lucide="play" class="w-4 h-4"></i>
                   <span>Iniciar Feina</span>
                 </button>
-                <button onclick="openModalFinalitzar('${task.id}')" class="min-touch py-3 bg-[#1D3557] hover:bg-[#152741] text-white font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
+                <button type="button" data-action="open-finalitzar" data-id="${esc(task.id)}" class="min-touch py-3 bg-[#1D3557] hover:bg-[#152741] text-white font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
                   <i data-lucide="check-square" class="w-4 h-4 text-emerald-400"></i>
                   <span>Finalitzar i Signar</span>
                 </button>
@@ -3987,7 +4139,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
     }
 
     function startTaskTimer(taskId) {
-      const task = APP_STATE.tasks.find(t => t.id === taskId);
+      const task = APP_STATE.tasks.find(t => String(t.id) === String(taskId));
       if (task) {
         task.estat = 'en_curs';
         if (window.FB && window.FB.isReady) {
@@ -4000,7 +4152,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
     }
 
     function pauseTaskMaterial(taskId) {
-      const task = APP_STATE.tasks.find(t => t.id === taskId);
+      const task = APP_STATE.tasks.find(t => String(t.id) === String(taskId));
       if (task) {
         task.estat = 'pendent_material';
         if (window.FB && window.FB.isReady) {
@@ -4035,14 +4187,14 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
     }
 
     function openPhotoViewerById(taskId) {
-      const task = APP_STATE.tasks.find(t => t.id === taskId);
+      const task = APP_STATE.tasks.find(t => String(t.id) === String(taskId));
       if (task && task.fotoInicial) {
         openPhotoViewer(task.fotoInicial, `${task.id} - ${task.titol || 'Fotografia'}`);
       }
     }
 
     function openPhotoViewerFinalById(taskId) {
-      const task = APP_STATE.tasks.find(t => t.id === taskId);
+      const task = APP_STATE.tasks.find(t => String(t.id) === String(taskId));
       if (task && task.fotoFinal) {
         openPhotoViewer(task.fotoFinal, `${task.id} (Foto de la Reparació Acabada) - ${task.titol || ''}`);
       }
@@ -4061,6 +4213,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       signatureCanvas = document.getElementById('signature-canvas');
       if (!signatureCanvas) return;
       signatureCtx = signatureCanvas.getContext('2d');
+      if (!signatureCtx) return;
 
       const rect = signatureCanvas.getBoundingClientRect();
       const width = Math.max(rect.width || 0, 360);
@@ -4134,7 +4287,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
     function openModalFinalitzar(taskId) {
       currentClosingTaskId = taskId;
-      const task = APP_STATE.tasks.find(t => t.id === taskId);
+      const task = APP_STATE.tasks.find(t => String(t.id) === String(taskId));
       if (!task) return;
 
       // Resum i foto prèvia de la incidència al modal
@@ -4144,14 +4297,14 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           <div class="flex items-start justify-between gap-2">
             <div>
               <div class="flex items-center space-x-1.5">
-                <span class="font-mono font-bold text-[#1D3557]">${task.id}</span>
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-[#1D3557]">${CATEGORIA_LABELS[task.categoria] || task.categoria}</span>
+                <span class="font-mono font-bold text-[#1D3557]">${esc(task.id)}</span>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-[#1D3557]">${esc(CATEGORIA_LABELS[task.categoria] || task.categoria)}</span>
               </div>
-              <h4 class="font-bold text-gray-900 mt-1">${task.titol}</h4>
-              <p class="text-[11px] text-gray-500">${task.nucli} · ${task.via}</p>
+              <h4 class="font-bold text-gray-900 mt-1">${esc(task.titol)}</h4>
+              <p class="text-[11px] text-gray-500">${esc(task.nucli)} · ${esc(task.via)}</p>
             </div>
             ${task.fotoInicial ? `
-              <div class="flex flex-col items-center flex-shrink-0 cursor-pointer" onclick="openPhotoViewerById('${task.id}')" title="Clica per ampliar">
+              <div class="flex flex-col items-center flex-shrink-0 cursor-pointer" data-action="open-photo-viewer" data-id="${esc(task.id)}" title="Clica per ampliar">
                 <img src="${task.fotoInicial}" class="w-14 h-14 rounded-lg object-cover border border-gray-300 shadow-xs" />
                 <span class="text-[9px] text-[#2A9D8F] font-bold mt-0.5">Veure foto</span>
               </div>
@@ -4258,7 +4411,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
     }
 
     async function confirmTaskCompletion() {
-      const task = APP_STATE.tasks.find(t => t.id === currentClosingTaskId);
+      const task = APP_STATE.tasks.find(t => String(t.id) === String(currentClosingTaskId));
       if (!task) {
         alert("Error: No s'ha trobat la tasca a finalitzar.");
         return;
@@ -4318,7 +4471,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
     // INFORME OFICIAL MUNICIPAL EN FORMAT PDF / PRINT
     // -------------------------------------------------------------------------
     function openReportModal(taskId) {
-      const task = APP_STATE.tasks.find(t => t.id === taskId);
+      const task = APP_STATE.tasks.find(t => String(t.id) === String(taskId));
       if (!task) {
         alert("No s'ha trobat la informació d'aquesta tasca.");
         return;
@@ -4437,21 +4590,21 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
         return `
           <tr class="hover:bg-gray-50 text-xs transition-colors">
-            <td class="px-3 py-2.5 text-center font-bold text-gray-500">${v.num}</td>
-            <td class="px-3 py-2.5 font-mono font-bold ${v.codiMun !== '—' ? 'text-[#1D3557]' : 'text-gray-400'}">${v.codiMun}</td>
+            <td class="px-3 py-2.5 text-center font-bold text-gray-500">${esc(v.num)}</td>
+            <td class="px-3 py-2.5 font-mono font-bold ${v.codiMun !== '—' ? 'text-[#1D3557]' : 'text-gray-400'}">${esc(v.codiMun)}</td>
             <td class="px-3 py-2.5">
               <span class="px-2 py-0.5 rounded font-bold text-[10px] uppercase ${v.tipus === 'CAMÍ' ? 'bg-amber-100 text-amber-800' : v.tipus === 'PLAÇA' ? 'bg-indigo-100 text-indigo-800' : v.tipus === 'LLOC' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-700'}">
-                ${v.tipus}
+                ${esc(v.tipus)}
               </span>
             </td>
-            <td class="px-3 py-2.5 font-mono text-gray-600">${v.codiIne}</td>
+            <td class="px-3 py-2.5 font-mono text-gray-600">${esc(v.codiIne)}</td>
             <td class="px-4 py-2.5">
-              <div class="font-bold text-[#1D3557]">${v.nom}</div>
-              ${v.alts ? `<div class="text-[10px] text-gray-500 italic">Alt: ${v.alts}</div>` : ''}
+              <div class="font-bold text-[#1D3557]">${esc(v.nom)}</div>
+              ${v.alts ? `<div class="text-[10px] text-gray-500 italic">Alt: ${esc(v.alts)}</div>` : ''}
             </td>
             <td class="px-3 py-2.5">
-              <div class="font-medium text-gray-800">${v.nucli}</div>
-              <div class="text-[10px] ${isFromPadro ? 'text-blue-600 font-medium' : 'text-emerald-600'}">${v.procedencia}</div>
+              <div class="font-medium text-gray-800">${esc(v.nucli)}</div>
+              <div class="text-[10px] ${isFromPadro ? 'text-blue-600 font-medium' : 'text-emerald-600'}">${esc(v.procedencia)}</div>
             </td>
             <td class="px-3 py-2.5 text-right">
               <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
@@ -4589,23 +4742,23 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                       ${prog.activa ? '● Activa' : '⏸️ Pausada'}
                     </span>
                   </div>
-                  <h4 class="font-bold text-sm text-[#1D3557] leading-snug mt-1">${prog.titol}</h4>
+                  <h4 class="font-bold text-sm text-[#1D3557] leading-snug mt-1">${esc(prog.titol)}</h4>
                 </div>
                 <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-700 whitespace-nowrap">
                   ${CATEGORIA_LABELS[prog.categoria] || prog.categoria}
                 </span>
               </div>
 
-              <p class="text-xs text-gray-600 line-clamp-2">${prog.descripcio}</p>
+              <p class="text-xs text-gray-600 line-clamp-2">${esc(prog.descripcio)}</p>
 
               <div class="bg-gray-50 p-2.5 rounded-xl border border-gray-100 text-[11px] space-y-1 text-gray-700">
                 <p class="flex items-center space-x-1.5">
                   <i data-lucide="map-pin" class="w-3.5 h-3.5 text-[#2A9D8F] flex-shrink-0"></i>
-                  <span><strong>${prog.nucli}</strong> · ${prog.via}</span>
+                  <span><strong>${esc(prog.nucli)}</strong> · ${esc(prog.via)}</span>
                 </p>
                 <p class="flex items-center space-x-1.5 text-gray-600">
                   <i data-lucide="clock" class="w-3.5 h-3.5 text-purple-600 flex-shrink-0"></i>
-                  <span>Dia preferent: <strong>${prog.diaPreferent || 'Flexible'}</strong></span>
+                  <span>Dia preferent: <strong>${esc(prog.diaPreferent || 'Flexible')}</strong></span>
                 </p>
                 <div class="pt-1 border-t border-gray-200/60 flex items-center justify-between text-[10px]">
                   <span class="text-gray-500">Darrera tanda: <strong>${formatDateShort(prog.darreraExecucio) || 'Pendent'}</strong></span>
@@ -4635,21 +4788,21 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
             <!-- Accions de la Tasca Programada -->
             <div class="space-y-1.5 pt-2 border-t border-gray-100">
-              <button onclick="generarOrdreFromProgramada('${prog.id}')" class="w-full min-touch py-2 bg-[#2A9D8F] hover:bg-[#238276] text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center space-x-1.5 transition-all">
+              <button data-action="generar-ordre-programada" data-id="${esc(prog.id)}" class="w-full min-touch py-2 bg-[#2A9D8F] hover:bg-[#238276] text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center space-x-1.5 transition-all">
                 <i data-lucide="zap" class="w-3.5 h-3.5"></i>
                 <span>Generar Ordre de Treball Ara</span>
               </button>
 
               <div class="grid grid-cols-3 gap-1">
-                <button onclick="toggleProgramadaStatus('${prog.id}')" class="min-touch py-1.5 ${prog.activa ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'} border text-[11px] font-semibold rounded-lg flex items-center justify-center space-x-1">
+                <button data-action="toggle-programada-status" data-id="${esc(prog.id)}" class="min-touch py-1.5 ${prog.activa ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'} border text-[11px] font-semibold rounded-lg flex items-center justify-center space-x-1">
                   <i data-lucide="${prog.activa ? 'pause' : 'play'}" class="w-3 h-3"></i>
                   <span>${prog.activa ? 'Pausar' : 'Activar'}</span>
                 </button>
-                <button onclick="openModalProgramada('${prog.id}')" class="min-touch py-1.5 bg-blue-50 hover:bg-blue-100 text-[#1D3557] border border-blue-200 text-[11px] font-semibold rounded-lg flex items-center justify-center space-x-1">
+                <button data-action="open-modal-programada" data-id="${esc(prog.id)}" class="min-touch py-1.5 bg-blue-50 hover:bg-blue-100 text-[#1D3557] border border-blue-200 text-[11px] font-semibold rounded-lg flex items-center justify-center space-x-1">
                   <i data-lucide="edit" class="w-3 h-3 text-[#2A9D8F]"></i>
                   <span>Editar</span>
                 </button>
-                <button onclick="deleteProgramada('${prog.id}')" class="min-touch py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[11px] font-semibold rounded-lg flex items-center justify-center space-x-1">
+                <button data-action="delete-programada" data-id="${esc(prog.id)}" class="min-touch py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[11px] font-semibold rounded-lg flex items-center justify-center space-x-1">
                   <i data-lucide="trash-2" class="w-3 h-3 text-red-500"></i>
                   <span>Eliminar</span>
                 </button>

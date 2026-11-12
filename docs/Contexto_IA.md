@@ -14,14 +14,21 @@ Es un proyecto **distinto e independiente** de «Proposta Santa Eugènia» (form
 
 ## Estado actual (12/11/2026)
 - La app funciona como prototipo avanzado y está desplegada en Firebase Hosting.
-- **Fase 1 completada (12/11/2026)** a la branca `fix/fase-1-auth-regles` (pujada a GitHub):
+- **Fase 1 completada i desplegada (12/11/2026)**:
   - ✅ Implementació real de **Firebase Authentication**: login d'administrador per email/contrasenya i operaris per PIN de 6 dígits (email sintètic `op-<id>@brigada-santa-eugenia.local`).
   - ✅ Gestió de rols centralitzada a Firestore (`rols/{uid}`).
-  - ✅ `firestore.rules` i `firestore.indexes.json` configurats i validats amb compilació dry-run de Firebase CLI.
+  - ✅ `firestore.rules` i `firestore.indexes.json` configurats i **desplegats a producció amb autorització de l'usuari**. Accés públic no autenticat tancat (verificat error 403 `PERMISSION_DENIED`).
   - ✅ Eliminats tots els PINs i contrasenyes per defecte `1234`, retirats els modals de PIN en text clar i l'emmagatzematge de sessions vulnerables a `localStorage`.
   - ✅ Sincronització de tasques adaptada a consultes per rol (`operariIds array-contains`).
   - ✅ Afegits scripts de provisió (`scripts/bootstrap-auth.mjs`), dades demo (`scripts/seed-demo.mjs`) i suite de tests de regles (`tests/rules.test.mjs`).
-  - ⏳ Pendent de desplegament a producció: el desplegament de regles i índexs (`firebase deploy --only firestore:rules,firestore:indexes`) s'ha de llançar amb autorització expressa.
+- **Fase 2 completada (12/11/2026)** a la branca `fix/fase-2-xss-apostrofs`:
+  - ✅ Funció `esc(str)` d'escapat sistemàtic d'HTML (`&`, `<`, `>`, `"`, `'`) aplicada a totes les plantilles i dades d'incidències, operaris, nomenclàtor i tasques programades.
+  - ✅ Sanitització d'URLs i enllaços externs (`sanitizeUrl`, `sanitizeTel`, `sanitizeMapsUrl`).
+  - ✅ Eliminats els `onclick` inline dinàmics amb concatenació de strings; substituïts per `data-action` i `data-id` amb un únic listener delegat a `document`.
+  - ✅ Correcció d'apòstrofs en català (ex. «Miquel D'Oliva», «Font de ses Coves») sense ruptures de sintaxi JS ni DOM.
+  - ✅ Unificació de cerca per identificadors (`String(t.id) === String(...)`), reactivant el funcionament de «Finalitzar i Signar» i «Justificant PDF».
+  - ✅ Content-Security-Policy (CSP) i capçaleres de seguretat configurades a `firebase.json`.
+  - ✅ Suite de tests `tests/xss.test.mjs` amb JSDOM (100% tests verds).
 - **Auditoría del 12/11/2026** (`AUDITORIA_2026-11-12.md` en esta carpeta y en el repo, `docs/`):
   - 🔴 **Firestore es público sin autenticar para LEER, ESCRIBIR y BORRAR.** Verificado con sondas que no modifican nada. Expone nombre, teléfono y **PIN** del personal, además de firmas, fotos y ubicaciones.
   - 🔴 Login solo visual: contraseña de admin `1234` en el código, PIN maestro `1234`, sesión falsificable en localStorage.
