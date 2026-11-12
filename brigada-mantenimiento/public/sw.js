@@ -1,13 +1,17 @@
 // =============================================================================
 // Service Worker - Brigada Municipal de Santa Eugènia
-// Versió: 1.2.0 (Garanteix refresc immediat de la interfície i suport offline)
+// Versió: 1.3.0 (Àmbit arrel /, suport offline complet PWA i Firestore persistence)
 // =============================================================================
 
-const CACHE_NAME = 'brigada-se-v1.2.0';
+const CACHE_NAME = 'brigada-se-v1.3.0';
 const STATIC_ASSETS = [
   './',
   './index.html',
   './manifest.json',
+  './logo-santa-eugenia.jpg',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/icon-maskable.png',
   'https://cdn.tailwindcss.com',
   'https://unpkg.com/lucide@latest',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
@@ -18,7 +22,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch(err => {
+      return cache.addAll(STATIC_ASSETS).catch((err) => {
         console.warn('[SW] Alguna dependència no s’ha pogut pre-cachejar:', err);
       });
     })
@@ -43,7 +47,16 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // ESTRATÈGIA NETWORK-FIRST PER A NAVEGACIÓ I DOCUMENTS HTML
+  // No interceptar trucades a Firebase ni a APIs d'autenticació/Firestore (es gestionen pel SDK natiu)
+  if (
+    url.hostname.includes('firebase') ||
+    url.hostname.includes('googleapis.com') ||
+    url.hostname.includes('identitytoolkit')
+  ) {
+    return;
+  }
+
+  // 1. ESTRATÈGIA NETWORK-FIRST PER A NAVEGACIÓ I DOCUMENTS HTML
   // Garanteix que sempre que hi hagi connexió s'obtingui la versió més recent sense cau stale.
   if (
     event.request.mode === 'navigate' ||
@@ -67,12 +80,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // ESTRATÈGIA STALE-WHILE-REVALIDATE PER A ACTIUS ESTÀTICS
+  // 2. ESTRATÈGIA STALE-WHILE-REVALIDATE PER A ACTIUS ESTÀTICS I CDNs
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request)
         .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          if (
+            networkResponse &&
+            networkResponse.status === 200 &&
+            (networkResponse.type === 'basic' || networkResponse.type === 'cors')
+          ) {
             const clone = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           }

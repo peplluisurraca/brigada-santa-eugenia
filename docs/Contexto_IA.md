@@ -29,6 +29,15 @@ Es un proyecto **distinto e independiente** de «Proposta Santa Eugènia» (form
   - ✅ Unificació de cerca per identificadors (`String(t.id) === String(...)`), reactivant el funcionament de «Finalitzar i Signar» i «Justificant PDF».
   - ✅ Content-Security-Policy (CSP) i capçaleres de seguretat configurades a `firebase.json`.
   - ✅ Suite de tests `tests/xss.test.mjs` amb JSDOM (100% tests verds).
+- **Fase 3 completada (12/11/2026)** a la branca `fix/fase-3-offline-pwa`:
+  - ✅ Ubicació correcta del **Service Worker (`sw.js`)** i **Manifest (`manifest.json`)** a l'arrel de l'aplicació (`brigada-mantenimiento/`) amb àmbit arrel `{ scope: './' }`.
+  - ✅ Estratègia de cau robusta: `network-first` per a documents HTML (garanteix refresc immediat en línia sense fallades offline) i `stale-while-revalidate` per a recursos estàtics i biblioteques externes (CDNs), ignorant el trànsit d'APIs de Firebase/Firestore.
+  - ✅ Activació de la **persistència offline nativa de Firestore** (`initializeFirestore` amb `persistentLocalCache` i `persistentMultipleTabManager`), amb cua local de canvis a IndexedDB que se sincronitza automàticament en restablir connexió.
+  - ✅ Generació i integració d'icones oficials PWA instal·lables (`icon-192.png`, `icon-512.png`, `icon-maskable.png`) a partir de l'escut municipal, amb suport per a `apple-touch-icon`.
+  - ✅ **Indicador visual de connectivitat en temps real** en català normatiu: «*En línia*» (verd), «*Sincronitzant canvis...*» (taronja parpellejant) i «*Sense connexió — es sincronitzarà*» (taronja fix) basat en metadades de Firestore (`snapshot.metadata.hasPendingWrites`). Eliminades totes les cadenes en castellà («Sin conexión»).
+  - ✅ Sistema de notificacions emergents no intrusives (**Toasts**) per a canvis de connectivitat i confirmació d'accions en substitució d'`alert()` bloquejants.
+  - ✅ Millores a la pantalla d'operari: pestanyes «Tasques Pendents» i «Resoltes / Finalitzades» amb accés directe a justificants PDF i eliminació de referències tècniques («Haversine»).
+  - ✅ Suite de tests automatitzada `tests/offline.test.mjs` (100% tests verds).
 - **Auditoría del 12/11/2026** (`AUDITORIA_2026-11-12.md` en esta carpeta y en el repo, `docs/`):
   - 🔴 **Firestore es público sin autenticar para LEER, ESCRIBIR y BORRAR.** Verificado con sondas que no modifican nada. Expone nombre, teléfono y **PIN** del personal, además de firmas, fotos y ubicaciones.
   - 🔴 Login solo visual: contraseña de admin `1234` en el código, PIN maestro `1234`, sesión falsificable en localStorage.
