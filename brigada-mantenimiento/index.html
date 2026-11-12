@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Brigada Municipal - Ajuntament de Santa Eugènia</title>
   
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  
   <!-- Manifest PWA -->
   <link rel="manifest" href="./public/manifest.json">
   <link rel="icon" type="image/jpeg" href="./logo-santa-eugenia.jpg">
@@ -4649,7 +4653,9 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       lucide.createIcons();
 
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./public/sw.js').catch(() => {});
+        navigator.serviceWorker.register('./public/sw.js').then((reg) => {
+          reg.update();
+        }).catch(() => {});
       }
     });
   </script>
