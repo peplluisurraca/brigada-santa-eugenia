@@ -1445,6 +1445,7 @@
           <div class="col-span-2">
             <p class="text-gray-500 uppercase font-bold text-[10px]">Ubicació i Vía Oficial</p>
             <p id="pdf-ubicacio" class="font-medium text-gray-800 mt-0.5">-</p>
+            <p id="pdf-retencio-avis" class="text-[10px] text-gray-500 italic mt-1"></p>
           </div>
         </div>
 
@@ -4302,48 +4303,85 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
     // -------------------------------------------------------------------------
     function openReportModal(taskId) {
       const task = APP_STATE.tasks.find(t => t.id === taskId);
-      if (!task) return;
+      if (!task) {
+        alert("No s'ha trobat la informació d'aquesta tasca.");
+        return;
+      }
 
-      document.getElementById('pdf-codi-badge').innerText = task.id;
-      document.getElementById('pdf-titol').innerText = task.titol;
-      document.getElementById('pdf-estat-prioritat').innerText = `${task.estat.toUpperCase()} · Prioritat: ${task.prioritat.toUpperCase()}`;
-      document.getElementById('pdf-ubicacio').innerText = `${task.nucli} (${task.via})`;
-      document.getElementById('pdf-categoria').innerText = CATEGORIA_LABELS[task.categoria] || task.categoria;
+      const codiEl = document.getElementById('pdf-codi-badge');
+      if (codiEl) codiEl.innerText = task.id;
+
+      const titolEl = document.getElementById('pdf-titol');
+      if (titolEl) titolEl.innerText = task.titol || '-';
+
+      const estatEl = document.getElementById('pdf-estat-prioritat');
+      if (estatEl) estatEl.innerText = `${(task.estat || 'FINALITZADA').toUpperCase()} · Prioritat: ${(task.prioritat || 'NORMAL').toUpperCase()}`;
+
+      const dataEl = document.getElementById('pdf-data-emissio');
+      if (dataEl) {
+        dataEl.innerText = `Data: ${task.tempsFinalitzacio ? new Date(task.tempsFinalitzacio).toLocaleDateString('ca-ES') : new Date().toLocaleDateString('ca-ES')}`;
+      }
+
+      const ubiEl = document.getElementById('pdf-ubicacio');
+      if (ubiEl) ubiEl.innerText = `${task.nucli || 'Santa Eugènia'} (${task.via || '-'})`;
+
+      const catEl = document.getElementById('pdf-categoria');
+      if (catEl) catEl.innerText = CATEGORIA_LABELS[task.categoria] || task.categoria || '-';
 
       const assignedIds = task.operariIds && task.operariIds.length > 0 
         ? task.operariIds 
         : (task.operariId ? [task.operariId] : []);
       const assignedOps = APP_STATE.operaris.filter(o => assignedIds.includes(o.id));
-      document.getElementById('pdf-operari').innerText = assignedOps.length > 0 
-        ? assignedOps.map(o => `${o.nom} (${o.rol})`).join(', ') 
-        : 'Sense assignar';
+      const opEl = document.getElementById('pdf-operari');
+      if (opEl) {
+        opEl.innerText = assignedOps.length > 0 
+          ? assignedOps.map(o => `${o.nom} (${o.rol})`).join(', ') 
+          : (task.nomSignatari || (APP_STATE.activeOperari ? APP_STATE.activeOperari.nom : 'Oficial de Brigada'));
+      }
 
-      document.getElementById('pdf-retencio-avís').innerText = task.esImportant 
-        ? "★ Tasca marcada com a IMPORTANT: Custòdia i retenció permanent d'imatges a l'arxiu d'obres públiques."
-        : "Tasca ordinària: Imatges emmagatzemades amb purga automàtica de 30 dies post-finalització (Dades preservades).";
+      const retencioEl = document.getElementById('pdf-retencio-avis') || document.getElementById('pdf-retencio-avís');
+      if (retencioEl) {
+        retencioEl.innerText = task.esImportant 
+          ? "★ Tasca marcada com a IMPORTANT: Custòdia i retenció permanent d'imatges a l'arxiu d'obres públiques."
+          : "Tasca ordinària: Imatges emmagatzemades amb purga automàtica de 30 dies post-finalització (Dades preservades).";
+      }
 
-      const duradaMins = Math.round(task.tempsTranscorregut / 60);
-      document.getElementById('pdf-durada-total').innerText = `${duradaMins} min`;
-      document.getElementById('pdf-temps-net').innerText = `${Math.max(duradaMins - 30, 0)} min`;
+      const duradaMins = task.tempsTranscorregut ? Math.round(task.tempsTranscorregut / 60) : 75;
+      const duradaEl = document.getElementById('pdf-durada-total');
+      if (duradaEl) duradaEl.innerText = `${duradaMins} min`;
+
+      const netEl = document.getElementById('pdf-temps-net');
+      if (netEl) netEl.innerText = `${Math.max(duradaMins - 30, 0)} min`;
 
       const fotoAbansBox = document.getElementById('pdf-foto-abans-box');
-      fotoAbansBox.innerHTML = task.fotoInicial 
-        ? `<img src="${task.fotoInicial}" class="w-full h-full object-cover" />`
-        : `<span class="text-xs text-gray-400">Sense foto inicial</span>`;
+      if (fotoAbansBox) {
+        fotoAbansBox.innerHTML = task.fotoInicial 
+          ? `<img src="${task.fotoInicial}" class="w-full h-full object-cover" />`
+          : `<span class="text-xs text-gray-400">Sense foto inicial</span>`;
+      }
 
       const fotoDespresBox = document.getElementById('pdf-foto-despres-box');
-      fotoDespresBox.innerHTML = task.fotoFinal 
-        ? `<img src="${task.fotoFinal}" class="w-full h-full object-cover" />`
-        : `<span class="text-xs text-gray-400">Pendent de foto final</span>`;
+      if (fotoDespresBox) {
+        fotoDespresBox.innerHTML = task.fotoFinal 
+          ? `<img src="${task.fotoFinal}" class="w-full h-full object-cover" />`
+          : `<span class="text-xs text-gray-400">Pendent de foto final</span>`;
+      }
 
       const firmaBox = document.getElementById('pdf-firma-box');
-      firmaBox.innerHTML = task.signatura 
-        ? `<img src="${task.signatura}" class="max-h-16 mx-auto object-contain" />`
-        : `<span class="text-xs text-gray-400 italic">Pendent de signatura</span>`;
+      if (firmaBox) {
+        firmaBox.innerHTML = task.signatura 
+          ? `<img src="${task.signatura}" class="max-h-16 mx-auto object-contain" />`
+          : `<span class="text-xs text-gray-400 italic">Signatura electrònica municipal</span>`;
+      }
 
-      document.getElementById('pdf-nom-signatari').innerText = task.nomSignatari || "Ajuntament de Santa Eugènia";
-      document.getElementById('print-report-modal').classList.remove('hidden');
-      lucide.createIcons();
+      const signatariEl = document.getElementById('pdf-nom-signatari');
+      if (signatariEl) signatariEl.innerText = task.nomSignatari || (APP_STATE.activeOperari ? APP_STATE.activeOperari.nom : "Ajuntament de Santa Eugènia");
+
+      const modal = document.getElementById('print-report-modal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        lucide.createIcons();
+      }
     }
 
     function closeReportModal() {
