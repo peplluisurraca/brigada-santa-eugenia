@@ -45,6 +45,16 @@ Es un proyecto **distinto e independiente** de «Proposta Santa Eugènia» (form
   - ✅ Compressió adaptativa client-side amb fallback a JPEG i límit de mida < 350 KB per a compatibilitat total amb Safari/iOS.
   - ✅ Actualització de `firestore.rules` per blindar la subcol·lecció `match /adjunts/{adjuntId}` amb validació de mida màxima (< 950 KB per fitxer) i permisos estrictes per rol i operari assignat.
   - ✅ Suite de tests automatitzada `tests/adjunts.test.mjs` (100% tests verds).
+- **Fase 5 completada (13/11/2026)** a la branca `fix/fase-5-usabilitat`:
+  - ✅ **Tancament d'Ordres amb Signatura Manuscrita i Nom Estricte**: eliminat completament el segell digital automàtic (`generateDigitalStamp`), obligant a dibuixar el traç real de conformitat al canvas i indicar nom i llinatges del validador abans de poder tancar qualsevol ordre.
+  - ✅ **Modal Finalitzar amb peu sticky**: el botó «*Validar i Finalitzar Definitivament*» és fix al peu del modal (`sticky bottom-0`), sempre accessible en pantalles petites sense dependre d'scroll intern.
+  - ✅ **Manteniment Preventiu Idempotent**: comprovació d'ordres prèviament obertes (`alreadyOpen` per `programadaId`) a `generarOrdreFromProgramada` i `generarTotesOrdresPendents`, evitant la duplicació de feines per clics repetits.
+  - ✅ **Adaptació Responsive 320 px (iPhone SE)**: capçalera compacta fluidament adaptable sense desbordament horitzontal (`overflow-x`), amb botó «*Sortir*» sempre visible i accessible.
+  - ✅ **Accessibilitat (WCAG 2 AA)**: eliminat `user-scalable=no` i `maximum-scale=1.0` del `meta viewport`, afegides etiquetes `<label for="...">` accessibles a tots els camps del login centralitzat i alçades tàctils mínimes (≥ 44 px).
+  - ✅ **Ergonomia de la Vista d'Operari**: retirats els botons d'auto-trucada a la targeta personal de l'operari en torn; format de distància GPS adaptatiu que mostra clarament «*Sense ubicació*» si no es disposa de senyal en lloc de «0 m».
+  - ✅ **Feedback d'Acció**: estats de càrrega amb bloqueig de botons per prevenir dobles enviaments a la creació d'ordres, login i tancament. Substitució de tots els `alert()` bloquejants per `showToast()`.
+  - ✅ **Revisió Lingüística Integral en Català Normatiu**: correcció sistemàtica de «Callejero» → «Nomenclàtor», «Núcli» → «Nucli», «Vía» → «Via».
+  - ✅ Suite de tests automatitzada `tests/usabilitat.test.mjs` (8/8 tests verds).
 - **Auditoría del 12/11/2026** (`AUDITORIA_2026-11-12.md` en esta carpeta y en el repo, `docs/`):
   - 🔴 **Firestore es público sin autenticar para LEER, ESCRIBIR y BORRAR.** Verificado con sondas que no modifican nada. Expone nombre, teléfono y **PIN** del personal, además de firmas, fotos y ubicaciones.
   - 🔴 Login solo visual: contraseña de admin `1234` en el código, PIN maestro `1234`, sesión falsificable en localStorage.
