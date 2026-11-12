@@ -1,0 +1,12 @@
+{
+  "name": "brigada-santa-eugenia",
+  "version": "1.0.0",
+  "description": "Repositori centralitzat de l'aplicació Brigada Municipal de Santa Eugènia",
+  "type": "module",
+  "scripts": {
+    "start": "node brigada-mantenimiento/server.js"
+  },
+  "keywords": ["pwa", "santa-eugenia", "brigada"],
+  "author": "Ajuntament de Santa Eugènia",
+  "license": "UNLICENSED"
+}

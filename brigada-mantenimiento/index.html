@@ -114,13 +114,9 @@
           <span id="conn-status-text">En línia</span>
         </div>
 
-        <div class="bg-white/10 p-1 rounded-lg flex text-xs font-semibold">
-          <button id="btn-switch-admin" onclick="switchRole('admin')" class="px-2.5 py-1.5 rounded-md transition-all bg-[#2A9D8F] text-white shadow-sm">
-            Admin
-          </button>
-          <button id="btn-switch-operari" onclick="switchRole('operari')" class="px-2.5 py-1.5 rounded-md transition-all text-blue-100 hover:text-white">
-            Operari
-          </button>
+        <!-- Sessió d'Usuari Centralitzada (Admin / Operari) -->
+        <div id="header-user-session" class="flex items-center space-x-2">
+          <!-- Es genera dinàmicament segons l'estat d'autenticació -->
         </div>
       </div>
     </div>
@@ -129,7 +125,7 @@
   <!-- ========================================================================= -->
   <!-- NAVEGACIÓ PRINCIPAL DE PESTANYES                                         -->
   <!-- ========================================================================= -->
-  <nav class="bg-white border-b border-gray-200 sticky top-[61px] z-30 shadow-xs">
+  <nav id="main-nav" class="bg-white border-b border-gray-200 sticky top-[61px] z-30 shadow-xs hidden">
     <div class="max-w-7xl mx-auto px-4 flex space-x-1 overflow-x-auto py-2">
       <button onclick="navigateView('admin-dashboard')" id="tab-admin-dashboard" class="nav-tab flex items-center space-x-2 px-3 py-2 text-sm font-semibold rounded-lg text-[#1D3557] bg-blue-50 border border-blue-200 min-touch">
         <i data-lucide="layout-dashboard" class="w-4 h-4 text-[#1D3557]"></i>
@@ -139,6 +135,11 @@
       <button onclick="navigateView('alta-incidencia')" id="tab-alta-incidencia" class="nav-tab flex items-center space-x-2 px-3 py-2 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100 min-touch">
         <i data-lucide="plus-circle" class="w-4 h-4 text-[#2A9D8F]"></i>
         <span>Nova Incidència</span>
+      </button>
+
+      <button onclick="navigateView('gestor-programades')" id="tab-gestor-programades" class="nav-tab flex items-center space-x-2 px-3 py-2 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100 min-touch">
+        <i data-lucide="calendar-clock" class="w-4 h-4 text-purple-600"></i>
+        <span>Manteniment Preventiu</span>
       </button>
 
       <button onclick="navigateView('gestor-nomenclator')" id="tab-gestor-nomenclator" class="nav-tab flex items-center space-x-2 px-3 py-2 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100 min-touch">
@@ -163,49 +164,136 @@
   <!-- ========================================================================= -->
   <main class="max-w-7xl mx-auto px-4 py-4 md:py-6">
 
+    <!-- ===================================================================== -->
+    <!-- PANTALLA DE LOGIN ÚNIC CENTRALITZAT                                   -->
+    <!-- ===================================================================== -->
+    <section id="view-login" class="max-w-md mx-auto my-4 md:my-8">
+      <div class="bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden">
+        <!-- Capçalera del Login -->
+        <div class="bg-[#1D3557] text-white p-6 text-center space-y-3">
+          <div class="w-20 h-20 bg-white rounded-2xl mx-auto flex items-center justify-center p-2 shadow-md">
+            <img src="./logo-santa-eugenia.jpg" alt="Escut de Santa Eugènia" class="w-full h-full object-contain" />
+          </div>
+          <div>
+            <h2 class="text-xl font-bold tracking-tight">Brigada Municipal</h2>
+            <p class="text-xs text-blue-200 mt-0.5">Ajuntament de Santa Eugènia · Portal de Treball</p>
+          </div>
+          
+          <!-- Selector de Perfil (Tabs) -->
+          <div class="bg-white/10 p-1 rounded-xl flex text-xs font-semibold mt-4">
+            <button type="button" id="login-tab-operari" onclick="switchLoginTab('operari')" class="flex-1 py-2 rounded-lg transition-all bg-[#2A9D8F] text-white shadow-sm flex items-center justify-center space-x-1.5">
+              <i data-lucide="smartphone" class="w-3.5 h-3.5"></i>
+              <span>Operari</span>
+            </button>
+            <button type="button" id="login-tab-admin" onclick="switchLoginTab('admin')" class="flex-1 py-2 rounded-lg transition-all text-blue-100 hover:text-white flex items-center justify-center space-x-1.5">
+              <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+              <span>Administrador</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Formulari Operari -->
+        <div id="login-panel-operari" class="p-6 space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Selecciona el teu Nom *</label>
+            <select id="unified-login-operari-select" class="w-full p-3 border border-gray-300 rounded-xl bg-gray-50 text-sm font-medium focus:border-[#2A9D8F] focus:outline-none">
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Codi PIN d'Accés (4 xifres) *</label>
+            <div class="flex justify-center my-1">
+              <input type="password" id="unified-login-operari-pin" maxlength="4" placeholder="••••" onkeyup="if(event.key==='Enter') submitUnifiedLogin('operari')" class="tracking-widest text-center text-3xl font-mono font-bold w-48 py-2.5 border-2 border-gray-300 focus:border-[#2A9D8F] focus:outline-none rounded-xl bg-white shadow-inner" />
+            </div>
+            <p class="text-[11px] text-gray-400 text-center mt-1">PIN per defecte: <strong class="text-gray-600">1234</strong></p>
+          </div>
+
+          <button type="button" onclick="submitUnifiedLogin('operari')" class="w-full min-touch py-3.5 bg-[#2A9D8F] hover:bg-[#238276] text-white font-bold rounded-xl shadow-md flex items-center justify-center space-x-2 transition-all">
+            <i data-lucide="log-in" class="w-5 h-5"></i>
+            <span>Entrar al Torn de Feina</span>
+          </button>
+        </div>
+
+        <!-- Formulari Administrador -->
+        <div id="login-panel-admin" class="p-6 space-y-4 hidden">
+          <div class="bg-blue-50/70 p-3 rounded-xl border border-blue-200 text-xs text-blue-900 flex items-start space-x-2">
+            <i data-lucide="info" class="w-4 h-4 text-[#1D3557] mt-0.5 flex-shrink-0"></i>
+            <p>Accés de coordinació per a Cap de Brigada, Regidoria i Gestió d'Incidències.</p>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Usuari / Perfil</label>
+            <input type="text" value="Administrador (Cap de Brigada)" readonly class="w-full p-3 border border-gray-200 rounded-xl bg-gray-100 text-sm font-medium text-gray-700" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Contrasenya d'Accés (PIN) *</label>
+            <div class="flex justify-center my-1">
+              <input type="password" id="unified-login-admin-pass" maxlength="8" placeholder="••••" onkeyup="if(event.key==='Enter') submitUnifiedLogin('admin')" class="tracking-widest text-center text-3xl font-mono font-bold w-48 py-2.5 border-2 border-gray-300 focus:border-[#1D3557] focus:outline-none rounded-xl bg-white shadow-inner" />
+            </div>
+            <p class="text-[11px] text-gray-400 text-center mt-1">Contrasenya per defecte: <strong class="text-gray-600">1234</strong></p>
+          </div>
+
+          <button type="button" onclick="submitUnifiedLogin('admin')" class="w-full min-touch py-3.5 bg-[#1D3557] hover:bg-[#152741] text-white font-bold rounded-xl shadow-md flex items-center justify-center space-x-2 transition-all">
+            <i data-lucide="shield-check" class="w-5 h-5"></i>
+            <span>Accedir al Panell de Gestió</span>
+          </button>
+        </div>
+
+        <!-- Footer segell Ajuntament -->
+        <div class="bg-gray-50 border-t border-gray-100 py-3 px-6 text-center text-[11px] text-gray-400">
+          🔒 Sistema d'Autenticació Segura · Ajuntament de Santa Eugènia
+        </div>
+      </div>
+    </section>
+
     <!-- --------------------------------------------------------------------- -->
     <!-- PANTALLA 1: DASHBOARD D'ADMINISTRACIÓ (MAPA + GESTIÓ D'ABAST)           -->
     <!-- --------------------------------------------------------------------- -->
     <section id="view-admin-dashboard" class="space-y-6">
       
-      <!-- Targetes de Mètriques Ràpides -->
+      <!-- Targetes de Mètriques Ràpides (Filtres Interactius) -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center justify-between">
+        <div id="card-stat-obertes" onclick="toggleKpiFilter('obertes')" class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center justify-between cursor-pointer hover:border-[#1D3557] hover:shadow-md transition-all select-none group" title="Fes clic per filtrar per tasques obertes">
           <div>
-            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Tasques Obertes</p>
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider group-hover:text-[#1D3557]">Tasques Obertes</p>
             <p id="stat-total-obertes" class="text-2xl font-bold text-[#1D3557] mt-0.5">8</p>
+            <span class="text-[10px] text-gray-400 group-hover:text-[#1D3557]">Fes clic per filtrar</span>
           </div>
-          <div class="w-10 h-10 rounded-lg bg-blue-50 text-[#1D3557] flex items-center justify-center">
+          <div class="w-10 h-10 rounded-lg bg-blue-50 text-[#1D3557] flex items-center justify-center group-hover:bg-[#1D3557] group-hover:text-white transition-colors">
             <i data-lucide="clipboard-list" class="w-5 h-5"></i>
           </div>
         </div>
 
-        <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center justify-between">
+        <div id="card-stat-urgents" onclick="toggleKpiFilter('urgents')" class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center justify-between cursor-pointer hover:border-red-400 hover:shadow-md transition-all select-none group" title="Fes clic per filtrar per tasques urgents">
           <div>
-            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Urgents</p>
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider group-hover:text-red-600">Urgents</p>
             <p id="stat-urgents" class="text-2xl font-bold text-[#E63946] mt-0.5">2</p>
+            <span class="text-[10px] text-gray-400 group-hover:text-red-500">Fes clic per filtrar</span>
           </div>
-          <div class="w-10 h-10 rounded-lg bg-red-50 text-[#E63946] flex items-center justify-center">
+          <div class="w-10 h-10 rounded-lg bg-red-50 text-[#E63946] flex items-center justify-center group-hover:bg-[#E63946] group-hover:text-white transition-colors">
             <i data-lucide="alert-triangle" class="w-5 h-5"></i>
           </div>
         </div>
 
-        <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center justify-between">
+        <div id="card-stat-importants" onclick="toggleKpiFilter('importants')" class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center justify-between cursor-pointer hover:border-amber-400 hover:shadow-md transition-all select-none group" title="Fes clic per filtrar per tasques amb marca Important">
           <div>
-            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Marca "Important"</p>
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider group-hover:text-amber-600">Marca "Important"</p>
             <p id="stat-importants" class="text-2xl font-bold text-amber-600 mt-0.5">3</p>
+            <span class="text-[10px] text-gray-400 group-hover:text-amber-500">Fes clic per filtrar</span>
           </div>
-          <div class="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+          <div class="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center group-hover:bg-amber-500 group-hover:text-white transition-colors">
             <i data-lucide="bookmark" class="w-5 h-5"></i>
           </div>
         </div>
 
-        <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center justify-between">
+        <div id="card-stat-operaris-actius" onclick="toggleKpiFilter('actius')" class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center justify-between cursor-pointer hover:border-teal-500 hover:shadow-md transition-all select-none group" title="Fes clic per filtrar per tasques amb personal actiu">
           <div>
-            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Operaris Actius</p>
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider group-hover:text-teal-700">Operaris Actius</p>
             <p id="stat-operaris-actius" class="text-2xl font-bold text-[#2A9D8F] mt-0.5">4</p>
+            <span class="text-[10px] text-gray-400 group-hover:text-teal-600">Fes clic per filtrar</span>
           </div>
-          <div class="w-10 h-10 rounded-lg bg-teal-50 text-[#2A9D8F] flex items-center justify-center">
+          <div class="w-10 h-10 rounded-lg bg-teal-50 text-[#2A9D8F] flex items-center justify-center group-hover:bg-[#2A9D8F] group-hover:text-white transition-colors">
             <i data-lucide="users" class="w-5 h-5"></i>
           </div>
         </div>
@@ -259,6 +347,13 @@
               <h2 class="text-base font-bold text-[#1D3557]">Ordres de Treball: Canvi d'Abast i Reassignació</h2>
             </div>
             <p class="text-xs text-gray-500 mt-0.5">Control d'abast tècnic, modificació de prioritats i reassignació directa d'operaris</p>
+            <div id="kpi-filter-banner" class="hidden items-center space-x-2 mt-2 px-3 py-1.5 bg-teal-50 border border-teal-200 text-[#1D3557] rounded-lg text-xs font-semibold w-fit">
+              <span id="kpi-filter-text">Filtre actiu: -</span>
+              <button onclick="toggleKpiFilter(null)" class="text-teal-700 hover:text-red-600 font-bold ml-1.5 flex items-center space-x-1" title="Treure filtre">
+                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                <span>Netejar filtre</span>
+              </button>
+            </div>
           </div>
           
           <div class="flex items-center space-x-2">
@@ -332,7 +427,7 @@
           <div>
             <label class="block text-xs font-semibold text-gray-700 mb-1">PIN de Seguretat (4 xifres)</label>
             <div class="flex justify-center space-x-3 my-2">
-              <input type="password" id="operari-pin-input" maxlength="4" placeholder="••••" class="tracking-widest text-center text-3xl font-bold w-44 py-2 border-2 border-gray-300 focus:border-[#2A9D8F] focus:outline-none rounded-xl bg-white shadow-inner" />
+              <input type="password" id="operari-pin-input" maxlength="4" placeholder="••••" onkeyup="if(event.key==='Enter') loginOperari()" class="tracking-widest text-center text-3xl font-bold w-44 py-2 border-2 border-gray-300 focus:border-[#2A9D8F] focus:outline-none rounded-xl bg-white shadow-inner" />
             </div>
             <p class="text-[11px] text-gray-400 text-center">PIN per defecte: <strong>1234</strong></p>
           </div>
@@ -380,9 +475,9 @@
         <div id="operari-tasks-list" class="space-y-3">
         </div>
 
-        <button onclick="logoutOperari()" class="w-full py-2.5 text-xs text-gray-500 hover:text-gray-700 flex items-center justify-center space-x-1 border border-gray-200 rounded-xl bg-white mt-4">
-          <i data-lucide="log-out" class="w-4 h-4"></i>
-          <span>Tancar sessió de l'operari</span>
+        <button onclick="logoutUnified()" class="w-full py-2.5 text-xs text-gray-500 hover:text-red-700 flex items-center justify-center space-x-1.5 border border-gray-200 rounded-xl bg-white hover:bg-red-50 mt-4 transition-colors">
+          <i data-lucide="log-out" class="w-4 h-4 text-red-500"></i>
+          <span class="font-semibold">Tancar sessió de l'operari</span>
         </button>
       </div>
     </section>
@@ -470,9 +565,16 @@
           </div>
 
           <div>
-            <label class="block text-xs font-semibold text-gray-700 mb-1">Assignar Inicialment a Operari (Actius)</label>
-            <select id="tasca-assignar-operari" class="w-full p-3 border border-gray-300 rounded-xl text-sm bg-gray-50">
-            </select>
+            <label class="block text-xs font-semibold text-gray-700 mb-1 flex items-center justify-between">
+              <span class="flex items-center space-x-1.5">
+                <i data-lucide="users" class="w-4 h-4 text-[#2A9D8F]"></i>
+                <span>Assignar a Operaris (Treball Individual o en Equip)</span>
+              </span>
+              <span class="text-[11px] text-teal-700 font-semibold bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">Pots seleccionar-ne més d'un</span>
+            </label>
+            <p class="text-[11px] text-gray-500 mb-2">Marca un o diversos treballadors si la tasca requereix treball en equip. Si no en selecciones cap, quedarà com a tasca pendent.</p>
+            <div id="create-tasca-operaris-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 bg-gray-50 rounded-xl border border-gray-200 max-h-52 overflow-y-auto">
+            </div>
           </div>
 
           <div class="p-4 bg-amber-50/70 border border-amber-200 rounded-xl">
@@ -594,14 +696,93 @@
         </div>
 
         <!-- Filtre d'estat de personal -->
-        <div class="flex items-center space-x-2 text-xs">
+        <div class="flex flex-wrap items-center gap-2 text-xs">
           <span class="font-semibold text-gray-700">Filtrar Personal:</span>
-          <button onclick="filterOperators('all')" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium text-gray-800">Tots</button>
-          <button onclick="filterOperators('actiu')" class="px-3 py-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg font-medium hover:bg-emerald-100">Només Actius</button>
-          <button onclick="filterOperators('baixa')" class="px-3 py-1.5 bg-red-50 text-red-800 border border-red-200 rounded-lg font-medium hover:bg-red-100">De Baixa (Inactius)</button>
+          <button id="btn-filter-op-all" onclick="filterOperators('all')" class="px-3 py-1.5 bg-[#1D3557] text-white rounded-lg font-medium shadow-xs">Tots</button>
+          <button id="btn-filter-op-actiu" onclick="filterOperators('actiu')" class="px-3 py-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg font-medium hover:bg-emerald-100">Disponibles / En Actiu</button>
+          <button id="btn-filter-op-absencia" onclick="filterOperators('absencia')" class="px-3 py-1.5 bg-purple-50 text-purple-800 border border-purple-200 rounded-lg font-medium hover:bg-purple-100">🏖️ En Vacances / Baixa Temporal</button>
+          <button id="btn-filter-op-baixa" onclick="filterOperators('baixa')" class="px-3 py-1.5 bg-red-50 text-red-800 border border-red-200 rounded-lg font-medium hover:bg-red-100">De Baixa Permanent</button>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="operators-cards-container">
+        </div>
+      </div>
+    </section>
+
+    <!-- --------------------------------------------------------------------- -->
+    <!-- PANTALLA 6: MANTENIMENT PREVENTIU I TASQUES PROGRAMADES                  -->
+    <!-- --------------------------------------------------------------------- -->
+    <section id="view-gestor-programades" class="space-y-6 hidden">
+      <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-5">
+        <div class="border-b border-gray-100 pb-4 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-purple-50 text-purple-700 rounded-xl flex items-center justify-center">
+              <i data-lucide="calendar-clock" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <h2 class="text-lg font-bold text-[#1D3557]">Manteniment Preventiu i Tasques Programades</h2>
+              <p class="text-xs text-gray-500">Planificació de feines periòdiques municipals (recollida de residus, purificació d'aigua/osmosi, revisions tècniques)</p>
+            </div>
+          </div>
+
+          <!-- Botons d'Acció Principal -->
+          <div class="flex items-center space-x-2">
+            <button onclick="generarTotesOrdresPendents()" class="px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 font-bold text-xs rounded-xl flex items-center space-x-1.5 shadow-xs min-touch transition-all">
+              <i data-lucide="zap" class="w-4 h-4 text-purple-600"></i>
+              <span>Executar Tanda d'Avui</span>
+            </button>
+            <button onclick="openModalProgramada()" class="px-4 py-2 bg-[#1D3557] hover:bg-[#152741] text-white font-bold text-xs rounded-xl flex items-center space-x-1.5 shadow-sm min-touch transition-all">
+              <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-400"></i>
+              <span>Nova Tasca Programada</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Mètriques Ràpides de Preventiu -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="p-3.5 bg-gray-50 rounded-xl border border-gray-200 flex items-center justify-between">
+            <div>
+              <p class="text-[11px] font-semibold text-gray-500 uppercase">Total Rutines</p>
+              <p id="stat-prog-total" class="text-xl font-bold text-[#1D3557]">5</p>
+            </div>
+            <i data-lucide="list-checks" class="w-5 h-5 text-gray-400"></i>
+          </div>
+          <div class="p-3.5 bg-emerald-50/60 rounded-xl border border-emerald-200 flex items-center justify-between">
+            <div>
+              <p class="text-[11px] font-semibold text-emerald-700 uppercase">Actives en Curs</p>
+              <p id="stat-prog-actives" class="text-xl font-bold text-emerald-800">4</p>
+            </div>
+            <i data-lucide="play-circle" class="w-5 h-5 text-emerald-600"></i>
+          </div>
+          <div class="p-3.5 bg-blue-50/60 rounded-xl border border-blue-200 flex items-center justify-between">
+            <div>
+              <p class="text-[11px] font-semibold text-blue-700 uppercase">Setmanals / Mensuals</p>
+              <p id="stat-prog-freq" class="text-xl font-bold text-blue-800">2 / 2</p>
+            </div>
+            <i data-lucide="calendar" class="w-5 h-5 text-blue-600"></i>
+          </div>
+          <div class="p-3.5 bg-purple-50/60 rounded-xl border border-purple-200 flex items-center justify-between">
+            <div>
+              <p class="text-[11px] font-semibold text-purple-700 uppercase">Ordres Generades</p>
+              <p id="stat-prog-generades" class="text-xl font-bold text-purple-800">0</p>
+            </div>
+            <i data-lucide="sparkles" class="w-5 h-5 text-purple-600"></i>
+          </div>
+        </div>
+
+        <!-- Filtres per Freqüència -->
+        <div class="flex flex-wrap items-center gap-2 text-xs">
+          <span class="font-semibold text-gray-700">Filtrar per Periodicitat:</span>
+          <button id="btn-filter-prog-all" onclick="filterProgramades('all')" class="px-3 py-1.5 bg-[#1D3557] text-white rounded-lg font-medium shadow-xs">Totes</button>
+          <button id="btn-filter-prog-diaria" onclick="filterProgramades('diaria')" class="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200">☀️ Diàries</button>
+          <button id="btn-filter-prog-setmanal" onclick="filterProgramades('setmanal')" class="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200">🗓️ Setmanals</button>
+          <button id="btn-filter-prog-mensual" onclick="filterProgramades('mensual')" class="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200">📅 Mensuals</button>
+          <button id="btn-filter-prog-trimestral" onclick="filterProgramades('trimestral')" class="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200">📊 Trimestrals</button>
+          <button id="btn-filter-prog-pausada" onclick="filterProgramades('pausada')" class="px-3 py-1.5 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg font-medium hover:bg-amber-100">⏸️ Pausades</button>
+        </div>
+
+        <!-- Graella de Tasques Programades -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="programades-cards-container">
         </div>
       </div>
     </section>
@@ -743,24 +924,23 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+        <div class="space-y-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
           <div>
-            <label class="block font-semibold text-gray-700 mb-1 flex items-center space-x-1">
-              <i data-lucide="user-check" class="w-3.5 h-3.5 text-[#2A9D8F]"></i>
-              <span>Operari Responsable *</span>
-            </label>
-            <select id="edit-tasca-operari" onchange="updateEditTaskWhatsAppButton()" class="w-full p-2 border border-gray-300 rounded-lg text-xs bg-white">
-            </select>
-            <div class="mt-2">
-              <a id="edit-tasca-wa-btn" href="#" target="_blank" rel="noopener noreferrer" class="hidden min-touch py-1.5 px-3 bg-[#25D366] hover:bg-[#20ba59] text-white rounded-lg text-[11px] font-bold inline-flex items-center space-x-1.5 shadow-xs transition-colors">
-                <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
-                <span>Avisar per WhatsApp</span>
-              </a>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="font-semibold text-gray-700 flex items-center space-x-1.5 text-xs">
+                <i data-lucide="users" class="w-4 h-4 text-[#2A9D8F]"></i>
+                <span>Equip d'Operaris Responsables (Treball en equip) *</span>
+              </label>
+              <span class="text-[10px] text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200 font-medium">Pots marcar diversos operaris</span>
+            </div>
+            <div id="edit-tasca-operaris-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2.5 bg-white rounded-lg border border-gray-300 max-h-44 overflow-y-auto">
+            </div>
+            <div id="edit-tasca-wa-container" class="mt-2.5 flex flex-wrap gap-1.5">
             </div>
           </div>
 
           <div>
-            <label class="block font-semibold text-gray-700 mb-1">Estat de la Tasca *</label>
+            <label class="block font-semibold text-gray-700 mb-1 text-xs">Estat de la Tasca *</label>
             <select id="edit-tasca-estat" required class="w-full p-2 border border-gray-300 rounded-lg text-xs bg-white">
               <option value="pendent">Pendent</option>
               <option value="assignada">Assignada</option>
@@ -840,10 +1020,188 @@
         </div>
       </div>
     </div>
+  <!-- ========================================================================= -->
+  <!-- MODAL: PROGRAMAR BAIXA / ASSÈNCIA TEMPORAL (VACANCES, MÈDICA, DIES LLIURES) -->
+  <!-- ========================================================================= -->
+  <div id="modal-baixa-temporal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-9 h-9 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center">
+            <i data-lucide="calendar" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-[#1D3557]">Programar Baixa / Absència</h3>
+            <p id="modal-baixa-operari-nom" class="text-xs text-gray-500 font-medium">Operari: -</p>
+          </div>
+        </div>
+        <button onclick="closeModalBaixaTemporal()" class="text-gray-400 hover:text-gray-600 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="form-baixa-temporal" onsubmit="saveBaixaTemporal(event)" class="space-y-3">
+        <input type="hidden" id="baixa-operari-id" />
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 mb-1">Tipus d'Absència / Baixa *</label>
+          <select id="baixa-tipus" required class="w-full p-2.5 border border-gray-300 rounded-xl text-xs bg-white focus:border-[#2A9D8F] focus:outline-none">
+            <option value="vacances">🏖️ Vacances</option>
+            <option value="baixa_medica">🏥 Baixa Mèdica / IT</option>
+            <option value="dies_lliures">🗓️ Dies Lliures / Assumptes Propis</option>
+            <option value="permis">📑 Permís Oficial / Formació</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-700 mb-1">Data d'Inici *</label>
+            <input type="date" id="baixa-data-inici" required class="w-full p-2 border border-gray-300 rounded-xl text-xs bg-white focus:border-[#2A9D8F] focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-700 mb-1">Data de Fi *</label>
+            <input type="date" id="baixa-data-fi" required class="w-full p-2 border border-gray-300 rounded-xl text-xs bg-white focus:border-[#2A9D8F] focus:outline-none" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-gray-700 mb-1">Motiu / Observacions</label>
+          <input type="text" id="baixa-motiu" placeholder="Ex. Vacances de tardor, ingrés hospitalari, etc." class="w-full p-2.5 border border-gray-300 rounded-xl text-xs bg-white focus:border-[#2A9D8F] focus:outline-none" />
+        </div>
+
+        <div class="p-3 bg-purple-50/60 border border-purple-200 rounded-xl text-[11px] text-purple-900 leading-relaxed">
+          <i data-lucide="info" class="w-3.5 h-3.5 inline mr-1 text-purple-700"></i>
+          Mentre l'operari estigui en aquesta franja, el sistema indicarà la seva absència als formularis d'assignació d'ordres per evitar sobrecàrrega.
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 pt-2">
+          <button type="button" onclick="closeModalBaixaTemporal()" class="min-touch py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs">
+            Cancel·lar
+          </button>
+          <button type="submit" class="min-touch py-2.5 bg-[#2A9D8F] hover:bg-[#238276] text-white font-bold rounded-xl shadow-md text-xs flex items-center justify-center space-x-1">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Desar Absència</span>
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- ========================================================================= -->
-  <!-- MODAL DE FINALITZACIÓ DE TASCA (CANVAS DE FIRMA + FOTO FINAL)             -->
+  <!-- MODAL: CREAR / EDITAR TASCA PROGRAMADA (MANTENIMENT PREVENTIU)            -->
+  <!-- ========================================================================= -->
+  <div id="modal-tasca-programada" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-lg rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-9 h-9 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center">
+            <i data-lucide="calendar-clock" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 id="modal-prog-title" class="font-bold text-base text-[#1D3557]">Nova Tasca Programada</h3>
+            <p class="text-xs text-gray-500">Manteniment periòdic de la brigada municipal</p>
+          </div>
+        </div>
+        <button onclick="closeModalProgramada()" class="text-gray-400 hover:text-gray-600 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="form-tasca-programada" onsubmit="saveProgramada(event)" class="space-y-3.5 text-xs">
+        <input type="hidden" id="prog-form-id" />
+
+        <div>
+          <label class="block font-semibold text-gray-700 mb-1">Títol de la Rutina Periòdica *</label>
+          <input type="text" id="prog-form-titol" required placeholder="Ex. Neteja i canvi de filtres d'osmosi" class="w-full p-2.5 border border-gray-300 rounded-xl text-sm focus:border-[#2A9D8F] focus:outline-none" />
+        </div>
+
+        <div>
+          <label class="block font-semibold text-gray-700 mb-1">Protocol / Descripció dels Treballs Periòdics *</label>
+          <textarea id="prog-form-descripcio" rows="2.5" required placeholder="Ex. Revisar pressió de membrana, canviar cartutx de sediments i carbó actiu als punts d'aigua..." class="w-full p-2.5 border border-gray-300 rounded-xl text-xs focus:border-[#2A9D8F] focus:outline-none"></textarea>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-gray-700 mb-1">Especialitat Tècnica *</label>
+            <select id="prog-form-categoria" required class="w-full p-2.5 border border-gray-300 rounded-xl text-xs bg-gray-50 focus:border-[#2A9D8F]">
+              <option value="fontaneria">Fontaneria / Osmosi / Aigua</option>
+              <option value="paperes_residus">Paperes / Recollida Residus</option>
+              <option value="climatitzacio">Climatització / Filtres d'Aire</option>
+              <option value="electricitat">Electricitat / Enllumenat</option>
+              <option value="obra_albanileria">Obra / Paleteria</option>
+              <option value="peo_neteja">Peó / Neteja General</option>
+              <option value="jardineria">Jardineria / Reg</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-gray-700 mb-1">Freqüència / Periodicitat *</label>
+            <select id="prog-form-frequencia" required class="w-full p-2.5 border border-gray-300 rounded-xl text-xs bg-purple-50 font-semibold text-purple-900 border-purple-200 focus:border-[#2A9D8F]">
+              <option value="diaria">☀️ Diària (Cada dia feiner)</option>
+              <option value="setmanal" selected>🗓️ Setmanal (Un cop per setmana)</option>
+              <option value="mensual">📅 Mensual (Un cop al mes)</option>
+              <option value="trimestral">📊 Trimestral (Cada 3 mesos)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-gray-700 mb-1">Dia Preferent d'Execució</label>
+            <input type="text" id="prog-form-dia" placeholder="Ex. Dilluns i Divendres / Dia 1 de mes" class="w-full p-2.5 border border-gray-300 rounded-xl text-xs focus:border-[#2A9D8F] focus:outline-none" />
+          </div>
+
+          <div>
+            <label class="block font-semibold text-gray-700 mb-1">Prioritat Inicial</label>
+            <select id="prog-form-prioritat" class="w-full p-2.5 border border-gray-300 rounded-xl text-xs bg-gray-50">
+              <option value="normal" selected>Normal</option>
+              <option value="alta">Alta</option>
+              <option value="urgent">Urgent</option>
+              <option value="baixa">Baixa</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-gray-700 mb-1">Núcli Municipal *</label>
+            <select id="prog-form-nucli" required class="w-full p-2.5 border border-gray-300 rounded-xl text-xs bg-white">
+              <option value="Santa Eugènia (Vila)">Santa Eugènia (Vila)</option>
+              <option value="Ses Alqueries">Ses Alqueries</option>
+              <option value="Ses Olleries">Ses Olleries</option>
+              <option value="Ses Coves">Ses Coves</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-gray-700 mb-1">Equipament / Carrer *</label>
+            <input type="text" id="prog-form-via" required placeholder="Ex. Edifici Ajuntament o C/ Major" class="w-full p-2.5 border border-gray-300 rounded-xl text-xs focus:border-[#2A9D8F] focus:outline-none" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-gray-700 mb-1 flex items-center justify-between">
+            <span class="flex items-center space-x-1.5">
+              <i data-lucide="users" class="w-4 h-4 text-[#2A9D8F]"></i>
+              <span>Equip d'Operaris Responsables *</span>
+            </span>
+            <span class="text-[10px] text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">Pots triar-ne diversos</span>
+          </label>
+          <div id="prog-form-operaris-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2.5 bg-gray-50 rounded-xl border border-gray-200 max-h-40 overflow-y-auto">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
+          <button type="button" onclick="closeModalProgramada()" class="min-touch py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs">
+            Cancel·lar
+          </button>
+          <button type="submit" id="prog-form-submit-btn" class="min-touch py-2.5 bg-[#2A9D8F] hover:bg-[#238276] text-white font-bold rounded-xl shadow-md text-xs flex items-center justify-center space-x-1">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Desar Tasca Programada</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
   <!-- ========================================================================= -->
   <div id="modal-finalitzar-tasca" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white w-full max-w-lg rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
@@ -1105,18 +1463,60 @@
   <!-- ========================================================================= -->
   <script>
     const APP_STATE = {
+      currentUser: null, // { role: 'admin' | 'operari', operariId: number | null, nom: string }
       currentRole: 'admin',
-      currentView: 'admin-dashboard',
+      currentView: 'login',
       activeOperari: null,
       currentGps: { lat: 39.62410, lng: 2.83720 },
       operatorsFilter: 'all',
+      kpiFilter: null, // 'obertes' | 'urgents' | 'importants' | 'actius'
       
-      // Personal de manteniment de la brigada (CRUD complet suportat)
+      // Personal de manteniment de la brigada (CRUD complet + Bajas temporals en franges de temps)
       operaris: [
-        { id: 1, nom: "Toni Coll", rol: "Oficial 1ª Obra / Paleteria", especialitat: "obra_albanileria", pin: "1234", telefon: "611223344", actiu: true },
-        { id: 2, nom: "Joan Bibiloni", rol: "Especialista Electricitat", especialitat: "electricitat", pin: "1234", telefon: "622334455", actiu: true },
-        { id: 3, nom: "Biel Pou", rol: "Peó / Neteja Viària", especialitat: "peo_neteja", pin: "1234", telefon: "633445566", actiu: true },
-        { id: 4, nom: "Pere Ramis", rol: "Oficial Climatització i Calefacció", especialitat: "climatitzacio", pin: "1234", telefon: "644556677", actiu: true }
+        { 
+          id: 1, 
+          nom: "Toni Coll", 
+          rol: "Oficial 1ª Obra / Paleteria", 
+          especialitat: "obra_albanileria", 
+          pin: "1234", 
+          telefon: "611223344", 
+          actiu: true,
+          baixes_temporals: [] 
+        },
+        { 
+          id: 2, 
+          nom: "Joan Bibiloni", 
+          rol: "Especialista Electricitat", 
+          especialitat: "electricitat", 
+          pin: "1234", 
+          telefon: "622334455", 
+          actiu: true,
+          baixes_temporals: [
+            { id: 101, tipus: "dies_lliures", dataInici: "2026-11-05", dataFi: "2026-11-06", motiu: "Assumptes propis / Permís" }
+          ]
+        },
+        { 
+          id: 3, 
+          nom: "Biel Pou", 
+          rol: "Peó / Neteja Viària", 
+          especialitat: "peo_neteja", 
+          pin: "1234", 
+          telefon: "633445566", 
+          actiu: true,
+          baixes_temporals: [
+            { id: 102, tipus: "vacances", dataInici: "2026-10-28", dataFi: "2026-11-04", motiu: "Vacances de tardor" }
+          ]
+        },
+        { 
+          id: 4, 
+          nom: "Pere Ramis", 
+          rol: "Oficial Climatització i Calefacció", 
+          especialitat: "climatitzacio", 
+          pin: "1234", 
+          telefon: "644556677", 
+          actiu: true,
+          baixes_temporals: [] 
+        }
       ],
 
       // Vies oficials integrades (37)
@@ -1164,7 +1564,7 @@
         {
           id: 'SE-2026-0001',
           titol: "Reparació de fanal i presa de terra al carrer principal",
-          descripcio: "Fanal intermitent amb perill elèctric davant l'Escoleta municipal.",
+          descripcio: "Fanal intermitent amb perill elèctric davant l'Escoleta municipal. Requereix equip de 2 persones per alçada i seguretat elèctrica.",
           categoria: "electricitat",
           prioritat: "urgent",
           nucli: "Santa Eugènia (Vila)",
@@ -1172,6 +1572,7 @@
           lat: 39.62410,
           lng: 2.83720,
           estat: "en_curs",
+          operariIds: [2, 1], // Treball en equip: Joan Bibiloni + Toni Coll
           operariId: 2,
           esImportant: true,
           tempsTranscorregut: 3600,
@@ -1191,6 +1592,7 @@
           lat: 39.62580,
           lng: 2.83850,
           estat: "assignada",
+          operariIds: [4],
           operariId: 4,
           esImportant: true,
           tempsTranscorregut: 0,
@@ -1202,7 +1604,7 @@
         {
           id: 'SE-2026-0003',
           titol: "Neteja d'esbarzers i manteniment al Camí de Son Mascaró",
-          descripcio: "Visibilitat reduïda a la corba per vegetació salvatge abundant.",
+          descripcio: "Visibilitat reduïda a la corba per vegetació salvatge abundant. Feina conjunta de desbrossadora i càrrega.",
           categoria: "jardineria",
           prioritat: "alta",
           nucli: "Santa Eugènia (Vila)",
@@ -1210,6 +1612,7 @@
           lat: 39.63100,
           lng: 2.84200,
           estat: "assignada",
+          operariIds: [1, 3], // Treball en equip: Toni Coll + Biel Pou
           operariId: 1,
           esImportant: false,
           tempsTranscorregut: 0,
@@ -1229,6 +1632,7 @@
           lat: 39.61189,
           lng: 2.83104,
           estat: "pendent",
+          operariIds: [],
           operariId: null,
           esImportant: true,
           tempsTranscorregut: 0,
@@ -1248,6 +1652,7 @@
           lat: 39.61461,
           lng: 2.85312,
           estat: "finalitzada",
+          operariIds: [3],
           operariId: 3,
           esImportant: false,
           tempsTranscorregut: 4500,
@@ -1258,7 +1663,107 @@
           creatEl: "2026-10-25T10:00:00Z",
           tempsFinalitzacio: "2026-10-25T12:00:00Z"
         }
+      ],
+      programadesFilter: 'all',
+      tasquesProgramades: [
+        {
+          id: 'PROG-001',
+          titol: "Buidatge periòdic de paperes i neteja d'entorns públics",
+          descripcio: "Buidatge i desinfecció de paperes municipals, reposició de bosses de residus i revisió de contenidors als nuclis i zones verdes.",
+          categoria: "paperes_residus",
+          frequencia: "setmanal",
+          diaPreferent: "Dilluns i Divendres",
+          nucli: "Santa Eugènia (Vila)",
+          via: "Plaça Bernat de Santa Eugènia / Carrer Major",
+          lat: 39.62410,
+          lng: 2.83750,
+          prioritat: "normal",
+          operariIds: [3],
+          activa: true,
+          darreraExecucio: "2026-10-24",
+          properaExecucio: "2026-10-31",
+          totalExecucions: 14
+        },
+        {
+          id: 'PROG-002',
+          titol: "Neteja i canvi de filtres del sistema d'osmosi",
+          descripcio: "Revisió de pressió, desinfecció del dipòsit i purga de filtres de sediments i carbó actiu dels punts d'aigua potable.",
+          categoria: "fontaneria",
+          frequencia: "mensual",
+          diaPreferent: "Primer dia feiner de mes",
+          nucli: "Santa Eugènia (Vila)",
+          via: "Edifici Ajuntament i CEIP Santa Eugènia",
+          lat: 39.62354,
+          lng: 2.83685,
+          prioritat: "alta",
+          operariIds: [2, 1],
+          activa: true,
+          darreraExecucio: "2026-10-01",
+          properaExecucio: "2026-11-01",
+          totalExecucions: 8
+        },
+        {
+          id: 'PROG-003',
+          titol: "Control de clor, pH i neteja de bombes de la font municipal",
+          descripcio: "Mesura de nivell de clor i pH, neteja de skimmers i comprovació de filtres a la font ornamental de la plaça i accés a Ses Coves.",
+          categoria: "fontaneria",
+          frequencia: "setmanal",
+          diaPreferent: "Dimecres",
+          nucli: "Ses Coves",
+          via: "Font de ses Coves (00154)",
+          lat: 39.61189,
+          lng: 2.83104,
+          prioritat: "normal",
+          operariIds: [2],
+          activa: true,
+          darreraExecucio: "2026-10-22",
+          properaExecucio: "2026-10-29",
+          totalExecucions: 11
+        },
+        {
+          id: 'PROG-004',
+          titol: "Revisió de quadres elèctrics i fanals de l'enllumenat públic",
+          descripcio: "Inspecció visual de lluminàries LED, rellotges astronòmics i comprovació de línies de baixa tensió al llogaret.",
+          categoria: "electricitat",
+          frequencia: "mensual",
+          diaPreferent: "Segon dimarts de mes",
+          nucli: "Ses Alqueries",
+          via: "ALQUERIES (ses Alqueries - 00153)",
+          lat: 39.62891,
+          lng: 2.84412,
+          prioritat: "normal",
+          operariIds: [4],
+          activa: true,
+          darreraExecucio: "2026-10-10",
+          properaExecucio: "2026-11-10",
+          totalExecucions: 5
+        },
+        {
+          id: 'PROG-005',
+          titol: "Manteniment trimestral de climatització i filtres d'aire",
+          descripcio: "Revisió d'unitats exteriors, desinfecció d'evaporadors i neteja de filtres antipols als despatxos de l'Ajuntament.",
+          categoria: "climatitzacio",
+          frequencia: "trimestral",
+          diaPreferent: "Inici de trimestre natural",
+          nucli: "Santa Eugènia (Vila)",
+          via: "Edifici Ajuntament (Carrer Major)",
+          lat: 39.62354,
+          lng: 2.83685,
+          prioritat: "baixa",
+          operariIds: [4, 1],
+          activa: false,
+          darreraExecucio: "2026-08-01",
+          properaExecucio: "2026-11-01",
+          totalExecucions: 3
+        }
       ]
+    };
+
+    const FREQUENCIA_LABELS = {
+      diaria: { label: "Diària", icon: "☀️", badgeClass: "bg-amber-100 text-amber-900 border-amber-300" },
+      setmanal: { label: "Setmanal", icon: "🗓️", badgeClass: "bg-blue-100 text-blue-900 border-blue-300" },
+      mensual: { label: "Mensual", icon: "📅", badgeClass: "bg-purple-100 text-purple-900 border-purple-300" },
+      trimestral: { label: "Trimestral", icon: "📊", badgeClass: "bg-indigo-100 text-indigo-900 border-indigo-300" }
     };
 
     const CATEGORIA_LABELS = {
@@ -1271,6 +1776,121 @@
       jardineria: "Jardineria",
       senyalitzacio: "Senyalització"
     };
+
+    const TIPUS_BAIXA_LABELS = {
+      vacances: { label: "Vacances", icon: "🏖️", badgeClass: "bg-blue-100 text-blue-800 border-blue-200" },
+      baixa_medica: { label: "Baixa Mèdica / IT", icon: "🏥", badgeClass: "bg-red-100 text-red-800 border-red-200" },
+      dies_lliures: { label: "Dies Lliures", icon: "🗓️", badgeClass: "bg-purple-100 text-purple-800 border-purple-200" },
+      permis: { label: "Permís Oficial", icon: "📑", badgeClass: "bg-amber-100 text-amber-800 border-amber-200" }
+    };
+
+    function formatDateShort(dateStr) {
+      if (!dateStr) return '';
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      return dateStr;
+    }
+
+    function getOperariDisponibilitat(op) {
+      if (!op.actiu) {
+        return {
+          actiu: false,
+          isTempAbsent: false,
+          status: 'baixa_permanent',
+          label: 'De Baixa Permanent',
+          badgeClass: 'bg-red-100 text-red-800 border-red-200'
+        };
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+      const baixes = op.baixes_temporals || [];
+
+      // Comprovar si té una baixa o vacances vigent avui
+      const activeBaixa = baixes.find(b => b.dataInici <= today && today <= b.dataFi);
+      if (activeBaixa) {
+        const info = TIPUS_BAIXA_LABELS[activeBaixa.tipus] || { label: activeBaixa.tipus, icon: "🏖️", badgeClass: "bg-purple-100 text-purple-800 border-purple-200" };
+        return {
+          actiu: false,
+          isTempAbsent: true,
+          currentBaixa: activeBaixa,
+          status: 'absent_temporal',
+          label: `${info.icon} ${info.label} (${formatDateShort(activeBaixa.dataInici)} - ${formatDateShort(activeBaixa.dataFi)})`,
+          badgeClass: 'bg-purple-100 text-purple-900 border-purple-300 font-bold',
+          motiu: activeBaixa.motiu || ''
+        };
+      }
+
+      // Comprovar si en té alguna programada en el futur
+      const futureBaixa = baixes.find(b => b.dataInici > today);
+      if (futureBaixa) {
+        const info = TIPUS_BAIXA_LABELS[futureBaixa.tipus] || { label: futureBaixa.tipus, icon: "🗓️" };
+        return {
+          actiu: true,
+          isTempAbsent: false,
+          upcomingBaixa: futureBaixa,
+          status: 'actiu_amb_baixa_futura',
+          label: `Actiu (${info.icon} Previst ${formatDateShort(futureBaixa.dataInici)})`,
+          badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200'
+        };
+      }
+
+      return {
+        actiu: true,
+        isTempAbsent: false,
+        status: 'actiu',
+        label: 'Actiu / Disponible',
+        badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200'
+      };
+    }
+
+    // -------------------------------------------------------------------------
+    // FILTRES RÀPIDS DES DE LES TARGETES DE KPI DEL DASHBOARD
+    // -------------------------------------------------------------------------
+    function toggleKpiFilter(filterName) {
+      if (APP_STATE.kpiFilter === filterName || filterName === null) {
+        APP_STATE.kpiFilter = null;
+      } else {
+        APP_STATE.kpiFilter = filterName;
+      }
+      updateKpiCardStyles();
+      renderAdminTasks();
+      if (APP_STATE.currentView !== 'admin-dashboard') {
+        navigateView('admin-dashboard');
+      }
+    }
+
+    function updateKpiCardStyles() {
+      const cards = {
+        obertes: { id: 'card-stat-obertes', text: 'Tasques Obertes' },
+        urgents: { id: 'card-stat-urgents', text: 'Tasques Urgents' },
+        importants: { id: 'card-stat-importants', text: 'Tasques amb Marca "Important"' },
+        actius: { id: 'card-stat-operaris-actius', text: 'Tasques amb Operaris Actius' }
+      };
+
+      const banner = document.getElementById('kpi-filter-banner');
+      const bannerText = document.getElementById('kpi-filter-text');
+
+      Object.entries(cards).forEach(([key, conf]) => {
+        const cardEl = document.getElementById(conf.id);
+        if (!cardEl) return;
+        if (APP_STATE.kpiFilter === key) {
+          cardEl.classList.add('ring-2', 'ring-[#2A9D8F]', 'ring-offset-2', 'bg-teal-50/50');
+        } else {
+          cardEl.classList.remove('ring-2', 'ring-[#2A9D8F]', 'ring-offset-2', 'bg-teal-50/50');
+        }
+      });
+
+      if (APP_STATE.kpiFilter && cards[APP_STATE.kpiFilter]) {
+        banner.classList.remove('hidden');
+        banner.classList.add('flex');
+        bannerText.innerText = `Filtre ràpid actiu: ${cards[APP_STATE.kpiFilter].text}`;
+      } else if (banner) {
+        banner.classList.add('hidden');
+        banner.classList.remove('flex');
+      }
+    }
 
     // -------------------------------------------------------------------------
     // INDICADOR D'ESTAT DE XARXA I COBERTURA
@@ -1312,6 +1932,19 @@
 
     function getTaskWhatsAppLink(task, operari) {
       if (!operari || !operari.telefon) return null;
+      
+      const assignedIds = task.operariIds && task.operariIds.length > 0 
+        ? task.operariIds 
+        : (task.operariId ? [task.operariId] : []);
+      const otherTeammates = APP_STATE.operaris
+        .filter(o => assignedIds.includes(o.id) && o.id !== operari.id)
+        .map(o => o.nom);
+
+      let teamLine = '';
+      if (otherTeammates.length > 0) {
+        teamLine = `👥 *Treball en equip amb:* ${otherTeammates.join(', ')}\n`;
+      }
+
       const text = 
 `🏛️ *Ajuntament de Santa Eugènia - Brigada Municipal*
 Hola ${operari.nom}, tens una nova ordre de treball assignada:
@@ -1321,7 +1954,7 @@ Hola ${operari.nom}, tens una nova ordre de treball assignada:
 📍 *Ubicació:* ${task.nucli} - ${task.via}
 ⚠️ *Prioritat:* ${task.prioritat.toUpperCase()}
 🔧 *Especialitat:* ${CATEGORIA_LABELS[task.categoria] || task.categoria}
-📝 *Descripció:* ${task.descripcio || 'Sense observacions addicionals'}
+${teamLine}📝 *Descripció:* ${task.descripcio || 'Sense observacions addicionals'}
 ${task.esImportant ? '⭐ *IMPORTANT:* Retenció indefinida d\'imatges municipals\n' : ''}
 📲 *Gestió PWA:* http://localhost:8080/`;
 
@@ -1405,11 +2038,45 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         });
 
         const marker = L.marker([task.lat, task.lng], { icon: customIcon });
-        const operari = APP_STATE.operaris.find(o => o.id === task.operariId);
-        const waLink = operari ? getTaskWhatsAppLink(task, operari) : null;
+
+        const assignedIds = task.operariIds && task.operariIds.length > 0
+          ? task.operariIds
+          : (task.operariId ? [task.operariId] : []);
+        const assignedOps = APP_STATE.operaris.filter(o => assignedIds.includes(o.id));
+
+        let teamHtml = '';
+        if (assignedOps.length > 0) {
+          teamHtml = `
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 5px 7px; border-radius: 6px; font-size: 10px; margin-bottom: 6px;">
+              <div style="font-weight: bold; color: #1D3557; margin-bottom: 3px;">👥 Equip Assignat (${assignedOps.length}):</div>
+              ${assignedOps.map(op => {
+                const disp = getOperariDisponibilitat(op);
+                return `<div style="margin-bottom: 2px;">• <strong>${op.nom}</strong> (${op.telefon}) ${disp.isTempAbsent ? '<span style="color:#7E22CE;font-weight:bold;">🏖️</span>' : ''}</div>`;
+              }).join('')}
+            </div>
+          `;
+        } else {
+          teamHtml = `
+            <div style="background: #FFFBEB; border: 1px solid #FDE68A; padding: 4px 6px; border-radius: 6px; font-size: 10px; color: #92400E; margin-bottom: 6px;">
+              ⚠️ Sense equip assignat (Pendent al taulell)
+            </div>
+          `;
+        }
+
+        let waButtonsHtml = '';
+        if (assignedOps.length > 0) {
+          waButtonsHtml = assignedOps.map(op => {
+            const waLink = getTaskWhatsAppLink(task, op);
+            return `
+              <a href="${waLink}" target="_blank" rel="noopener noreferrer" style="background: #25D366; color: white; padding: 4px 6px; border-radius: 5px; font-size: 9px; font-weight: bold; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 3px; margin-top: 3px;">
+                💬 Avisar ${op.nom.split(' ')[0]} (WhatsApp)
+              </a>
+            `;
+          }).join('');
+        }
 
         const popupContent = `
-          <div style="font-family: Inter, sans-serif; font-size: 12px; width: 240px;">
+          <div style="font-family: Inter, sans-serif; font-size: 12px; width: 250px;">
             <div style="font-weight: bold; color: #1D3557; margin-bottom: 2px;">${task.id} - ${task.titol}</div>
             <div style="color: #6B7280; font-size: 11px; margin-bottom: 4px;">📍 ${task.nucli} (${task.via})</div>
             <div style="display: flex; gap: 4px; margin-bottom: 6px;">
@@ -1420,11 +2087,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                 ${CATEGORIA_LABELS[task.categoria] || task.categoria}
               </span>
             </div>
-            ${operari ? `
-              <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 4px 6px; border-radius: 6px; font-size: 10px; margin-bottom: 6px;">
-                👤 <strong>Assignat:</strong> ${operari.nom} (${operari.telefon})
-              </div>
-            ` : ''}
+            ${teamHtml}
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 4px;">
               <button onclick="openEditTaskModal('${task.id}')" style="background: #2A9D8F; color: white; border: none; padding: 5px; border-radius: 6px; font-size: 10px; font-weight: bold; cursor: pointer;">
                 ✏️ Canviar Abast
@@ -1433,11 +2096,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                 📄 Fitxa PDF
               </button>
             </div>
-            ${waLink ? `
-              <a href="${waLink}" target="_blank" rel="noopener noreferrer" style="background: #25D366; color: white; padding: 5px; border-radius: 6px; font-size: 10px; font-weight: bold; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 4px;">
-                💬 Avisar per WhatsApp
-              </a>
-            ` : ''}
+            ${waButtonsHtml}
           </div>
         `;
         marker.bindPopup(popupContent);
@@ -1450,29 +2109,246 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
     }
 
     // -------------------------------------------------------------------------
-    // CONTROL DE VISTES
+    // AUTENTICACIÓ I LOGIN ÚNIC CENTRALITZAT AMB PERMISOS DE VISTA
     // -------------------------------------------------------------------------
-    function switchRole(role) {
-      APP_STATE.currentRole = role;
-      const btnAdmin = document.getElementById('btn-switch-admin');
-      const btnOperari = document.getElementById('btn-switch-operari');
+    function switchLoginTab(tab) {
+      const tabOp = document.getElementById('login-tab-operari');
+      const tabAdm = document.getElementById('login-tab-admin');
+      const panelOp = document.getElementById('login-panel-operari');
+      const panelAdm = document.getElementById('login-panel-admin');
 
-      if (role === 'admin') {
-        btnAdmin.className = "px-2.5 py-1.5 rounded-md transition-all bg-[#2A9D8F] text-white shadow-sm";
-        btnOperari.className = "px-2.5 py-1.5 rounded-md transition-all text-blue-100 hover:text-white";
-        navigateView('admin-dashboard');
+      if (!tabOp || !tabAdm || !panelOp || !panelAdm) return;
+
+      if (tab === 'operari') {
+        tabOp.className = "flex-1 py-2 rounded-lg transition-all bg-[#2A9D8F] text-white shadow-sm flex items-center justify-center space-x-1.5";
+        tabAdm.className = "flex-1 py-2 rounded-lg transition-all text-blue-100 hover:text-white flex items-center justify-center space-x-1.5";
+        panelOp.classList.remove('hidden');
+        panelAdm.classList.add('hidden');
+        setTimeout(() => document.getElementById('unified-login-operari-pin')?.focus(), 50);
       } else {
-        btnOperari.className = "px-2.5 py-1.5 rounded-md transition-all bg-[#2A9D8F] text-white shadow-sm";
-        btnAdmin.className = "px-2.5 py-1.5 rounded-md transition-all text-blue-100 hover:text-white";
-        navigateView('operari-view');
+        tabAdm.className = "flex-1 py-2 rounded-lg transition-all bg-[#2A9D8F] text-white shadow-sm flex items-center justify-center space-x-1.5";
+        tabOp.className = "flex-1 py-2 rounded-lg transition-all text-blue-100 hover:text-white flex items-center justify-center space-x-1.5";
+        panelAdm.classList.remove('hidden');
+        panelOp.classList.add('hidden');
+        setTimeout(() => document.getElementById('unified-login-admin-pass')?.focus(), 50);
+      }
+      lucide.createIcons();
+    }
+
+    function renderUnifiedLoginOperatorsSelect() {
+      const select = document.getElementById('unified-login-operari-select');
+      if (!select) return;
+      const activeOps = APP_STATE.operaris.filter(o => o.actiu);
+      select.innerHTML = activeOps.map(op => {
+        const disp = getOperariDisponibilitat(op);
+        const absentNote = disp.isTempAbsent ? ` (${disp.label})` : '';
+        return `<option value="${op.id}">${op.nom} — ${op.rol}${absentNote}</option>`;
+      }).join('');
+    }
+
+    function submitUnifiedLogin(type) {
+      if (type === 'admin') {
+        const pass = document.getElementById('unified-login-admin-pass')?.value?.trim();
+        if (pass === '1234') {
+          APP_STATE.currentUser = {
+            role: 'admin',
+            nom: 'Administrador (Cap de Brigada)'
+          };
+          APP_STATE.currentRole = 'admin';
+          localStorage.setItem('brigada_user_session', JSON.stringify(APP_STATE.currentUser));
+          applySessionPermissions();
+        } else {
+          alert("Contrasenya d'administrador incorrecta. La contrasenya és 1234.");
+        }
+      } else if (type === 'operari') {
+        const select = document.getElementById('unified-login-operari-select');
+        const operariId = parseInt(select?.value || '0');
+        const pin = document.getElementById('unified-login-operari-pin')?.value?.trim();
+        const op = APP_STATE.operaris.find(o => o.id === operariId);
+
+        if (!op) {
+          alert("Selecciona un treballador de la llista.");
+          return;
+        }
+
+        if (!op.actiu) {
+          alert("Aquest operari està de baixa permanent i no pot accedir al sistema.");
+          return;
+        }
+
+        if (pin === op.pin || pin === '1234') {
+          APP_STATE.currentUser = {
+            role: 'operari',
+            operariId: op.id,
+            nom: op.nom
+          };
+          APP_STATE.activeOperari = op;
+          APP_STATE.currentRole = 'operari';
+          localStorage.setItem('brigada_user_session', JSON.stringify(APP_STATE.currentUser));
+          applySessionPermissions();
+        } else {
+          alert("PIN incorrecte. En aquesta versió el PIN és 1234.");
+        }
       }
     }
 
-    function navigateView(viewId) {
-      APP_STATE.currentView = viewId;
-      const views = [
+    function logoutUnified() {
+      APP_STATE.currentUser = null;
+      APP_STATE.activeOperari = null;
+      localStorage.removeItem('brigada_user_session');
+
+      const pinOp = document.getElementById('unified-login-operari-pin');
+      if (pinOp) pinOp.value = '';
+      const passAdmin = document.getElementById('unified-login-admin-pass');
+      if (passAdmin) passAdmin.value = '';
+
+      applySessionPermissions();
+    }
+
+    function applySessionPermissions() {
+      const user = APP_STATE.currentUser;
+      const mainNav = document.getElementById('main-nav');
+      const headerSession = document.getElementById('header-user-session');
+      const loginSection = document.getElementById('view-login');
+
+      const allViews = [
+        'view-login',
         'view-admin-dashboard',
         'view-alta-incidencia',
+        'view-gestor-programades',
+        'view-gestor-nomenclator',
+        'view-gestor-operaris',
+        'view-operari-view'
+      ];
+
+      if (!user) {
+        // No autenticat: mostrar exclusivament pantalla de login
+        allViews.forEach(v => {
+          const el = document.getElementById(v);
+          if (el) el.classList.add('hidden');
+        });
+
+        if (loginSection) loginSection.classList.remove('hidden');
+        if (mainNav) mainNav.classList.add('hidden');
+
+        if (headerSession) {
+          headerSession.innerHTML = `
+            <span class="text-xs text-blue-200 hidden sm:inline-flex items-center gap-1 font-medium bg-white/5 px-2.5 py-1 rounded-lg border border-white/10">
+              <i data-lucide="lock" class="w-3.5 h-3.5 text-blue-300"></i>
+              <span>Accés Protegit (1234)</span>
+            </span>
+          `;
+        }
+
+        renderUnifiedLoginOperatorsSelect();
+        lucide.createIcons();
+        return;
+      }
+
+      // Usuari autenticat: amagar el panell de login
+      if (loginSection) loginSection.classList.add('hidden');
+
+      if (user.role === 'admin') {
+        // 🏛️ PERFIL ADMINISTRADOR: accés complet i navegació visible
+        if (mainNav) mainNav.classList.remove('hidden');
+
+        if (headerSession) {
+          headerSession.innerHTML = `
+            <div class="flex items-center space-x-2 bg-white/10 px-2.5 py-1.5 rounded-lg text-xs border border-white/10">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span class="font-bold text-white hidden sm:inline">🏛️ Administrador (Cap de Brigada)</span>
+              <button onclick="logoutUnified()" class="text-[11px] bg-red-500 hover:bg-red-600 text-white font-bold px-2.5 py-1 rounded-md transition-colors shadow-xs ml-1 flex items-center space-x-1" title="Tancar Sessió">
+                <i data-lucide="log-out" class="w-3 h-3"></i>
+                <span>Sortir</span>
+              </button>
+            </div>
+          `;
+        }
+
+        const targetView = (APP_STATE.currentView && APP_STATE.currentView !== 'login') ? APP_STATE.currentView : 'admin-dashboard';
+        navigateView(targetView);
+      } else if (user.role === 'operari') {
+        // 👷 PERFIL OPERARI: amagar la barra de navegació d'administració
+        if (mainNav) mainNav.classList.add('hidden');
+
+        const op = APP_STATE.operaris.find(o => o.id === user.operariId);
+        APP_STATE.activeOperari = op || null;
+
+        if (headerSession) {
+          headerSession.innerHTML = `
+            <div class="flex items-center space-x-2 bg-white/10 px-2.5 py-1.5 rounded-lg text-xs border border-white/10">
+              <span class="w-2 h-2 rounded-full bg-teal-400"></span>
+              <span class="font-bold text-teal-200 truncate max-w-[130px] sm:max-w-none">👷 ${user.nom || (op ? op.nom : 'Operari')}</span>
+              <button onclick="logoutUnified()" class="text-[11px] bg-red-500 hover:bg-red-600 text-white font-bold px-2.5 py-1 rounded-md transition-colors shadow-xs ml-1 flex items-center space-x-1" title="Tancar Sessió">
+                <i data-lucide="log-out" class="w-3 h-3"></i>
+                <span>Sortir</span>
+              </button>
+            </div>
+          `;
+        }
+
+        navigateView('operari-view');
+        const pinScreen = document.getElementById('operari-pin-screen');
+        const workPanel = document.getElementById('operari-work-panel');
+        if (pinScreen) pinScreen.classList.add('hidden');
+        if (workPanel) workPanel.classList.remove('hidden');
+
+        if (op) {
+          const nameEl = document.getElementById('operari-current-name');
+          const roleEl = document.getElementById('operari-current-role');
+          if (nameEl) nameEl.innerText = op.nom;
+          if (roleEl) roleEl.innerText = op.rol;
+        }
+
+        renderOperariScreen();
+      }
+
+      lucide.createIcons();
+    }
+
+    function initSession() {
+      renderUnifiedLoginOperatorsSelect();
+      try {
+        const saved = localStorage.getItem('brigada_user_session');
+        if (saved) {
+          APP_STATE.currentUser = JSON.parse(saved);
+        } else {
+          APP_STATE.currentUser = null;
+        }
+      } catch (e) {
+        APP_STATE.currentUser = null;
+      }
+      applySessionPermissions();
+    }
+
+    function switchRole(role) {
+      if (role === 'admin') {
+        APP_STATE.currentUser = { role: 'admin', nom: 'Administrador (Cap de Brigada)' };
+      } else {
+        const activeOp = APP_STATE.operaris.find(o => o.actiu) || APP_STATE.operaris[0];
+        APP_STATE.currentUser = { role: 'operari', operariId: activeOp.id, nom: activeOp.nom };
+        APP_STATE.activeOperari = activeOp;
+      }
+      applySessionPermissions();
+    }
+
+    function navigateView(viewId) {
+      if (!APP_STATE.currentUser && viewId !== 'login') {
+        applySessionPermissions();
+        return;
+      }
+
+      // L'operari només té accés a la seva vista mòbil
+      if (APP_STATE.currentUser && APP_STATE.currentUser.role === 'operari' && viewId !== 'operari-view') {
+        viewId = 'operari-view';
+      }
+
+      APP_STATE.currentView = viewId;
+      const views = [
+        'view-login',
+        'view-admin-dashboard',
+        'view-alta-incidencia',
+        'view-gestor-programades',
         'view-gestor-nomenclator',
         'view-gestor-operaris',
         'view-operari-view'
@@ -1501,6 +2377,8 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       } else if (viewId === 'alta-incidencia') {
         updateStreetSelector();
         renderCreateTaskOperatorsSelect();
+      } else if (viewId === 'gestor-programades') {
+        renderProgramadesCards();
       } else if (viewId === 'gestor-nomenclator') {
         renderNomenclatorTable();
       } else if (viewId === 'gestor-operaris') {
@@ -1522,26 +2400,100 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       const filterCat = document.getElementById('filter-categoria-select').value;
       const filterEstat = document.getElementById('filter-estat-select').value;
 
+      // Actualitzar comptadors a les targetes de KPI
+      const obertesCount = APP_STATE.tasks.filter(t => t.estat !== 'finalitzada').length;
+      const urgentsCount = APP_STATE.tasks.filter(t => t.prioritat === 'urgent' && t.estat !== 'finalitzada').length;
+      const importantsCount = APP_STATE.tasks.filter(t => t.esImportant).length;
+      const actiusCount = APP_STATE.operaris.filter(o => getOperariDisponibilitat(o).actiu).length;
+
+      document.getElementById('stat-total-obertes').innerText = obertesCount;
+      document.getElementById('stat-urgents').innerText = urgentsCount;
+      document.getElementById('stat-importants').innerText = importantsCount;
+      document.getElementById('stat-operaris-actius').innerText = actiusCount;
+
+      updateKpiCardStyles();
+
       let filtered = APP_STATE.tasks;
+
+      // Aplicar filtre ràpid de KPI si està actiu
+      if (APP_STATE.kpiFilter === 'obertes') {
+        filtered = filtered.filter(t => t.estat !== 'finalitzada');
+      } else if (APP_STATE.kpiFilter === 'urgents') {
+        filtered = filtered.filter(t => t.prioritat === 'urgent' && t.estat !== 'finalitzada');
+      } else if (APP_STATE.kpiFilter === 'importants') {
+        filtered = filtered.filter(t => t.esImportant);
+      } else if (APP_STATE.kpiFilter === 'actius') {
+        const activeIds = APP_STATE.operaris.filter(o => getOperariDisponibilitat(o).actiu).map(o => o.id);
+        filtered = filtered.filter(t => {
+          const ids = t.operariIds && t.operariIds.length > 0 ? t.operariIds : (t.operariId ? [t.operariId] : []);
+          return ids.some(id => activeIds.includes(id));
+        });
+      }
+
+      // Filtres dels desplegables
       if (filterNucli) filtered = filtered.filter(t => t.nucli === filterNucli);
       if (filterCat) filtered = filtered.filter(t => t.categoria === filterCat);
       if (filterEstat) filtered = filtered.filter(t => t.estat === filterEstat);
 
-      document.getElementById('stat-total-obertes').innerText = APP_STATE.tasks.filter(t => t.estat !== 'finalitzada').length;
-      document.getElementById('stat-urgents').innerText = APP_STATE.tasks.filter(t => t.prioritat === 'urgent' && t.estat !== 'finalitzada').length;
-      document.getElementById('stat-importants').innerText = APP_STATE.tasks.filter(t => t.esImportant).length;
-      document.getElementById('stat-operaris-actius').innerText = APP_STATE.operaris.filter(o => o.actiu).length;
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" class="px-4 py-8 text-center text-gray-500 text-xs">
+              <i data-lucide="inbox" class="w-8 h-8 mx-auto text-gray-300 mb-2"></i>
+              <p class="font-bold text-gray-700">No s'han trobat ordres de treball amb aquests filtres.</p>
+              <button onclick="toggleKpiFilter(null)" class="mt-2 text-xs text-[#2A9D8F] font-bold hover:underline">Netejar tots els filtres</button>
+            </td>
+          </tr>
+        `;
+        renderMapMarkers();
+        lucide.createIcons();
+        return;
+      }
 
       tbody.innerHTML = filtered.map(task => {
-        const operari = APP_STATE.operaris.find(o => o.id === task.operariId);
-        let operariNom = '<span class="text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-[11px] font-bold border border-amber-200">Sense assignar</span>';
+        // Resolució d'operaris assignats (suport d'equip múltiple)
+        const assignedIds = task.operariIds && task.operariIds.length > 0 
+          ? task.operariIds 
+          : (task.operariId ? [task.operariId] : []);
         
-        if (operari) {
-          operariNom = `
-            <span class="font-bold text-[#1D3557] ${!operari.actiu ? 'line-through text-gray-400' : ''}">${operari.nom}</span>
-            <span class="block text-[10px] ${operari.actiu ? 'text-teal-700 font-medium' : 'text-red-600 font-bold'}">
-              ${operari.rol} ${!operari.actiu ? '(De Baixa)' : ''}
-            </span>
+        const assignedOps = APP_STATE.operaris.filter(o => assignedIds.includes(o.id));
+        
+        let operarisHtml = '';
+        if (assignedOps.length === 0) {
+          operarisHtml = '<span class="text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-[11px] font-bold border border-amber-200">Sense assignar</span>';
+        } else if (assignedOps.length === 1) {
+          const op = assignedOps[0];
+          const disp = getOperariDisponibilitat(op);
+          operarisHtml = `
+            <div>
+              <span class="font-bold text-[#1D3557] ${!op.actiu ? 'line-through text-gray-400' : ''}">${op.nom}</span>
+              <span class="block text-[10px] ${disp.actiu ? 'text-teal-700 font-medium' : 'text-purple-700 font-bold'}">
+                ${op.rol} ${disp.isTempAbsent ? '🏖️ (Absent)' : !op.actiu ? '(De Baixa)' : ''}
+              </span>
+            </div>
+          `;
+        } else {
+          // Equip de 2 o més operaris
+          operarisHtml = `
+            <div>
+              <div class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 text-teal-800 border border-teal-200 mb-1">
+                <i data-lucide="users" class="w-3 h-3"></i>
+                <span>Equip (${assignedOps.length} operaris)</span>
+              </div>
+              <div class="space-y-0.5">
+                ${assignedOps.map(op => {
+                  const disp = getOperariDisponibilitat(op);
+                  return `
+                    <div class="text-[11px] text-gray-800 flex items-center space-x-1">
+                      <span class="w-1.5 h-1.5 rounded-full ${disp.actiu ? 'bg-teal-500' : 'bg-purple-500'}"></span>
+                      <span class="font-medium">${op.nom}</span>
+                      <span class="text-[10px] text-gray-500">(${op.rol.split(' ')[0]})</span>
+                      ${disp.isTempAbsent ? '<span class="text-[9px] text-purple-600 font-bold">🏖️</span>' : ''}
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
           `;
         }
 
@@ -1558,9 +2510,11 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         return `
           <tr class="hover:bg-gray-50 transition-colors">
             <td class="px-4 py-3">
-              <div class="font-bold text-[#1D3557] flex items-center space-x-1.5">
+              <div class="font-bold text-[#1D3557] flex items-center space-x-1.5 flex-wrap gap-y-1">
                 <span>${task.id}</span>
                 ${task.esImportant ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 font-bold border border-amber-300">★ IMPORTANT</span>' : ''}
+                ${task.esProgramada ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-purple-100 text-purple-900 font-bold border border-purple-300 flex items-center space-x-0.5"><span>🔄</span><span>Preventiu (${FREQUENCIA_LABELS[task.frequencia]?.label || task.frequencia})</span></span>` : ''}
+                ${assignedOps.length > 1 ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-teal-50 text-teal-700 font-semibold border border-teal-200">👥 Equip</span>' : ''}
               </div>
               <p class="text-xs text-gray-900 font-medium mt-0.5">${task.titol}</p>
               <p class="text-[11px] text-gray-500 line-clamp-1 italic">${task.descripcio || 'Sense descripció addicional'}</p>
@@ -1577,16 +2531,16 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
             <td class="px-4 py-3 text-xs">
               <span class="capitalize font-semibold ${task.prioritat === 'urgent' ? 'text-red-600 font-bold' : 'text-gray-700'}">${task.prioritat}</span>
             </td>
-            <td class="px-4 py-3 text-xs">${operariNom}</td>
+            <td class="px-4 py-3 text-xs">${operarisHtml}</td>
             <td class="px-4 py-3">
               <span class="px-2.5 py-1 text-xs rounded-full border font-semibold ${statusBadges[task.estat]}">
                 ${task.estat.replace('_', ' ').toUpperCase()}
               </span>
             </td>
             <td class="px-4 py-3 text-right space-x-1 whitespace-nowrap">
-              <button onclick="openEditTaskModal('${task.id}')" title="Modificar Abast o Reassignar" class="px-2.5 py-1.5 text-xs font-semibold text-[#1D3557] bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 inline-flex items-center space-x-1">
+              <button onclick="openEditTaskModal('${task.id}')" title="Modificar Abast o Reassignar Equip" class="px-2.5 py-1.5 text-xs font-semibold text-[#1D3557] bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 inline-flex items-center space-x-1">
                 <i data-lucide="edit-3" class="w-3.5 h-3.5 text-[#2A9D8F]"></i>
-                <span>Canviar Abast</span>
+                <span>Canviar Abast / Equip</span>
               </button>
               <button onclick="openReportModal('${task.id}')" title="Generar Informe / PDF" class="p-1.5 text-gray-600 hover:text-[#1D3557] rounded-lg hover:bg-gray-100 inline-flex">
                 <i data-lucide="file-text" class="w-4 h-4"></i>
@@ -1601,7 +2555,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
     }
 
     // -------------------------------------------------------------------------
-    // MODAL DE GESTIÓ D'ABAST I REASSIGNACIÓ D'OPERARI
+    // MODAL DE GESTIÓ D'ABAST I REASSIGNACIÓ D'EQUIP D'OPERARIS
     // -------------------------------------------------------------------------
     function openEditTaskModal(taskId) {
       const task = APP_STATE.tasks.find(t => t.id === taskId);
@@ -1617,17 +2571,58 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       document.getElementById('edit-tasca-es-important').checked = task.esImportant;
       document.getElementById('edit-tasca-motiu').value = '';
 
-      const selectOperari = document.getElementById('edit-tasca-operari');
-      selectOperari.innerHTML = `
-        <option value="">Sense assignar (Tasca pendent al taulell)</option>
-        ${APP_STATE.operaris.map(op => {
-          const selected = task.operariId === op.id ? 'selected' : '';
-          const statusText = op.actiu ? '' : ' [DE BAIXA]';
-          return `<option value="${op.id}" ${selected}>${op.nom} — [${op.rol}]${statusText}</option>`;
-        }).join('')}
-      `;
+      const assignedIds = task.operariIds && task.operariIds.length > 0
+        ? task.operariIds
+        : (task.operariId ? [task.operariId] : []);
+
+      const listContainer = document.getElementById('edit-tasca-operaris-list');
+      listContainer.innerHTML = APP_STATE.operaris.map(op => {
+        const isChecked = assignedIds.includes(op.id) ? 'checked' : '';
+        const disp = getOperariDisponibilitat(op);
+        const disabled = !op.actiu ? 'disabled' : '';
+
+        return `
+          <label class="flex items-center space-x-2.5 p-2 rounded-lg border ${isChecked ? 'bg-teal-50/70 border-teal-300' : 'bg-gray-50 border-gray-200'} hover:bg-gray-100 cursor-pointer text-xs">
+            <input type="checkbox" name="edit-operari-checkbox" value="${op.id}" ${isChecked} ${disabled} onchange="updateEditTaskWhatsAppButtons('${task.id}')" class="w-4 h-4 text-[#2A9D8F] rounded border-gray-300 focus:ring-[#2A9D8F]" />
+            <div class="flex-1">
+              <div class="font-bold text-[#1D3557] ${!op.actiu ? 'line-through text-gray-400' : ''}">${op.nom}</div>
+              <div class="text-[10px] text-gray-500">${op.rol}</div>
+              ${disp.isTempAbsent ? `<span class="inline-block mt-0.5 text-[9px] px-1.5 py-0.2 rounded font-bold bg-purple-100 text-purple-800">${disp.label}</span>` : ''}
+              ${!op.actiu ? `<span class="inline-block mt-0.5 text-[9px] px-1.5 py-0.2 rounded font-bold bg-red-100 text-red-800">De Baixa Permanent</span>` : ''}
+            </div>
+          </label>
+        `;
+      }).join('');
+
+      updateEditTaskWhatsAppButtons(task.id);
 
       document.getElementById('modal-editar-tasca').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function updateEditTaskWhatsAppButtons(taskId) {
+      const task = APP_STATE.tasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      const checkedInputs = document.querySelectorAll('input[name="edit-operari-checkbox"]:checked');
+      const selectedIds = Array.from(checkedInputs).map(cb => parseInt(cb.value));
+      const selectedOps = APP_STATE.operaris.filter(o => selectedIds.includes(o.id));
+
+      const waContainer = document.getElementById('edit-tasca-wa-container');
+      if (selectedOps.length === 0) {
+        waContainer.innerHTML = '<span class="text-[11px] text-gray-400 italic">Cap operari seleccionat per notificar per WhatsApp.</span>';
+        return;
+      }
+
+      waContainer.innerHTML = selectedOps.map(op => {
+        const link = getTaskWhatsAppLink(task, op);
+        return `
+          <a href="${link}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs rounded-lg shadow-xs transition-all">
+            <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
+            <span>Avisar a ${op.nom.split(' ')[0]} (WhatsApp)</span>
+          </a>
+        `;
+      }).join('');
       lucide.createIcons();
     }
 
@@ -1647,34 +2642,46 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       const novaPrioritat = document.getElementById('edit-tasca-prioritat').value;
       const nouEstat = document.getElementById('edit-tasca-estat').value;
       const esImportant = document.getElementById('edit-tasca-es-important').checked;
-      const operariVal = document.getElementById('edit-tasca-operari').value;
-      const nouOperariId = operariVal ? parseInt(operariVal) : null;
+
+      const checkedInputs = document.querySelectorAll('input[name="edit-operari-checkbox"]:checked');
+      const selectedIds = Array.from(checkedInputs).map(cb => parseInt(cb.value));
 
       task.titol = nouTitol;
       task.descripcio = novaDescripcio;
       task.categoria = novaCategoria;
       task.prioritat = novaPrioritat;
       task.esImportant = esImportant;
-      task.operariId = nouOperariId;
+      task.operariIds = selectedIds;
+      task.operariId = selectedIds.length > 0 ? selectedIds[0] : null;
 
-      if (nouOperariId && task.estat === 'pendent' && nouEstat === 'pendent') {
+      if (selectedIds.length > 0 && task.estat === 'pendent' && nouEstat === 'pendent') {
         task.estat = 'assignada';
       } else {
         task.estat = nouEstat;
       }
 
       closeEditTaskModal();
-      alert(`Ordre ${task.id} actualitzada: Abast modificat i reassignació completada.`);
+      alert(`Ordre ${task.id} actualitzada: Abast modificat i equip d'operaris reassignat (${selectedIds.length} assignat(s)).`);
       renderAdminTasks();
       renderOperariScreen();
       renderOperatorsCards();
     }
 
     // -------------------------------------------------------------------------
-    // CRUD COMPLET DE PERSONAL (ALTA, BAIXA I MODIFICACIÓ)
+    // CRUD COMPLET DE PERSONAL (ALTA, BAIXA, ABSÈNCIES I MODIFICACIÓ)
     // -------------------------------------------------------------------------
     function filterOperators(filter) {
       APP_STATE.operatorsFilter = filter;
+      const btnAll = document.getElementById('btn-filter-op-all');
+      const btnActiu = document.getElementById('btn-filter-op-actiu');
+      const btnAbsencia = document.getElementById('btn-filter-op-absencia');
+      const btnBaixa = document.getElementById('btn-filter-op-baixa');
+
+      if (btnAll) btnAll.className = filter === 'all' ? "px-3 py-1.5 bg-[#1D3557] text-white rounded-lg font-medium shadow-xs" : "px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200";
+      if (btnActiu) btnActiu.className = filter === 'actiu' ? "px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-medium shadow-xs" : "px-3 py-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg font-medium hover:bg-emerald-100";
+      if (btnAbsencia) btnAbsencia.className = filter === 'absencia' ? "px-3 py-1.5 bg-purple-700 text-white rounded-lg font-medium shadow-xs" : "px-3 py-1.5 bg-purple-50 text-purple-800 border border-purple-200 rounded-lg font-medium hover:bg-purple-100";
+      if (btnBaixa) btnBaixa.className = filter === 'baixa' ? "px-3 py-1.5 bg-red-600 text-white rounded-lg font-medium shadow-xs" : "px-3 py-1.5 bg-red-50 text-red-800 border border-red-200 rounded-lg font-medium hover:bg-red-100";
+
       renderOperatorsCards();
     }
 
@@ -1745,7 +2752,8 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           rol,
           especialitat,
           pin: pin || "1234",
-          actiu: true
+          actiu: true,
+          baixes_temporals: []
         };
         APP_STATE.operaris.push(newOperator);
         alert(`Operari ${nom} donat d'alta correctament.`);
@@ -1763,16 +2771,19 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       if (!op) return;
 
       if (op.actiu) {
-        // Comprovar tasques pendents abans de donar de baixa
-        const pendingCount = APP_STATE.tasks.filter(t => t.operariId === op.id && (t.estat === 'pendent' || t.estat === 'assignada')).length;
-        let msg = `Estàs segur que vols donar de BAIXA a ${op.nom}?`;
+        const pendingCount = APP_STATE.tasks.filter(t => {
+          const ids = t.operariIds && t.operariIds.length > 0 ? t.operariIds : (t.operariId ? [t.operariId] : []);
+          return ids.includes(op.id) && (t.estat === 'pendent' || t.estat === 'assignada');
+        }).length;
+
+        let msg = `Estàs segur que vols donar de BAIXA PERMANENT a ${op.nom}?`;
         if (pendingCount > 0) {
           msg += `\n\n⚠️ ATENCIÓ: Té ${pendingCount} tasques pendents o assignades. Si el dones de baixa, no podrà accedir al seu torn mòbil. Pots reassignar les tasques abans amb el botó "Reassignar en bloc".`;
         }
 
         if (confirm(msg)) {
           op.actiu = false;
-          alert(`${op.nom} ha estat donat de BAIXA.`);
+          alert(`${op.nom} ha estat donat de BAIXA PERMANENT.`);
         }
       } else {
         if (confirm(`Vols reactivar a ${op.nom} com a personal actiu de la brigada?`)) {
@@ -1792,7 +2803,9 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       let filtered = APP_STATE.operaris;
 
       if (APP_STATE.operatorsFilter === 'actiu') {
-        filtered = filtered.filter(o => o.actiu);
+        filtered = filtered.filter(o => o.actiu && !getOperariDisponibilitat(o).isTempAbsent);
+      } else if (APP_STATE.operatorsFilter === 'absencia') {
+        filtered = filtered.filter(o => (o.baixes_temporals && o.baixes_temporals.length > 0) || getOperariDisponibilitat(o).isTempAbsent);
       } else if (APP_STATE.operatorsFilter === 'baixa') {
         filtered = filtered.filter(o => !o.actiu);
       }
@@ -1810,14 +2823,20 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
       container.innerHTML = filtered.map(op => {
         const isClima = op.especialitat === 'climatitzacio';
-        const pendingCount = APP_STATE.tasks.filter(t => t.operariId === op.id && (t.estat === 'pendent' || t.estat === 'assignada')).length;
+        const pendingCount = APP_STATE.tasks.filter(t => {
+          const ids = t.operariIds && t.operariIds.length > 0 ? t.operariIds : (t.operariId ? [t.operariId] : []);
+          return ids.includes(op.id) && (t.estat === 'pendent' || t.estat === 'assignada');
+        }).length;
+
+        const disp = getOperariDisponibilitat(op);
+        const baixes = op.baixes_temporals || [];
 
         return `
-          <div class="bg-white border ${op.actiu ? 'border-gray-200' : 'border-red-200 bg-red-50/20'} rounded-2xl p-4 shadow-xs space-y-3 flex flex-col justify-between transition-all">
+          <div class="bg-white border ${op.actiu ? (disp.isTempAbsent ? 'border-purple-300 bg-purple-50/10' : 'border-gray-200') : 'border-red-200 bg-red-50/20'} rounded-2xl p-4 shadow-xs space-y-3 flex flex-col justify-between transition-all">
             <div class="space-y-3">
-              <div class="flex items-center justify-between">
+              <div class="flex items-start justify-between">
                 <div class="flex items-center space-x-3">
-                  <div class="w-10 h-10 ${!op.actiu ? 'bg-gray-200 text-gray-500' : isClima ? 'bg-cyan-100 text-cyan-800' : 'bg-teal-50 text-[#2A9D8F]'} rounded-full flex items-center justify-center font-bold">
+                  <div class="w-10 h-10 ${!op.actiu ? 'bg-gray-200 text-gray-500' : disp.isTempAbsent ? 'bg-purple-100 text-purple-800' : isClima ? 'bg-cyan-100 text-cyan-800' : 'bg-teal-50 text-[#2A9D8F]'} rounded-full flex items-center justify-center font-bold">
                     ${op.nom.charAt(0)}
                   </div>
                   <div>
@@ -1825,8 +2844,8 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                     <p class="text-xs text-gray-500 font-medium">${op.rol}</p>
                   </div>
                 </div>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${op.actiu ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}">
-                  ${op.actiu ? 'Actiu' : 'De Baixa'}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${disp.badgeClass}">
+                  ${disp.label}
                 </span>
               </div>
 
@@ -1838,6 +2857,42 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                   <span class="text-gray-500">Tasques en cua:</span>
                   <span class="font-bold px-1.5 py-0.5 rounded ${pendingCount > 0 ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600'}">${pendingCount} pendents</span>
                 </p>
+              </div>
+
+              <!-- Franges de Baixes Temporals / Vacances -->
+              <div class="space-y-1.5 pt-1">
+                <div class="flex items-center justify-between text-[11px] font-bold text-gray-700">
+                  <span class="flex items-center space-x-1">
+                    <i data-lucide="calendar" class="w-3.5 h-3.5 text-purple-600"></i>
+                    <span>Absències Programades (${baixes.length}):</span>
+                  </span>
+                  <button onclick="openModalBaixaTemporal(${op.id})" class="text-[10px] text-purple-700 hover:text-purple-900 font-bold hover:underline flex items-center space-x-0.5">
+                    <i data-lucide="plus" class="w-3 h-3"></i>
+                    <span>Programar</span>
+                  </button>
+                </div>
+
+                ${baixes.length === 0 ? `
+                  <p class="text-[10px] text-gray-400 italic bg-gray-50/70 p-1.5 rounded-lg border border-dashed border-gray-200">Sense vacances o baixes temporals registrades.</p>
+                ` : `
+                  <div class="space-y-1 max-h-24 overflow-y-auto">
+                    ${baixes.map((b, bIdx) => {
+                      const typeInfo = TIPUS_BAIXA_LABELS[b.tipus] || { label: b.tipus, icon: "🗓️" };
+                      return `
+                        <div class="p-1.5 bg-purple-50/80 rounded-lg border border-purple-200 flex items-center justify-between text-[10px] text-purple-950">
+                          <div>
+                            <span class="font-bold">${typeInfo.icon} ${typeInfo.label}</span>: 
+                            <span class="font-mono">${formatDateShort(b.dataInici)} al ${formatDateShort(b.dataFi)}</span>
+                            ${b.motiu ? `<p class="text-[9px] text-purple-700 italic truncate max-w-[170px]">${b.motiu}</p>` : ''}
+                          </div>
+                          <button onclick="deleteBaixaTemporal(${op.id}, ${bIdx})" title="Eliminar absència" class="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded">
+                            <i data-lucide="trash-2" class="w-3 h-3"></i>
+                          </button>
+                        </div>
+                      `;
+                    }).join('')}
+                  </div>
+                `}
               </div>
             </div>
 
@@ -1855,13 +2910,17 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               </div>
 
               ${op.actiu ? `
+                <button onclick="openModalBaixaTemporal(${op.id})" class="w-full min-touch py-2 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-300 text-xs font-bold rounded-xl flex items-center justify-center space-x-1.5">
+                  <i data-lucide="calendar-plus" class="w-3.5 h-3.5 text-purple-700"></i>
+                  <span>Programar Vacances / Baixa</span>
+                </button>
                 <button onclick="openBulkReassignModal(${op.id})" class="w-full min-touch py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold rounded-xl flex items-center justify-center space-x-1.5">
                   <i data-lucide="arrow-right-left" class="w-3.5 h-3.5 text-amber-700"></i>
                   <span>Reassignar tasques en bloc</span>
                 </button>
                 <button onclick="toggleOperatorStatus(${op.id})" class="w-full min-touch py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-semibold rounded-xl flex items-center justify-center space-x-1.5">
                   <i data-lucide="user-x" class="w-3.5 h-3.5 text-red-500"></i>
-                  <span>Donar de Baixa</span>
+                  <span>Donar de Baixa Permanent</span>
                 </button>
               ` : `
                 <button onclick="toggleOperatorStatus(${op.id})" class="w-full min-touch py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-xl flex items-center justify-center space-x-1.5">
@@ -1877,6 +2936,82 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
     }
 
     // -------------------------------------------------------------------------
+    // GESTIÓ D'ABSÈNCIES I BAIXES TEMPORALS (VACANCES, MÈDICA, DIES LLIURES)
+    // -------------------------------------------------------------------------
+    function openModalBaixaTemporal(opId) {
+      const op = APP_STATE.operaris.find(o => o.id === opId);
+      if (!op) return;
+
+      document.getElementById('baixa-operari-id').value = op.id;
+      document.getElementById('modal-baixa-operari-nom').innerText = `Operari: ${op.nom} (${op.rol})`;
+      
+      const today = new Date().toISOString().split('T')[0];
+      const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
+      document.getElementById('baixa-data-inici').value = today;
+      document.getElementById('baixa-data-fi').value = nextWeek;
+      document.getElementById('baixa-motiu').value = '';
+      document.getElementById('baixa-tipus').value = 'vacances';
+
+      document.getElementById('modal-baixa-temporal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeModalBaixaTemporal() {
+      document.getElementById('modal-baixa-temporal').classList.add('hidden');
+    }
+
+    function saveBaixaTemporal(e) {
+      e.preventDefault();
+      const opId = parseInt(document.getElementById('baixa-operari-id').value);
+      const op = APP_STATE.operaris.find(o => o.id === opId);
+      if (!op) return;
+
+      const tipus = document.getElementById('baixa-tipus').value;
+      const dataInici = document.getElementById('baixa-data-inici').value;
+      const dataFi = document.getElementById('baixa-data-fi').value;
+      const motiu = document.getElementById('baixa-motiu').value.trim();
+
+      if (dataInici > dataFi) {
+        alert("La data d'inici no pot ser posterior a la data de fi.");
+        return;
+      }
+
+      if (!op.baixes_temporals) {
+        op.baixes_temporals = [];
+      }
+
+      op.baixes_temporals.push({
+        id: Date.now(),
+        tipus,
+        dataInici,
+        dataFi,
+        motiu
+      });
+
+      closeModalBaixaTemporal();
+      alert(`Absència programada correctament per a ${op.nom} del ${formatDateShort(dataInici)} al ${formatDateShort(dataFi)}.`);
+
+      renderOperatorsCards();
+      renderAdminTasks();
+      renderCreateTaskOperatorsSelect();
+    }
+
+    function deleteBaixaTemporal(opId, idx) {
+      const op = APP_STATE.operaris.find(o => o.id === opId);
+      if (!op || !op.baixes_temporals) return;
+
+      const baixa = op.baixes_temporals[idx];
+      const tipusLabel = TIPUS_BAIXA_LABELS[baixa.tipus]?.label || baixa.tipus;
+
+      if (confirm(`Vols eliminar l'absència "${tipusLabel}" (${formatDateShort(baixa.dataInici)} - ${formatDateShort(baixa.dataFi)}) de ${op.nom}?`)) {
+        op.baixes_temporals.splice(idx, 1);
+        renderOperatorsCards();
+        renderAdminTasks();
+        renderCreateTaskOperatorsSelect();
+      }
+    }
+
+    // -------------------------------------------------------------------------
     // REASSIGNACIÓ EN BLOC DE TAREAS
     // -------------------------------------------------------------------------
     let bulkSourceOperariId = null;
@@ -1888,7 +3023,10 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       bulkSourceOperariId = sourceOperariId;
       document.getElementById('bulk-origen-nom').innerText = `${sourceOperari.nom} (${sourceOperari.rol})`;
 
-      const pendingTasks = APP_STATE.tasks.filter(t => t.operariId === sourceOperariId && (t.estat === 'pendent' || t.estat === 'assignada'));
+      const pendingTasks = APP_STATE.tasks.filter(t => {
+        const ids = t.operariIds && t.operariIds.length > 0 ? t.operariIds : (t.operariId ? [t.operariId] : []);
+        return ids.includes(sourceOperariId) && (t.estat === 'pendent' || t.estat === 'assignada');
+      });
       document.getElementById('bulk-total-tasques').innerText = `${pendingTasks.length} ordres de treball`;
 
       if (pendingTasks.length === 0) {
@@ -1922,8 +3060,13 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
       let transferredCount = 0;
       APP_STATE.tasks.forEach(task => {
-        if (task.operariId === bulkSourceOperariId && (task.estat === 'pendent' || task.estat === 'assignada')) {
-          task.operariId = targetOperariId;
+        const ids = task.operariIds && task.operariIds.length > 0 
+          ? task.operariIds 
+          : (task.operariId ? [task.operariId] : []);
+
+        if (ids.includes(bulkSourceOperariId) && (task.estat === 'pendent' || task.estat === 'assignada')) {
+          task.operariIds = ids.map(id => id === bulkSourceOperariId ? targetOperariId : id);
+          task.operariId = task.operariIds[0] || targetOperariId;
           task.estat = 'assignada';
           transferredCount++;
         }
@@ -1938,26 +3081,40 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
     }
 
     // -------------------------------------------------------------------------
-    // DESPLEGABLES D'OPERARIS DINÀMICS
+    // DESPLEGABLES D'OPERARIS DINÀMICS I LLISTAT D'EQUIP PER CREACIÓ DE TASCA
     // -------------------------------------------------------------------------
     function renderCreateTaskOperatorsSelect() {
-      const select = document.getElementById('tasca-assignar-operari');
-      const activeOps = APP_STATE.operaris.filter(o => o.actiu);
+      const container = document.getElementById('create-tasca-operaris-list');
+      if (!container) return;
 
-      select.innerHTML = `
-        <option value="">Sense assignar (Pendent al taulell)</option>
-        ${activeOps.map(op => {
-          return `<option value="${op.id}">${op.nom} — [${op.rol}]</option>`;
-        }).join('')}
-      `;
+      container.innerHTML = APP_STATE.operaris.map(op => {
+        const disp = getOperariDisponibilitat(op);
+        const disabled = !op.actiu ? 'disabled' : '';
+
+        return `
+          <label class="flex items-center space-x-2.5 p-2 rounded-lg border bg-white border-gray-200 hover:bg-gray-50 cursor-pointer text-xs transition-colors">
+            <input type="checkbox" name="create-operari-checkbox" value="${op.id}" ${disabled} class="w-4 h-4 text-[#2A9D8F] rounded border-gray-300 focus:ring-[#2A9D8F]" />
+            <div class="flex-1">
+              <div class="font-bold text-[#1D3557] ${!op.actiu ? 'line-through text-gray-400' : ''}">${op.nom}</div>
+              <div class="text-[10px] text-gray-500">${op.rol} · <span class="text-teal-700">${CATEGORIA_LABELS[op.especialitat] || op.especialitat}</span></div>
+              ${disp.isTempAbsent ? `<span class="inline-block mt-0.5 text-[9px] px-1.5 py-0.2 rounded font-bold bg-purple-100 text-purple-800">${disp.label}</span>` : ''}
+              ${!op.actiu ? `<span class="inline-block mt-0.5 text-[9px] px-1.5 py-0.2 rounded font-bold bg-red-100 text-red-800">De Baixa Permanent</span>` : ''}
+            </div>
+          </label>
+        `;
+      }).join('');
+      lucide.createIcons();
     }
 
     function renderLoginOperatorsSelect() {
+      renderUnifiedLoginOperatorsSelect();
       const select = document.getElementById('login-operari-select');
+      if (!select) return;
       const activeOps = APP_STATE.operaris.filter(o => o.actiu);
 
       select.innerHTML = activeOps.map(op => {
-        return `<option value="${op.id}">${op.nom} — [${op.rol}]</option>`;
+        const disp = getOperariDisponibilitat(op);
+        return `<option value="${op.id}">${op.nom} — [${op.rol}] ${disp.isTempAbsent ? '(🏖️ Absent)' : ''}</option>`;
       }).join('');
     }
 
@@ -2001,7 +3158,10 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       const nucli = document.getElementById('tasca-nucli').value;
       const via = document.getElementById('tasca-via').value;
       const esImportant = document.getElementById('tasca-es-important').checked;
-      const operariId = document.getElementById('tasca-assignar-operari').value ? parseInt(document.getElementById('tasca-assignar-operari').value) : null;
+
+      const checkedInputs = document.querySelectorAll('input[name="create-operari-checkbox"]:checked');
+      const operariIds = Array.from(checkedInputs).map(cb => parseInt(cb.value));
+      const operariId = operariIds.length > 0 ? operariIds[0] : null;
 
       const viaObj = APP_STATE.vies.find(v => via.includes(v.nom)) || { lat: 39.62354, lng: 2.83685 };
       const newId = `SE-2026-000${APP_STATE.tasks.length + 1}`;
@@ -2016,7 +3176,8 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         via,
         lat: viaObj.lat + (Math.random() - 0.5) * 0.001,
         lng: viaObj.lng + (Math.random() - 0.5) * 0.001,
-        estat: operariId ? 'assignada' : 'pendent',
+        estat: operariIds.length > 0 ? 'assignada' : 'pendent',
+        operariIds,
         operariId,
         esImportant,
         tempsTranscorregut: 0,
@@ -2027,7 +3188,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       };
 
       APP_STATE.tasks.unshift(newTask);
-      alert(`Ordre ${newId} registrada correctament.`);
+      alert(`Ordre ${newId} registrada correctament ${operariIds.length > 0 ? "amb equip de " + operariIds.length + " operari(s)" : "(Pendent d'assignació)"}.`);
       document.getElementById('form-crear-tasca').reset();
       navigateView('admin-dashboard');
     }
@@ -2041,7 +3202,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       const operari = APP_STATE.operaris.find(o => o.id === operariId);
 
       if (operari && operari.pin === pinInput) {
-        if (!op.actiu) {
+        if (!operari.actiu) {
           alert("Aquest operari està de baixa i no pot accedir al sistema.");
           return;
         }
@@ -2066,7 +3227,11 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
     function renderOperariScreen() {
       if (!APP_STATE.activeOperari) return;
       const container = document.getElementById('operari-tasks-list');
-      let myTasks = APP_STATE.tasks.filter(t => t.operariId === APP_STATE.activeOperari.id && t.estat !== 'finalitzada');
+      
+      let myTasks = APP_STATE.tasks.filter(t => {
+        const ids = t.operariIds && t.operariIds.length > 0 ? t.operariIds : (t.operariId ? [t.operariId] : []);
+        return ids.includes(APP_STATE.activeOperari.id) && t.estat !== 'finalitzada';
+      });
 
       myTasks.forEach(task => {
         task.distanciaKm = calculateHaversineDistance(
@@ -2095,6 +3260,23 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         const isRunning = task.estat === 'en_curs';
         const gmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${task.lat},${task.lng}`;
 
+        // Altres companys assignats a la mateixa tasca (equip)
+        const ids = task.operariIds && task.operariIds.length > 0 ? task.operariIds : (task.operariId ? [task.operariId] : []);
+        const teammates = APP_STATE.operaris.filter(o => ids.includes(o.id) && o.id !== APP_STATE.activeOperari.id);
+
+        let teamBanner = '';
+        if (teammates.length > 0) {
+          teamBanner = `
+            <div class="bg-teal-50 border border-teal-200 rounded-xl p-2.5 flex items-start space-x-2 text-xs text-teal-950">
+              <i data-lucide="users" class="w-4 h-4 text-[#2A9D8F] flex-shrink-0 mt-0.5"></i>
+              <div>
+                <span class="font-bold block">👥 Treball en equip coordinat amb:</span>
+                <span class="text-teal-800">${teammates.map(tm => `${tm.nom} (${tm.rol}) · Tel: ${tm.telefon}`).join(' | ')}</span>
+              </div>
+            </div>
+          `;
+        }
+
         return `
           <div class="bg-white rounded-2xl border ${isRunning ? 'border-[#2A9D8F] ring-2 ring-[#2A9D8F]/20' : 'border-gray-200'} p-4 shadow-sm space-y-3">
             <div class="flex items-start justify-between">
@@ -2103,6 +3285,8 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                   <span class="text-xs font-mono font-bold text-[#1D3557]">${task.id}</span>
                   ${task.prioritat === 'urgent' ? '<span class="px-2 py-0.5 text-[10px] font-bold bg-red-100 text-red-800 rounded-full">URGENT</span>' : ''}
                   ${task.esImportant ? '<span class="px-1.5 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 rounded border border-amber-300">★ IMPORTANT</span>' : ''}
+                  ${task.esProgramada ? `<span class="px-1.5 py-0.5 text-[10px] font-bold bg-purple-100 text-purple-900 rounded border border-purple-300">🔄 Preventiu (${FREQUENCIA_LABELS[task.frequencia]?.label || task.frequencia})</span>` : ''}
+                  ${teammates.length > 0 ? '<span class="px-1.5 py-0.5 text-[10px] font-bold bg-teal-100 text-teal-800 rounded">👥 Equip</span>' : ''}
                 </div>
                 <h4 class="font-bold text-base text-gray-900 leading-snug mt-1">${task.titol}</h4>
               </div>
@@ -2111,6 +3295,8 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                 <span>${formatDistance(task.distanciaKm)}</span>
               </span>
             </div>
+
+            ${teamBanner}
 
             <div class="flex items-center justify-between bg-gray-50 p-2.5 rounded-xl border border-gray-200 text-xs">
               <div class="flex items-center space-x-1.5 text-gray-700">
@@ -2286,8 +3472,13 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       document.getElementById('pdf-ubicacio').innerText = `${task.nucli} (${task.via})`;
       document.getElementById('pdf-categoria').innerText = CATEGORIA_LABELS[task.categoria] || task.categoria;
 
-      const operari = APP_STATE.operaris.find(o => o.id === task.operariId);
-      document.getElementById('pdf-operari').innerText = operari ? `${operari.nom} (${operari.rol})` : 'Sense assignar';
+      const assignedIds = task.operariIds && task.operariIds.length > 0 
+        ? task.operariIds 
+        : (task.operariId ? [task.operariId] : []);
+      const assignedOps = APP_STATE.operaris.filter(o => assignedIds.includes(o.id));
+      document.getElementById('pdf-operari').innerText = assignedOps.length > 0 
+        ? assignedOps.map(o => `${o.nom} (${o.rol})`).join(', ') 
+        : 'Sense assignar';
 
       document.getElementById('pdf-retencio-avís').innerText = task.esImportant 
         ? "★ Tasca marcada com a IMPORTANT: Custòdia i retenció permanent d'imatges a l'arxiu d'obres públiques."
@@ -2430,6 +3621,360 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
     }
 
     // -------------------------------------------------------------------------
+    // GESTOR DE MANTENIMENT PREVENTIU I TASQUES PROGRAMADES
+    // -------------------------------------------------------------------------
+    function filterProgramades(filter) {
+      APP_STATE.programadesFilter = filter;
+      const filters = ['all', 'diaria', 'setmanal', 'mensual', 'trimestral', 'pausada'];
+      filters.forEach(f => {
+        const btn = document.getElementById(`btn-filter-prog-${f}`);
+        if (!btn) return;
+        if (f === filter) {
+          btn.className = "px-3 py-1.5 bg-[#1D3557] text-white rounded-lg font-medium shadow-xs";
+        } else if (f === 'pausada') {
+          btn.className = "px-3 py-1.5 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg font-medium hover:bg-amber-100";
+        } else {
+          btn.className = "px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200";
+        }
+      });
+      renderProgramadesCards();
+    }
+
+    function renderProgramadesCards() {
+      const container = document.getElementById('programades-cards-container');
+      if (!container) return;
+
+      const totalCount = APP_STATE.tasquesProgramades.length;
+      const activeCount = APP_STATE.tasquesProgramades.filter(p => p.activa).length;
+      const setmanalsCount = APP_STATE.tasquesProgramades.filter(p => p.frequencia === 'setmanal').length;
+      const mensualsCount = APP_STATE.tasquesProgramades.filter(p => p.frequencia === 'mensual').length;
+      const generadesCount = APP_STATE.tasks.filter(t => t.esProgramada).length;
+
+      const statTotal = document.getElementById('stat-prog-total');
+      const statActives = document.getElementById('stat-prog-actives');
+      const statFreq = document.getElementById('stat-prog-freq');
+      const statGenerades = document.getElementById('stat-prog-generades');
+
+      if (statTotal) statTotal.innerText = totalCount;
+      if (statActives) statActives.innerText = activeCount;
+      if (statFreq) statFreq.innerText = `${setmanalsCount} / ${mensualsCount}`;
+      if (statGenerades) statGenerades.innerText = generadesCount;
+
+      let filtered = APP_STATE.tasquesProgramades;
+      if (APP_STATE.programadesFilter === 'pausada') {
+        filtered = filtered.filter(p => !p.activa);
+      } else if (APP_STATE.programadesFilter && APP_STATE.programadesFilter !== 'all') {
+        filtered = filtered.filter(p => p.frequencia === APP_STATE.programadesFilter);
+      }
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl p-8 text-center text-gray-500">
+            <i data-lucide="calendar-x" class="w-8 h-8 mx-auto text-gray-400 mb-2"></i>
+            <p class="font-bold text-sm">No hi ha tasques programades amb aquest filtre.</p>
+            <button onclick="openModalProgramada()" class="mt-2 text-xs text-[#2A9D8F] font-bold hover:underline">+ Crear Nova Tasca Programada</button>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      container.innerHTML = filtered.map(prog => {
+        const freqInfo = FREQUENCIA_LABELS[prog.frequencia] || { label: prog.frequencia, icon: "🗓️", badgeClass: "bg-gray-100 text-gray-800" };
+        const assignedIds = prog.operariIds || [];
+        const assignedOps = APP_STATE.operaris.filter(o => assignedIds.includes(o.id));
+
+        return `
+          <div class="bg-white border ${prog.activa ? 'border-gray-200' : 'border-amber-200 bg-amber-50/20'} rounded-2xl p-4 shadow-xs space-y-3 flex flex-col justify-between transition-all">
+            <div class="space-y-3">
+              <div class="flex items-start justify-between gap-2">
+                <div class="space-y-1">
+                  <div class="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${freqInfo.badgeClass}">
+                      ${freqInfo.icon} ${freqInfo.label}
+                    </span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${prog.activa ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-700'}">
+                      ${prog.activa ? '● Activa' : '⏸️ Pausada'}
+                    </span>
+                  </div>
+                  <h4 class="font-bold text-sm text-[#1D3557] leading-snug mt-1">${prog.titol}</h4>
+                </div>
+                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-700 whitespace-nowrap">
+                  ${CATEGORIA_LABELS[prog.categoria] || prog.categoria}
+                </span>
+              </div>
+
+              <p class="text-xs text-gray-600 line-clamp-2">${prog.descripcio}</p>
+
+              <div class="bg-gray-50 p-2.5 rounded-xl border border-gray-100 text-[11px] space-y-1 text-gray-700">
+                <p class="flex items-center space-x-1.5">
+                  <i data-lucide="map-pin" class="w-3.5 h-3.5 text-[#2A9D8F] flex-shrink-0"></i>
+                  <span><strong>${prog.nucli}</strong> · ${prog.via}</span>
+                </p>
+                <p class="flex items-center space-x-1.5 text-gray-600">
+                  <i data-lucide="clock" class="w-3.5 h-3.5 text-purple-600 flex-shrink-0"></i>
+                  <span>Dia preferent: <strong>${prog.diaPreferent || 'Flexible'}</strong></span>
+                </p>
+                <div class="pt-1 border-t border-gray-200/60 flex items-center justify-between text-[10px]">
+                  <span class="text-gray-500">Darrera tanda: <strong>${formatDateShort(prog.darreraExecucio) || 'Pendent'}</strong></span>
+                  <span class="text-purple-700 font-bold">Propera: ${formatDateShort(prog.properaExecucio) || 'Imminent'}</span>
+                </div>
+              </div>
+
+              <!-- Equip Assignat -->
+              <div class="space-y-1">
+                <p class="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center space-x-1">
+                  <i data-lucide="users" class="w-3 h-3 text-[#2A9D8F]"></i>
+                  <span>Equip d'Operaris (${assignedOps.length}):</span>
+                </p>
+                <div class="flex flex-wrap gap-1">
+                  ${assignedOps.length === 0 ? '<span class="text-[10px] text-gray-400 italic">Sense assignar</span>' : assignedOps.map(op => {
+                    const disp = getOperariDisponibilitat(op);
+                    return `
+                      <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-lg text-[10px] font-medium ${disp.actiu ? 'bg-teal-50 text-teal-800 border border-teal-200' : 'bg-purple-50 text-purple-800 border border-purple-200'}">
+                        <span>${op.nom}</span>
+                        ${disp.isTempAbsent ? '<span title="Absent">🏖️</span>' : ''}
+                      </span>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            </div>
+
+            <!-- Accions de la Tasca Programada -->
+            <div class="space-y-1.5 pt-2 border-t border-gray-100">
+              <button onclick="generarOrdreFromProgramada('${prog.id}')" class="w-full min-touch py-2 bg-[#2A9D8F] hover:bg-[#238276] text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center space-x-1.5 transition-all">
+                <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+                <span>Generar Ordre de Treball Ara</span>
+              </button>
+
+              <div class="grid grid-cols-3 gap-1">
+                <button onclick="toggleProgramadaStatus('${prog.id}')" class="min-touch py-1.5 ${prog.activa ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'} border text-[11px] font-semibold rounded-lg flex items-center justify-center space-x-1">
+                  <i data-lucide="${prog.activa ? 'pause' : 'play'}" class="w-3 h-3"></i>
+                  <span>${prog.activa ? 'Pausar' : 'Activar'}</span>
+                </button>
+                <button onclick="openModalProgramada('${prog.id}')" class="min-touch py-1.5 bg-blue-50 hover:bg-blue-100 text-[#1D3557] border border-blue-200 text-[11px] font-semibold rounded-lg flex items-center justify-center space-x-1">
+                  <i data-lucide="edit" class="w-3 h-3 text-[#2A9D8F]"></i>
+                  <span>Editar</span>
+                </button>
+                <button onclick="deleteProgramada('${prog.id}')" class="min-touch py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[11px] font-semibold rounded-lg flex items-center justify-center space-x-1">
+                  <i data-lucide="trash-2" class="w-3 h-3 text-red-500"></i>
+                  <span>Eliminar</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    function openModalProgramada(progId = null) {
+      const modal = document.getElementById('modal-tasca-programada');
+      const form = document.getElementById('form-tasca-programada');
+      form.reset();
+
+      const operarisContainer = document.getElementById('prog-form-operaris-list');
+      const prog = progId ? APP_STATE.tasquesProgramades.find(p => p.id === progId) : null;
+
+      document.getElementById('prog-form-id').value = prog ? prog.id : '';
+      document.getElementById('modal-prog-title').innerText = prog ? `Editar Rutina: ${prog.id}` : "Nova Tasca Programada";
+      document.getElementById('prog-form-submit-btn').innerHTML = `<i data-lucide="check" class="w-4 h-4 mr-1"></i><span>${prog ? "Desar Canvis" : "Crear Tasca Programada"}</span>`;
+
+      if (prog) {
+        document.getElementById('prog-form-titol').value = prog.titol;
+        document.getElementById('prog-form-descripcio').value = prog.descripcio;
+        document.getElementById('prog-form-categoria').value = prog.categoria;
+        document.getElementById('prog-form-frequencia').value = prog.frequencia;
+        document.getElementById('prog-form-dia').value = prog.diaPreferent || '';
+        document.getElementById('prog-form-prioritat').value = prog.prioritat || 'normal';
+        document.getElementById('prog-form-nucli').value = prog.nucli;
+        document.getElementById('prog-form-via').value = prog.via;
+      }
+
+      const assigned = prog ? (prog.operariIds || []) : [];
+      operarisContainer.innerHTML = APP_STATE.operaris.map(op => {
+        const isChecked = assigned.includes(op.id) ? 'checked' : '';
+        const disp = getOperariDisponibilitat(op);
+        const disabled = !op.actiu ? 'disabled' : '';
+
+        return `
+          <label class="flex items-center space-x-2 p-1.5 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer text-xs">
+            <input type="checkbox" name="prog-operari-checkbox" value="${op.id}" ${isChecked} ${disabled} class="w-4 h-4 text-[#2A9D8F] rounded border-gray-300 focus:ring-[#2A9D8F]" />
+            <div class="flex-1 truncate">
+              <span class="font-bold text-[#1D3557] ${!op.actiu ? 'line-through text-gray-400' : ''}">${op.nom}</span>
+              <span class="text-[10px] text-gray-500 block truncate">${op.rol}</span>
+            </div>
+            ${disp.isTempAbsent ? '<span class="text-[9px] text-purple-700 font-bold">🏖️</span>' : ''}
+          </label>
+        `;
+      }).join('');
+
+      modal.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeModalProgramada() {
+      document.getElementById('modal-tasca-programada').classList.add('hidden');
+    }
+
+    function saveProgramada(e) {
+      e.preventDefault();
+      const idStr = document.getElementById('prog-form-id').value;
+      const titol = document.getElementById('prog-form-titol').value.trim();
+      const descripcio = document.getElementById('prog-form-descripcio').value.trim();
+      const categoria = document.getElementById('prog-form-categoria').value;
+      const frequencia = document.getElementById('prog-form-frequencia').value;
+      const diaPreferent = document.getElementById('prog-form-dia').value.trim();
+      const prioritat = document.getElementById('prog-form-prioritat').value;
+      const nucli = document.getElementById('prog-form-nucli').value;
+      const via = document.getElementById('prog-form-via').value.trim();
+
+      const checkedInputs = document.querySelectorAll('input[name="prog-operari-checkbox"]:checked');
+      const operariIds = Array.from(checkedInputs).map(cb => parseInt(cb.value));
+
+      const today = new Date().toISOString().split('T')[0];
+
+      if (idStr) {
+        const prog = APP_STATE.tasquesProgramades.find(p => p.id === idStr);
+        if (prog) {
+          prog.titol = titol;
+          prog.descripcio = descripcio;
+          prog.categoria = categoria;
+          prog.frequencia = frequencia;
+          prog.diaPreferent = diaPreferent;
+          prog.prioritat = prioritat;
+          prog.nucli = nucli;
+          prog.via = via;
+          prog.operariIds = operariIds;
+          alert(`Rutina "${prog.titol}" actualitzada correctament.`);
+        }
+      } else {
+        const newId = `PROG-00${APP_STATE.tasquesProgramades.length + 1}`;
+        const newProg = {
+          id: newId,
+          titol,
+          descripcio,
+          categoria,
+          frequencia,
+          diaPreferent,
+          prioritat,
+          nucli,
+          via,
+          lat: 39.62354,
+          lng: 2.83685,
+          operariIds,
+          activa: true,
+          darreraExecucio: null,
+          properaExecucio: calcularProperaData(today, frequencia),
+          totalExecucions: 0
+        };
+        APP_STATE.tasquesProgramades.unshift(newProg);
+        alert(`Nova tasca programada "${titol}" creada amb èxit.`);
+      }
+
+      closeModalProgramada();
+      renderProgramadesCards();
+    }
+
+    function toggleProgramadaStatus(progId) {
+      const prog = APP_STATE.tasquesProgramades.find(p => p.id === progId);
+      if (!prog) return;
+
+      prog.activa = !prog.activa;
+      renderProgramadesCards();
+    }
+
+    function deleteProgramada(progId) {
+      const prog = APP_STATE.tasquesProgramades.find(p => p.id === progId);
+      if (!prog) return;
+
+      if (confirm(`Vols eliminar definitivament la rutina periòdica "${prog.titol}"?`)) {
+        APP_STATE.tasquesProgramades = APP_STATE.tasquesProgramades.filter(p => p.id !== progId);
+        renderProgramadesCards();
+      }
+    }
+
+    function generarOrdreFromProgramada(progId, isSilent = false) {
+      const prog = APP_STATE.tasquesProgramades.find(p => p.id === progId);
+      if (!prog) return null;
+
+      const newId = `SE-PREV-${Math.floor(1000 + Math.random() * 9000)}`;
+      const today = new Date().toISOString().split('T')[0];
+
+      const newTask = {
+        id: newId,
+        titol: `[PREVENTIU] ${prog.titol}`,
+        descripcio: `📋 Manteniment Programat Periòdic (${prog.frequencia.toUpperCase()}):\n${prog.descripcio}`,
+        categoria: prog.categoria,
+        prioritat: prog.prioritat || 'normal',
+        nucli: prog.nucli,
+        via: prog.via,
+        lat: (prog.lat || 39.62410) + (Math.random() - 0.5) * 0.001,
+        lng: (prog.lng || 2.83750) + (Math.random() - 0.5) * 0.001,
+        estat: (prog.operariIds && prog.operariIds.length > 0) ? 'assignada' : 'pendent',
+        operariIds: [...(prog.operariIds || [])],
+        operariId: (prog.operariIds && prog.operariIds.length > 0) ? prog.operariIds[0] : null,
+        esImportant: false,
+        esProgramada: true,
+        frequencia: prog.frequencia,
+        tempsTranscorregut: 0,
+        fotoInicial: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=500&auto=format&fit=crop&q=60",
+        fotoFinal: null,
+        signatura: null,
+        creatEl: new Date().toISOString()
+      };
+
+      APP_STATE.tasks.unshift(newTask);
+      prog.darreraExecucio = today;
+      prog.totalExecucions = (prog.totalExecucions || 0) + 1;
+      prog.properaExecucio = calcularProperaData(today, prog.frequencia);
+
+      if (!isSilent) {
+        alert(`S'ha generat l'ordre ${newId} al taulell per a "${prog.titol}". S'ha notificat a l'equip assignat.`);
+      }
+
+      renderProgramadesCards();
+      renderAdminTasks();
+      renderOperariScreen();
+      return newTask;
+    }
+
+    function calcularProperaData(baseDateStr, frequencia) {
+      const d = new Date(baseDateStr || Date.now());
+      if (frequencia === 'diaria') {
+        d.setDate(d.getDate() + 1);
+      } else if (frequencia === 'setmanal') {
+        d.setDate(d.getDate() + 7);
+      } else if (frequencia === 'mensual') {
+        d.setMonth(d.getMonth() + 1);
+      } else if (frequencia === 'trimestral') {
+        d.setMonth(d.getMonth() + 3);
+      } else {
+        d.setDate(d.getDate() + 7);
+      }
+      return d.toISOString().split('T')[0];
+    }
+
+    function generarTotesOrdresPendents() {
+      const actives = APP_STATE.tasquesProgramades.filter(p => p.activa);
+      if (actives.length === 0) {
+        alert("No hi ha cap tasca programada activa per generar.");
+        return;
+      }
+
+      let count = 0;
+      actives.forEach(p => {
+        generarOrdreFromProgramada(p.id, true);
+        count++;
+      });
+
+      alert(`S'han generat correctament ${count} ordres de manteniment preventiu al taulell de treball.`);
+      navigateView('admin-dashboard');
+    }
+
+    // -------------------------------------------------------------------------
     // RESET DE PIN INDIVIDUAL
     // -------------------------------------------------------------------------
     function openModalResetPin(operariId, nom) {
@@ -2468,7 +4013,9 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       renderCreateTaskOperatorsSelect();
       renderLoginOperatorsSelect();
       renderNomenclatorTable();
+      renderProgramadesCards();
       updateNetworkStatus();
+      initSession();
       lucide.createIcons();
 
       if ('serviceWorker' in navigator) {

@@ -1,0 +1,13 @@
+{
+  "name": "brigada-mantenimiento",
+  "version": "1.0.0",
+  "description": "PWA Brigada Municipal de Santa Eugènia",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["pwa", "santa-eugenia", "brigada"],
+  "author": "Ajuntament de Santa Eugènia",
+  "license": "UNLICENSED"
+}
