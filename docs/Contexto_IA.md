@@ -14,6 +14,14 @@ Es un proyecto **distinto e independiente** de «Proposta Santa Eugènia» (form
 
 ## Estado actual (12/11/2026)
 - La app funciona como prototipo avanzado y está desplegada en Firebase Hosting.
+- **Fase 1 completada (12/11/2026)** a la branca `fix/fase-1-auth-regles` (pujada a GitHub):
+  - ✅ Implementació real de **Firebase Authentication**: login d'administrador per email/contrasenya i operaris per PIN de 6 dígits (email sintètic `op-<id>@brigada-santa-eugenia.local`).
+  - ✅ Gestió de rols centralitzada a Firestore (`rols/{uid}`).
+  - ✅ `firestore.rules` i `firestore.indexes.json` configurats i validats amb compilació dry-run de Firebase CLI.
+  - ✅ Eliminats tots els PINs i contrasenyes per defecte `1234`, retirats els modals de PIN en text clar i l'emmagatzematge de sessions vulnerables a `localStorage`.
+  - ✅ Sincronització de tasques adaptada a consultes per rol (`operariIds array-contains`).
+  - ✅ Afegits scripts de provisió (`scripts/bootstrap-auth.mjs`), dades demo (`scripts/seed-demo.mjs`) i suite de tests de regles (`tests/rules.test.mjs`).
+  - ⏳ Pendent de desplegament a producció: el desplegament de regles i índexs (`firebase deploy --only firestore:rules,firestore:indexes`) s'ha de llançar amb autorització expressa.
 - **Auditoría del 12/11/2026** (`AUDITORIA_2026-11-12.md` en esta carpeta y en el repo, `docs/`):
   - 🔴 **Firestore es público sin autenticar para LEER, ESCRIBIR y BORRAR.** Verificado con sondas que no modifican nada. Expone nombre, teléfono y **PIN** del personal, además de firmas, fotos y ubicaciones.
   - 🔴 Login solo visual: contraseña de admin `1234` en el código, PIN maestro `1234`, sesión falsificable en localStorage.
