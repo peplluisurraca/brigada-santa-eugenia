@@ -2,3 +2,6 @@
 firebase-debug.log*
 .DS_Store
 node_modules/
+*serviceAccount*.json
+*.key.json
+.env*.local

@@ -4,9 +4,20 @@
   "description": "Repositori centralitzat de l'aplicació Brigada Municipal de Santa Eugènia",
   "type": "module",
   "scripts": {
-    "start": "node brigada-mantenimiento/server.js"
+    "start": "node brigada-mantenimiento/server.js",
+    "test": "node --test tests/rules.test.mjs",
+    "auth:bootstrap": "node scripts/bootstrap-auth.mjs",
+    "seed:demo": "node scripts/seed-demo.mjs"
   },
-  "keywords": ["pwa", "santa-eugenia", "brigada"],
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^3.0.4",
+    "firebase-admin": "^12.0.0"
+  },
+  "keywords": [
+    "pwa",
+    "santa-eugenia",
+    "brigada"
+  ],
   "author": "Ajuntament de Santa Eugènia",
   "license": "UNLICENSED"
 }

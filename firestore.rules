@@ -1,0 +1,82 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Funcions auxiliars d'autenticació i rols
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserRoleData() {
+      return get(/databases/$(database)/documents/rols/$(request.auth.uid)).data;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/rols/$(request.auth.uid)) &&
+        getUserRoleData().rol == 'admin';
+    }
+    
+    function isOperari() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/rols/$(request.auth.uid)) &&
+        getUserRoleData().rol == 'operari';
+    }
+    
+    function getOperariId() {
+      return getUserRoleData().operariId;
+    }
+
+    // Col·lecció de rols:
+    // - Un usuari pot llegir el seu propi document de rol (o admin qualsevol).
+    // - Només admin pot crear, modificar o esborrar rols.
+    match /rols/{uid} {
+      allow read: if isAuthenticated() && (request.auth.uid == uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // Col·lecció d'operaris (personal municipal de la brigada):
+    // - Lectura permesa per a qualsevol usuari autenticat (necessari per a selectors i llistat de contacte).
+    // - Escriptura reservada estrictament a l'administrador (Cap de Brigada).
+    match /operaris/{operariId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Col·lecció de tasques (ordres de treball municipals):
+    // - Lectura: admin o l'operari inclòs a l'array 'operariIds'.
+    // - Creació i eliminació: exclusivament admin.
+    // - Actualització: admin, o l'operari assignat modificant ÚNICAMENT camps de progrés i tancament.
+    match /tasques/{tascaId} {
+      allow read: if isAdmin() || (
+        isOperari() && 
+        resource.data.operariIds is list && 
+        getOperariId() in resource.data.operariIds
+      );
+      
+      allow create, delete: if isAdmin();
+      
+      allow update: if isAdmin() || (
+        isOperari() &&
+        resource.data.operariIds is list &&
+        getOperariId() in resource.data.operariIds &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'estat', 
+          'tempsTotalSegons', 
+          'tempsInici', 
+          'tempsPausa', 
+          'fotoFinal', 
+          'signatura', 
+          'nomSignatari', 
+          'observacionsTancament'
+        ])
+      );
+    }
+
+    // Tasques programades (manteniment preventiu):
+    // - Accés exclusiu de l'administrador.
+    match /tasques_programades/{progId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

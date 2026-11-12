@@ -53,7 +53,10 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { 
-      getFirestore, collection, doc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot 
+      getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged 
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { 
+      getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where 
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { 
       getStorage, ref, uploadString, uploadBytes, getDownloadURL 
@@ -71,21 +74,29 @@
 
     try {
       const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
       const db = getFirestore(app);
       const storage = getStorage(app);
 
       window.FB = {
         app,
+        auth,
         db,
         storage,
+        signInWithEmailAndPassword,
+        signOut,
+        onAuthStateChanged,
         collection,
         doc,
+        getDoc,
         getDocs,
         setDoc,
         addDoc,
         updateDoc,
         deleteDoc,
         onSnapshot,
+        query,
+        where,
         ref,
         uploadString,
         uploadBytes,
@@ -256,14 +267,14 @@
           </div>
 
           <div>
-            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Codi PIN d'Accés (4 xifres) *</label>
+            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Codi PIN d'Accés (6 xifres) *</label>
             <div class="flex justify-center my-1">
-              <input type="password" id="unified-login-operari-pin" maxlength="4" placeholder="••••" onkeyup="if(event.key==='Enter') submitUnifiedLogin('operari')" class="tracking-widest text-center text-3xl font-mono font-bold w-48 py-2.5 border-2 border-gray-300 focus:border-[#2A9D8F] focus:outline-none rounded-xl bg-white shadow-inner" />
+              <input type="password" id="unified-login-operari-pin" maxlength="6" placeholder="••••••" onkeyup="if(event.key==='Enter') submitUnifiedLogin('operari')" class="tracking-widest text-center text-3xl font-mono font-bold w-56 py-2.5 border-2 border-gray-300 focus:border-[#2A9D8F] focus:outline-none rounded-xl bg-white shadow-inner" />
             </div>
-            <p class="text-[11px] text-gray-400 text-center mt-1">PIN per defecte: <strong class="text-gray-600">1234</strong></p>
+            <p class="text-[11px] text-gray-500 text-center mt-1">Introdueix el teu PIN numèric de 6 dígits</p>
           </div>
 
-          <button type="button" onclick="submitUnifiedLogin('operari')" class="w-full min-touch py-3.5 bg-[#2A9D8F] hover:bg-[#238276] text-white font-bold rounded-xl shadow-md flex items-center justify-center space-x-2 transition-all">
+          <button type="button" id="btn-login-operari-submit" onclick="submitUnifiedLogin('operari')" class="w-full min-touch py-3.5 bg-[#2A9D8F] hover:bg-[#238276] text-white font-bold rounded-xl shadow-md flex items-center justify-center space-x-2 transition-all">
             <i data-lucide="log-in" class="w-5 h-5"></i>
             <span>Entrar al Torn de Feina</span>
           </button>
@@ -277,19 +288,16 @@
           </div>
 
           <div>
-            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Usuari / Perfil</label>
-            <input type="text" value="Administrador (Cap de Brigada)" readonly class="w-full p-3 border border-gray-200 rounded-xl bg-gray-100 text-sm font-medium text-gray-700" />
+            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Correu Electrònic d'Administrador *</label>
+            <input type="email" id="unified-login-admin-email" value="admin@brigada-santa-eugenia.local" placeholder="nom@santaeugenia.cat" class="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-sm font-medium text-gray-800 focus:border-[#1D3557] focus:outline-none" />
           </div>
 
           <div>
-            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Contrasenya d'Accés (PIN) *</label>
-            <div class="flex justify-center my-1">
-              <input type="password" id="unified-login-admin-pass" maxlength="8" placeholder="••••" onkeyup="if(event.key==='Enter') submitUnifiedLogin('admin')" class="tracking-widest text-center text-3xl font-mono font-bold w-48 py-2.5 border-2 border-gray-300 focus:border-[#1D3557] focus:outline-none rounded-xl bg-white shadow-inner" />
-            </div>
-            <p class="text-[11px] text-gray-400 text-center mt-1">Contrasenya per defecte: <strong class="text-gray-600">1234</strong></p>
+            <label class="block text-xs font-semibold text-gray-700 mb-1.5">Contrasenya d'Accés *</label>
+            <input type="password" id="unified-login-admin-pass" placeholder="••••••••" onkeyup="if(event.key==='Enter') submitUnifiedLogin('admin')" class="w-full p-2.5 border border-gray-300 focus:border-[#1D3557] focus:outline-none rounded-xl bg-white text-sm font-medium" />
           </div>
 
-          <button type="button" onclick="submitUnifiedLogin('admin')" class="w-full min-touch py-3.5 bg-[#1D3557] hover:bg-[#152741] text-white font-bold rounded-xl shadow-md flex items-center justify-center space-x-2 transition-all">
+          <button type="button" id="btn-login-admin-submit" onclick="submitUnifiedLogin('admin')" class="w-full min-touch py-3.5 bg-[#1D3557] hover:bg-[#152741] text-white font-bold rounded-xl shadow-md flex items-center justify-center space-x-2 transition-all">
             <i data-lucide="shield-check" class="w-5 h-5"></i>
             <span>Accedir al Panell de Gestió</span>
           </button>
@@ -463,38 +471,7 @@
     <!-- PANTALLA 2: VISTA MÒBIL DE L'OPERARI                                     -->
     <!-- --------------------------------------------------------------------- -->
     <section id="view-operari-view" class="space-y-4 max-w-lg mx-auto hidden">
-      <div id="operari-pin-screen" class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm text-center space-y-4">
-        <div class="w-20 h-20 bg-white rounded-2xl mx-auto flex items-center justify-center p-2 shadow-sm border border-gray-100">
-          <img src="./logo-santa-eugenia.jpg" alt="Escut Santa Eugènia" class="w-full h-full object-contain" />
-        </div>
-        <div>
-          <h2 class="text-xl font-bold text-[#1D3557]">Accés Operaris de Brigada</h2>
-          <p class="text-xs text-gray-500 mt-1">Ajuntament de Santa Eugènia · PIN de 4 dígits</p>
-        </div>
-
-        <div class="space-y-4 text-left">
-          <div>
-            <label class="block text-xs font-semibold text-gray-700 mb-1">Operari / Treballador (Només Personal Actiu)</label>
-            <select id="login-operari-select" class="w-full p-3 border border-gray-300 rounded-xl bg-gray-50 text-sm font-medium">
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-gray-700 mb-1">PIN de Seguretat (4 xifres)</label>
-            <div class="flex justify-center space-x-3 my-2">
-              <input type="password" id="operari-pin-input" maxlength="4" placeholder="••••" onkeyup="if(event.key==='Enter') loginOperari()" class="tracking-widest text-center text-3xl font-bold w-44 py-2 border-2 border-gray-300 focus:border-[#2A9D8F] focus:outline-none rounded-xl bg-white shadow-inner" />
-            </div>
-            <p class="text-[11px] text-gray-400 text-center">PIN per defecte: <strong>1234</strong></p>
-          </div>
-
-          <button onclick="loginOperari()" class="w-full min-touch py-3.5 bg-[#2A9D8F] hover:bg-[#238276] text-white font-bold rounded-xl shadow-md flex items-center justify-center space-x-2">
-            <i data-lucide="log-in" class="w-5 h-5"></i>
-            <span>Entrar al Torn de Feina</span>
-          </button>
-        </div>
-      </div>
-
-      <div id="operari-work-panel" class="space-y-4 hidden">
+      <div id="operari-work-panel" class="space-y-4">
         <!-- Barra de l'Operari Actiu: disseny contrastat i clar amb accés directe a trucada i WhatsApp -->
         <div class="bg-white border border-gray-200 shadow-xs rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div class="flex items-center space-x-3.5">
@@ -936,11 +913,7 @@
           </select>
         </div>
 
-        <div id="operari-form-pin-container">
-          <label class="block font-semibold text-gray-700 mb-1">PIN Numèric d'Accés (4 xifres) *</label>
-          <input type="password" id="operari-form-pin" maxlength="4" placeholder="1234" class="w-full text-center text-xl font-mono font-bold tracking-widest p-2 border border-gray-300 rounded-xl focus:border-[#2A9D8F]" />
-          <p class="text-[10px] text-gray-400 mt-0.5">El treballador utilitzarà aquest PIN per a desbloquejar el seu torn mòbil.</p>
-        </div>
+        <!-- Gestió de credencials delegada a Firebase Auth i script bootstrap-auth -->
 
         <div class="grid grid-cols-2 gap-2 pt-2">
           <button type="button" onclick="closeOperatorModal()" class="min-touch py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs">
@@ -1562,27 +1535,7 @@
     </div>
   </div>
 
-  <!-- ========================================================================= -->
-  <!-- MODAL DE RESET DE PIN                                                     -->
-  <!-- ========================================================================= -->
-  <div id="modal-reset-pin" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl space-y-4">
-      <div class="flex items-center justify-between border-b border-gray-100 pb-3">
-        <h3 class="font-bold text-base text-[#1D3557]">Modificar / Reset de PIN</h3>
-        <button onclick="closeModalResetPin()" class="text-gray-400 hover:text-gray-600 p-1">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
-      </div>
 
-      <div class="space-y-3">
-        <p class="text-xs text-gray-600">Assigna un nou codi d'accés de 4 xifres per a <strong id="reset-pin-nom-operari">l'operari</strong>:</p>
-        <input type="number" id="input-nou-pin" maxlength="4" placeholder="1234" class="w-full text-center text-2xl font-mono font-bold tracking-widest p-2.5 border-2 border-[#2A9D8F] rounded-xl" />
-        <button onclick="saveNewPin()" class="w-full min-touch py-3 bg-[#2A9D8F] hover:bg-[#238276] text-white font-bold rounded-xl text-sm">
-          Confirmar Nou PIN
-        </button>
-      </div>
-    </div>
-  </div>
 
   <!-- ========================================================================= -->
   <!-- JAVASCRIPT: ESTAT, CRUD PERSONAL, CALLEJERO I LÒGICA                      -->
@@ -1605,7 +1558,6 @@
           nom: "Toni Coll", 
           rol: "Oficial 1ª Obra / Paleteria", 
           especialitat: "obra_albanileria", 
-          pin: "1234", 
           telefon: "611223344", 
           actiu: true,
           baixes_temporals: [] 
@@ -1615,7 +1567,6 @@
           nom: "Joan Bibiloni", 
           rol: "Especialista Electricitat", 
           especialitat: "electricitat", 
-          pin: "1234", 
           telefon: "622334455", 
           actiu: true,
           baixes_temporals: [
@@ -1627,7 +1578,6 @@
           nom: "Biel Pou", 
           rol: "Peó / Neteja Viària", 
           especialitat: "peo_neteja", 
-          pin: "1234", 
           telefon: "633445566", 
           actiu: true,
           baixes_temporals: [
@@ -1639,7 +1589,6 @@
           nom: "Pere Ramis", 
           rol: "Oficial Climatització i Calefacció", 
           especialitat: "climatitzacio", 
-          pin: "1234", 
           telefon: "644556677", 
           actiu: true,
           baixes_temporals: [] 
@@ -2098,37 +2047,65 @@
       return fileOrDataUrl;
     }
 
+    let unsubscribeTasques = null;
+    let unsubscribeOperaris = null;
+    let unsubscribeProgramades = null;
+
+    function cleanupFirebaseSync() {
+      if (unsubscribeTasques) {
+        unsubscribeTasques();
+        unsubscribeTasques = null;
+      }
+      if (unsubscribeOperaris) {
+        unsubscribeOperaris();
+        unsubscribeOperaris = null;
+      }
+      if (unsubscribeProgramades) {
+        unsubscribeProgramades();
+        unsubscribeProgramades = null;
+      }
+      isFirebaseConnected = false;
+      const statusText = document.getElementById('conn-status-text');
+      const statusDot = document.getElementById('conn-indicator-dot');
+      if (statusText) statusText.innerText = 'Desconnectat';
+      if (statusDot) statusDot.className = 'w-2.5 h-2.5 rounded-full bg-gray-400';
+    }
+
     async function initFirebaseSync() {
-      if (!window.FB || !window.FB.isReady) {
-        window.addEventListener('firebase-ready', () => initFirebaseSync(), { once: true });
+      if (!window.FB || !window.FB.isReady || !APP_STATE.currentUser) {
         return;
       }
 
-      const { db, collection, doc, setDoc, onSnapshot } = window.FB;
+      cleanupFirebaseSync();
+
+      const { db, collection, query, where, onSnapshot } = window.FB;
       const statusText = document.getElementById('conn-status-text');
       const statusDot = document.getElementById('conn-indicator-dot');
 
       try {
-        // 1. SINCRONITZACIÓ DE TASQUES D'OBRA I MANTENIMENT
-        const tasquesCol = collection(db, 'tasques');
-        onSnapshot(tasquesCol, async (snapshot) => {
-          if (snapshot.empty) {
-            console.log('Firestore inicial: registrant tasques de prova...');
-            for (const t of APP_STATE.tasks) {
-              await setDoc(doc(db, 'tasques', t.id), t).catch(() => {});
-            }
-          } else {
-            const remoteTasks = [];
-            snapshot.forEach(docSnap => {
-              const data = docSnap.data();
-              if (!data.id) data.id = docSnap.id;
-              remoteTasks.push(data);
-            });
-            remoteTasks.sort((a, b) => new Date(b.creatEl || 0) - new Date(a.creatEl || 0));
-            APP_STATE.tasks = remoteTasks;
-            renderAdminTasks();
-            renderOperariScreen();
-          }
+        // 1. SINCRONITZACIÓ DE TASQUES
+        // Si és admin, llegeix tota la col·lecció; si és operari, llegeix només les tasques on està assignat
+        let tasquesQuery;
+        if (APP_STATE.currentUser.role === 'admin') {
+          tasquesQuery = collection(db, 'tasques');
+        } else {
+          tasquesQuery = query(
+            collection(db, 'tasques'),
+            where('operariIds', 'array-contains', APP_STATE.currentUser.operariId)
+          );
+        }
+
+        unsubscribeTasques = onSnapshot(tasquesQuery, (snapshot) => {
+          const remoteTasks = [];
+          snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            if (!data.id) data.id = docSnap.id;
+            remoteTasks.push(data);
+          });
+          remoteTasks.sort((a, b) => new Date(b.creatEl || 0) - new Date(a.creatEl || 0));
+          APP_STATE.tasks = remoteTasks;
+          renderAdminTasks();
+          renderOperariScreen();
 
           isFirebaseConnected = true;
           if (statusText) statusText.innerText = '☁️ Firebase Connectat';
@@ -2139,16 +2116,15 @@
         });
 
         // 2. SINCRONITZACIÓ DE PERSONAL I BAIXES TEMPORALS
+        // Tot usuari autenticat pot llegir el directori d'operaris
         const operarisCol = collection(db, 'operaris');
-        onSnapshot(operarisCol, async (snapshot) => {
-          if (snapshot.empty) {
-            for (const op of APP_STATE.operaris) {
-              await setDoc(doc(db, 'operaris', String(op.id)), op).catch(() => {});
-            }
-          } else {
+        unsubscribeOperaris = onSnapshot(operarisCol, (snapshot) => {
+          if (!snapshot.empty) {
             const remoteOps = [];
             snapshot.forEach(docSnap => {
-              remoteOps.push(docSnap.data());
+              const data = docSnap.data();
+              delete data.pin; // Garantir que mai es desa o propaga cap PIN en text pla
+              remoteOps.push(data);
             });
             remoteOps.sort((a, b) => a.id - b.id);
             APP_STATE.operaris = remoteOps;
@@ -2156,29 +2132,34 @@
             renderLoginOperatorsSelect();
             renderCreateTaskOperatorsSelect();
             renderUnifiedLoginOperatorsSelect();
+
+            if (APP_STATE.currentUser && APP_STATE.currentUser.role === 'operari') {
+              const op = APP_STATE.operaris.find(o => o.id === APP_STATE.currentUser.operariId);
+              if (op) {
+                APP_STATE.activeOperari = op;
+                updateOperariHeaderUI(op);
+              }
+            }
           }
         }, (err) => {
           console.warn('Avís Firestore (Operaris):', err.message);
         });
 
         // 3. SINCRONITZACIÓ DE TASQUES PROGRAMADES (PREVENTIU)
-        const progCol = collection(db, 'tasques_programades');
-        onSnapshot(progCol, async (snapshot) => {
-          if (snapshot.empty) {
-            for (const p of APP_STATE.tasquesProgramades) {
-              await setDoc(doc(db, 'tasques_programades', p.id), p).catch(() => {});
-            }
-          } else {
+        // Només l'administrador té permisos per consultar el manteniment preventiu
+        if (APP_STATE.currentUser.role === 'admin') {
+          const progCol = collection(db, 'tasques_programades');
+          unsubscribeProgramades = onSnapshot(progCol, (snapshot) => {
             const remoteProg = [];
             snapshot.forEach(docSnap => {
               remoteProg.push(docSnap.data());
             });
             APP_STATE.tasquesProgramades = remoteProg;
             renderProgramadesCards();
-          }
-        }, (err) => {
-          console.warn('Avís Firestore (Preventiu):', err.message);
-        });
+          }, (err) => {
+            console.warn('Avís Firestore (Preventiu):', err.message);
+          });
+        }
 
       } catch (e) {
         console.warn('Error inicialitzant sincronització Firebase:', e);
@@ -2414,56 +2395,88 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       }).join('');
     }
 
-    function submitUnifiedLogin(type) {
+    async function submitUnifiedLogin(type) {
+      if (!window.FB || !window.FB.auth) {
+        alert("El servei d'autenticació encara s'està inicialitzant. Espera un moment i torna-ho a provar.");
+        return;
+      }
+
+      const { auth, signInWithEmailAndPassword } = window.FB;
+
       if (type === 'admin') {
-        const pass = document.getElementById('unified-login-admin-pass')?.value?.trim();
-        if (pass === '1234') {
-          APP_STATE.currentUser = {
-            role: 'admin',
-            nom: 'Administrador (Cap de Brigada)'
-          };
-          APP_STATE.currentRole = 'admin';
-          localStorage.setItem('brigada_user_session', JSON.stringify(APP_STATE.currentUser));
-          applySessionPermissions();
-        } else {
-          alert("Contrasenya d'administrador incorrecta. La contrasenya és 1234.");
+        const email = document.getElementById('unified-login-admin-email')?.value?.trim();
+        const pass = document.getElementById('unified-login-admin-pass')?.value;
+        const btn = document.getElementById('btn-login-admin-submit');
+
+        if (!email || !pass) {
+          alert("Introdueix el correu electrònic i la contrasenya d'administrador.");
+          return;
+        }
+
+        try {
+          if (btn) btn.disabled = true;
+          await signInWithEmailAndPassword(auth, email, pass);
+          // La sessió i el rol es configuren automàticament a l'observador onAuthStateChanged
+        } catch (err) {
+          console.error("Error autenticació administrador:", err);
+          alert("Error d'accés: Comprova el correu electrònic i la contrasenya.");
+        } finally {
+          if (btn) btn.disabled = false;
         }
       } else if (type === 'operari') {
         const select = document.getElementById('unified-login-operari-select');
         const operariId = parseInt(select?.value || '0');
         const pin = document.getElementById('unified-login-operari-pin')?.value?.trim();
-        const op = APP_STATE.operaris.find(o => o.id === operariId);
+        const btn = document.getElementById('btn-login-operari-submit');
 
-        if (!op) {
+        if (!operariId) {
           alert("Selecciona un treballador de la llista.");
           return;
         }
 
-        if (!op.actiu) {
-          alert("Aquest operari està de baixa permanent i no pot accedir al sistema.");
+        const op = APP_STATE.operaris.find(o => o.id === operariId);
+        if (!op) {
+          alert("Treballador no trobat a la base de dades.");
           return;
         }
 
-        if (pin === op.pin || pin === '1234') {
-          APP_STATE.currentUser = {
-            role: 'operari',
-            operariId: op.id,
-            nom: op.nom
-          };
-          APP_STATE.activeOperari = op;
-          APP_STATE.currentRole = 'operari';
-          localStorage.setItem('brigada_user_session', JSON.stringify(APP_STATE.currentUser));
-          applySessionPermissions();
-        } else {
-          alert("PIN incorrecte. En aquesta versió el PIN és 1234.");
+        if (!op.actiu) {
+          alert("Aquest treballador està de baixa i no pot accedir al sistema.");
+          return;
+        }
+
+        if (!pin || pin.length < 6) {
+          alert("El PIN d'accés ha de tenir un mínim de 6 dígits.");
+          return;
+        }
+
+        const syntheticEmail = `op-${operariId}@brigada-santa-eugenia.local`;
+
+        try {
+          if (btn) btn.disabled = true;
+          await signInWithEmailAndPassword(auth, syntheticEmail, pin);
+          // La sessió i el rol es configuren automàticament a l'observador onAuthStateChanged
+        } catch (err) {
+          console.error("Error autenticació operari:", err);
+          alert("PIN incorrecte o compte no configurat al sistema.");
+        } finally {
+          if (btn) btn.disabled = false;
         }
       }
     }
 
-    function logoutUnified() {
+    async function logoutUnified() {
+      if (window.FB && window.FB.auth && window.FB.signOut) {
+        try {
+          await window.FB.signOut(window.FB.auth);
+        } catch (e) {
+          console.warn("Avís tancant sessió Firebase:", e);
+        }
+      }
+
       APP_STATE.currentUser = null;
       APP_STATE.activeOperari = null;
-      localStorage.removeItem('brigada_user_session');
+      cleanupFirebaseSync();
 
       const pinOp = document.getElementById('unified-login-operari-pin');
       if (pinOp) pinOp.value = '';
@@ -2520,7 +2533,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           headerSession.innerHTML = `
             <span class="text-xs text-blue-200 hidden sm:inline-flex items-center gap-1 font-medium bg-white/5 px-2.5 py-1 rounded-lg border border-white/10">
               <i data-lucide="lock" class="w-3.5 h-3.5 text-blue-300"></i>
-              <span>Accés Protegit (1234)</span>
+              <span>Accés Protegit</span>
             </span>
           `;
         }
@@ -2573,9 +2586,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         }
 
         navigateView('operari-view');
-        const pinScreen = document.getElementById('operari-pin-screen');
         const workPanel = document.getElementById('operari-work-panel');
-        if (pinScreen) pinScreen.classList.add('hidden');
         if (workPanel) workPanel.classList.remove('hidden');
 
         if (op) {
@@ -2588,30 +2599,73 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       lucide.createIcons();
     }
 
-    function initSession() {
-      renderUnifiedLoginOperatorsSelect();
-      try {
-        const saved = localStorage.getItem('brigada_user_session');
-        if (saved) {
-          APP_STATE.currentUser = JSON.parse(saved);
+    let isAuthObserverInitialized = false;
+    function setupFirebaseAuthObserver() {
+      if (isAuthObserverInitialized || !window.FB || !window.FB.auth) return;
+      isAuthObserverInitialized = true;
+
+      const { auth, db, doc, getDoc, signOut, onAuthStateChanged } = window.FB;
+
+      onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          try {
+            // Recuperar el rol de l'usuari des de Firestore col·lecció 'rols/{uid}'
+            const roleDocRef = doc(db, 'rols', user.uid);
+            const roleDocSnap = await getDoc(roleDocRef);
+
+            if (roleDocSnap.exists()) {
+              const roleData = roleDocSnap.data();
+              if (roleData.rol === 'admin') {
+                APP_STATE.currentUser = {
+                  role: 'admin',
+                  nom: roleData.nom || 'Administrador (Cap de Brigada)',
+                  uid: user.uid,
+                  email: user.email
+                };
+                APP_STATE.currentRole = 'admin';
+                APP_STATE.activeOperari = null;
+              } else if (roleData.rol === 'operari') {
+                const op = APP_STATE.operaris.find(o => o.id === roleData.operariId);
+                APP_STATE.currentUser = {
+                  role: 'operari',
+                  operariId: roleData.operariId,
+                  nom: op ? op.nom : (roleData.nom || 'Operari'),
+                  uid: user.uid,
+                  email: user.email
+                };
+                APP_STATE.activeOperari = op || null;
+                APP_STATE.currentRole = 'operari';
+              }
+              applySessionPermissions();
+              initFirebaseSync();
+            } else {
+              console.warn("L'usuari autenticat no té document de rol a rols/{uid}:", user.uid);
+              alert("Aquest compte no té cap rol associat a la base de dades. Contacta amb l'administrador.");
+              await signOut(auth);
+            }
+          } catch (err) {
+            console.error("Error determinant el rol de l'usuari:", err);
+            await signOut(auth);
+          }
         } else {
           APP_STATE.currentUser = null;
+          APP_STATE.activeOperari = null;
+          cleanupFirebaseSync();
+          applySessionPermissions();
         }
-      } catch (e) {
-        APP_STATE.currentUser = null;
-      }
-      applySessionPermissions();
+      });
     }
 
-    function switchRole(role) {
-      if (role === 'admin') {
-        APP_STATE.currentUser = { role: 'admin', nom: 'Administrador (Cap de Brigada)' };
-      } else {
-        const activeOp = APP_STATE.operaris.find(o => o.actiu) || APP_STATE.operaris[0];
-        APP_STATE.currentUser = { role: 'operari', operariId: activeOp.id, nom: activeOp.nom };
-        APP_STATE.activeOperari = activeOp;
-      }
+    function initSession() {
+      renderUnifiedLoginOperatorsSelect();
+      APP_STATE.currentUser = null;
       applySessionPermissions();
+
+      if (window.FB && window.FB.isReady) {
+        setupFirebaseAuthObserver();
+      } else {
+        window.addEventListener('firebase-ready', () => setupFirebaseAuthObserver(), { once: true });
+      }
     }
 
     function navigateView(viewId) {
@@ -3015,7 +3069,6 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       document.getElementById('operari-form-id').value = '';
       document.getElementById('modal-operari-title').innerText = "Alta de Nou Treballador";
       document.getElementById('operari-form-submit-btn').innerText = "Donar d'Alta";
-      document.getElementById('operari-form-pin-container').classList.remove('hidden');
       document.getElementById('modal-operari-form').classList.remove('hidden');
       lucide.createIcons();
     }
@@ -3029,7 +3082,6 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       document.getElementById('operari-form-telefon').value = op.telefon;
       document.getElementById('operari-form-rol').value = op.rol;
       document.getElementById('operari-form-especialitat').value = op.especialitat;
-      document.getElementById('operari-form-pin').value = op.pin;
 
       document.getElementById('modal-operari-title').innerText = `Editar Dades: ${op.nom}`;
       document.getElementById('operari-form-submit-btn').innerText = "Desar Canvis";
@@ -3048,12 +3100,6 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       const telefon = document.getElementById('operari-form-telefon').value.trim();
       const rol = document.getElementById('operari-form-rol').value.trim();
       const especialitat = document.getElementById('operari-form-especialitat').value;
-      const pin = document.getElementById('operari-form-pin').value.trim();
-
-      if (pin && pin.length !== 4) {
-        alert("El PIN ha de tenir exactament 4 xifres.");
-        return;
-      }
 
       if (idStr) {
         // MODIFICACIÓ
@@ -3064,7 +3110,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           op.telefon = telefon;
           op.rol = rol;
           op.especialitat = especialitat;
-          if (pin) op.pin = pin;
+          delete op.pin;
           alert(`Dades actualitzades correctament per a ${op.nom}.`);
         }
       } else {
@@ -3076,12 +3122,11 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           telefon,
           rol,
           especialitat,
-          pin: pin || "1234",
           actiu: true,
           baixes_temporals: []
         };
         APP_STATE.operaris.push(newOperator);
-        alert(`Operari ${nom} donat d'alta correctament.`);
+        alert(`Operari ${nom} donat d'alta correctament. Configura les seves credencials amb el script bootstrap-auth.`);
       }
 
       if (window.FB && window.FB.isReady) {
@@ -3190,7 +3235,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               <div class="text-xs text-gray-600 space-y-1 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
                 <p>🔧 Especialitat: <strong class="text-gray-900">${CATEGORIA_LABELS[op.especialitat] || op.especialitat}</strong></p>
                 <p>📞 Tel: <a href="tel:${op.telefon}" class="font-medium text-[#1D3557] underline">${op.telefon}</a></p>
-                <p>🔒 PIN Actiu: <span class="font-mono font-bold text-gray-800">•••• (${op.pin})</span></p>
+                <p>🔒 Compte Auth: <span class="font-mono text-emerald-800 font-medium">op-${op.id}@brigada-santa-eugenia.local</span></p>
                 <p class="text-[11px] pt-1 border-t border-gray-200/60 flex items-center justify-between">
                   <span class="text-gray-500">Tasques en cua:</span>
                   <span class="font-bold px-1.5 py-0.5 rounded ${pendingCount > 0 ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600'}">${pendingCount} pendents</span>
@@ -3236,16 +3281,10 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
             <!-- Accions de Gestió Completa (Alta, Baixa, Modificació, Reassignació) -->
             <div class="space-y-1.5 pt-2 border-t border-gray-100">
-              <div class="grid grid-cols-2 gap-1.5">
-                <button onclick="openEditOperatorModal(${op.id})" class="min-touch py-2 bg-blue-50 hover:bg-blue-100 text-[#1D3557] border border-blue-200 text-xs font-bold rounded-xl flex items-center justify-center space-x-1">
-                  <i data-lucide="edit" class="w-3.5 h-3.5 text-[#2A9D8F]"></i>
-                  <span>Editar</span>
-                </button>
-                <button onclick="openModalResetPin(${op.id}, '${op.nom}')" class="min-touch py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-xl flex items-center justify-center space-x-1">
-                  <i data-lucide="key" class="w-3.5 h-3.5 text-gray-500"></i>
-                  <span>PIN</span>
-                </button>
-              </div>
+              <button onclick="openEditOperatorModal(${op.id})" class="w-full min-touch py-2 bg-blue-50 hover:bg-blue-100 text-[#1D3557] border border-blue-200 text-xs font-bold rounded-xl flex items-center justify-center space-x-1">
+                <i data-lucide="edit" class="w-3.5 h-3.5 text-[#2A9D8F]"></i>
+                <span>Editar Dades</span>
+              </button>
 
               ${op.actiu ? `
                 <button onclick="openModalBaixaTemporal(${op.id})" class="w-full min-touch py-2 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-300 text-xs font-bold rounded-xl flex items-center justify-center space-x-1.5">
@@ -3558,31 +3597,8 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
     // -------------------------------------------------------------------------
     // VISTA MÒBIL DE L'OPERARI (AMB NAVEGACIÓ DIRECTA GPS)
     // -------------------------------------------------------------------------
-    function loginOperari() {
-      const operariId = parseInt(document.getElementById('login-operari-select').value);
-      const pinInput = document.getElementById('operari-pin-input').value;
-      const operari = APP_STATE.operaris.find(o => o.id === operariId);
-
-      if (operari && operari.pin === pinInput) {
-        if (!operari.actiu) {
-          alert("Aquest operari està de baixa i no pot accedir al sistema.");
-          return;
-        }
-        APP_STATE.activeOperari = operari;
-        updateOperariHeaderUI(operari);
-        document.getElementById('operari-pin-screen').classList.add('hidden');
-        document.getElementById('operari-work-panel').classList.remove('hidden');
-        renderOperariScreen();
-      } else {
-        alert("PIN incorrecte. En aquesta versió el PIN és 1234.");
-      }
-    }
-
     function logoutOperari() {
-      APP_STATE.activeOperari = null;
-      document.getElementById('operari-pin-input').value = '';
-      document.getElementById('operari-pin-screen').classList.remove('hidden');
-      document.getElementById('operari-work-panel').classList.add('hidden');
+      logoutUnified();
     }
 
     function setOperariTab(tab) {
@@ -4869,38 +4885,6 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
     }
 
     // -------------------------------------------------------------------------
-    // RESET DE PIN INDIVIDUAL
-    // -------------------------------------------------------------------------
-    function openModalResetPin(operariId, nom) {
-      currentResetOperariId = operariId;
-      document.getElementById('reset-pin-nom-operari').innerText = nom;
-      document.getElementById('modal-reset-pin').classList.remove('hidden');
-    }
-
-    function closeModalResetPin() {
-      document.getElementById('modal-reset-pin').classList.add('hidden');
-      currentResetOperariId = null;
-    }
-
-    function saveNewPin() {
-      const newPin = document.getElementById('input-nou-pin').value;
-      if (!newPin || newPin.length !== 4) {
-        alert("El PIN ha de tenir 4 xifres.");
-        return;
-      }
-      const op = APP_STATE.operaris.find(o => o.id === currentResetOperariId);
-      if (op) {
-        op.pin = newPin;
-        if (window.FB && window.FB.isReady) {
-          window.FB.setDoc(window.FB.doc(window.FB.db, 'operaris', String(op.id)), { pin: newPin }, { merge: true }).catch(() => {});
-        }
-        alert(`PIN actualitzat per a ${op.nom}.`);
-        closeModalResetPin();
-        renderOperatorsCards();
-      }
-    }
-
-    // -------------------------------------------------------------------------
     // INICIALITZACIÓ GLOBAL
     // -------------------------------------------------------------------------
     window.addEventListener('DOMContentLoaded', () => {
@@ -4913,7 +4897,6 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       renderProgramadesCards();
       updateNetworkStatus();
       initSession();
-      initFirebaseSync();
       lucide.createIcons();
 
       if ('serviceWorker' in navigator) {
