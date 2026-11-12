@@ -491,21 +491,40 @@
       </div>
 
       <div id="operari-work-panel" class="space-y-4 hidden">
-        <div class="bg-gradient-to-r from-[#1D3557] to-[#264653] text-white p-4 rounded-2xl shadow-sm flex items-center justify-between">
-          <div class="flex items-center space-x-3">
-            <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center p-1 border border-white/20 overflow-hidden">
-              <img src="./logo-santa-eugenia.jpg" alt="Santa Eugènia" class="w-full h-full object-contain" />
+        <!-- Barra de l'Operari Actiu: disseny contrastat i clar amb accés directe a trucada i WhatsApp -->
+        <div class="bg-white border border-gray-200 shadow-xs rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div class="flex items-center space-x-3.5">
+            <div class="relative flex-shrink-0">
+              <div id="operari-current-avatar" class="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-200/80 text-[#2A9D8F] flex items-center justify-center font-black text-base shadow-xs tracking-tight">
+                TC
+              </div>
+              <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full" title="Operari en torn actiu"></span>
             </div>
             <div>
-              <p class="text-xs text-blue-200">Operari Actiu</p>
-              <h3 id="operari-current-name" class="font-bold text-base leading-tight">Toni Coll</h3>
-              <p id="operari-current-role" class="text-[11px] text-teal-300">Oficial 1ª Obra</p>
+              <div class="flex items-center space-x-1.5">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-[#2A9D8F] bg-teal-50 px-2 py-0.5 rounded-md border border-teal-100">
+                  Operari en torn
+                </span>
+              </div>
+              <h3 id="operari-current-name" class="font-bold text-base sm:text-lg text-[#1D3557] leading-tight mt-0.5">Toni Coll</h3>
+              <p id="operari-current-role" class="text-xs text-gray-500 font-medium">Oficial 1ª Obra / Paleteria</p>
             </div>
           </div>
 
-          <a href="tel:600112233" title="Trucar al Cap de Brigada" class="w-11 h-11 bg-white/20 hover:bg-white/30 text-white rounded-full flex items-center justify-center border border-white/30 min-touch">
-            <i data-lucide="phone-call" class="w-5 h-5 text-emerald-300"></i>
-          </a>
+          <!-- Accés directe a Trucada i WhatsApp -->
+          <div class="flex items-center space-x-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100 justify-end">
+            <a href="tel:600112233" title="Trucar al Cap de Brigada / Coordinació (600 11 22 33)" class="min-touch px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-[#1D3557] border border-blue-200/80 rounded-xl flex items-center space-x-1.5 font-bold text-xs shadow-xs transition-colors">
+              <i data-lucide="phone" class="w-4 h-4 text-[#1D3557]"></i>
+              <span>Trucar</span>
+            </a>
+
+            <a href="https://wa.me/34600112233?text=Hola,%20s%C3%B3c%20de%20la%20Brigada%20Municipal%20de%20Santa%20Eug%C3%A8nia" target="_blank" rel="noopener noreferrer" title="Obrir xat directe de WhatsApp amb Coordinació (600 11 22 33)" class="min-touch px-3.5 py-2 bg-[#25D366] hover:bg-[#20ba5a] text-white rounded-xl flex items-center space-x-1.5 font-bold text-xs shadow-xs transition-colors">
+              <svg class="w-4 h-4 fill-current flex-shrink-0" viewBox="0 0 24 24">
+                <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.312.045-.634.053-1.688-.383-1.347-.558-2.221-1.921-2.289-2.01-.067-.089-.54-2.18-.54-2.18s-.201-.274-.201-.527c0-.253.136-.379.184-.428.049-.049.108-.061.144-.061.036 0 .073 0 .105.002.035.002.082-.013.128.098.048.113.165.405.18.435.014.03.023.065.005.101-.019.035-.028.057-.056.09-.028.033-.06.074-.085.1-.029.03-.06.063-.026.121.034.058.151.249.324.403.223.199.412.261.47.29.058.03.092.025.127-.015.035-.04.15-.175.19-.235.04-.06.08-.05.134-.03.054.02.343.162.402.191.058.03.098.045.112.07.015.025.015.147-.129.552z"/>
+              </svg>
+              <span>WhatsApp</span>
+            </a>
+          </div>
         </div>
 
         <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl flex items-center space-x-3 text-xs text-amber-900">
@@ -2427,6 +2446,23 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       applySessionPermissions();
     }
 
+    function getInitials(name) {
+      if (!name) return 'OP';
+      const parts = name.trim().split(/\s+/);
+      if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+
+    function updateOperariHeaderUI(op) {
+      if (!op) return;
+      const nameEl = document.getElementById('operari-current-name');
+      const roleEl = document.getElementById('operari-current-role');
+      const avatarEl = document.getElementById('operari-current-avatar');
+      if (nameEl) nameEl.innerText = op.nom;
+      if (roleEl) roleEl.innerText = op.rol;
+      if (avatarEl) avatarEl.innerText = getInitials(op.nom);
+    }
+
     function applySessionPermissions() {
       const user = APP_STATE.currentUser;
       const mainNav = document.getElementById('main-nav');
@@ -2516,10 +2552,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         if (workPanel) workPanel.classList.remove('hidden');
 
         if (op) {
-          const nameEl = document.getElementById('operari-current-name');
-          const roleEl = document.getElementById('operari-current-role');
-          if (nameEl) nameEl.innerText = op.nom;
-          if (roleEl) roleEl.innerText = op.rol;
+          updateOperariHeaderUI(op);
         }
 
         renderOperariScreen();
@@ -3509,8 +3542,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           return;
         }
         APP_STATE.activeOperari = operari;
-        document.getElementById('operari-current-name').innerText = operari.nom;
-        document.getElementById('operari-current-role').innerText = operari.rol;
+        updateOperariHeaderUI(operari);
         document.getElementById('operari-pin-screen').classList.add('hidden');
         document.getElementById('operari-work-panel').classList.remove('hidden');
         renderOperariScreen();
@@ -3570,11 +3602,32 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         let teamBanner = '';
         if (teammates.length > 0) {
           teamBanner = `
-            <div class="bg-teal-50 border border-teal-200 rounded-xl p-2.5 flex items-start space-x-2 text-xs text-teal-950">
-              <i data-lucide="users" class="w-4 h-4 text-[#2A9D8F] flex-shrink-0 mt-0.5"></i>
-              <div>
-                <span class="font-bold block">👥 Treball en equip coordinat amb:</span>
-                <span class="text-teal-800">${teammates.map(tm => `${tm.nom} (${tm.rol}) · Tel: ${tm.telefon}`).join(' | ')}</span>
+            <div class="bg-teal-50/70 border border-teal-200 rounded-xl p-3 space-y-2 text-xs text-teal-950">
+              <div class="flex items-center space-x-1.5 font-bold text-teal-900">
+                <i data-lucide="users" class="w-4 h-4 text-[#2A9D8F]"></i>
+                <span>Treball en equip coordinat amb companys:</span>
+              </div>
+              <div class="space-y-1.5">
+                ${teammates.map(tm => `
+                  <div class="flex items-center justify-between flex-wrap gap-2 pt-1.5 border-t border-teal-200/60 first:border-t-0 first:pt-0">
+                    <div>
+                      <span class="font-bold text-[#1D3557]">${tm.nom}</span>
+                      <span class="text-[11px] text-teal-700 ml-1 font-medium">(${tm.rol})</span>
+                    </div>
+                    <div class="flex items-center space-x-1.5">
+                      <a href="tel:${tm.telefon}" title="Trucar a ${tm.nom}" class="min-touch px-2.5 py-1 bg-white hover:bg-teal-50 text-[#1D3557] border border-teal-300 rounded-lg flex items-center space-x-1 text-[11px] font-bold shadow-xs transition-colors">
+                        <i data-lucide="phone" class="w-3 h-3 text-[#2A9D8F]"></i>
+                        <span>Trucar</span>
+                      </a>
+                      <a href="https://wa.me/34${tm.telefon}?text=${encodeURIComponent(`Hola ${tm.nom.split(' ')[0]}, et contacto des de la Brigada per coordinar la tasca ${task.id} (${task.titol}).`)}" target="_blank" rel="noopener noreferrer" title="WhatsApp a ${tm.nom}" class="min-touch px-2.5 py-1 bg-[#25D366] hover:bg-[#20ba5a] text-white rounded-lg flex items-center space-x-1 text-[11px] font-bold shadow-xs transition-colors">
+                        <svg class="w-3 h-3 fill-current flex-shrink-0" viewBox="0 0 24 24">
+                          <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.312.045-.634.053-1.688-.383-1.347-.558-2.221-1.921-2.289-2.01-.067-.089-.54-2.18-.54-2.18s-.201-.274-.201-.527c0-.253.136-.379.184-.428.049-.049.108-.061.144-.061.036 0 .073 0 .105.002.035.002.082-.013.128.098.048.113.165.405.18.435.014.03.023.065.005.101-.019.035-.028.057-.056.09-.028.033-.06.074-.085.1-.029.03-.06.063-.026.121.034.058.151.249.324.403.223.199.412.261.47.29.058.03.092.025.127-.015.035-.04.15-.175.19-.235.04-.06.08-.05.134-.03.054.02.343.162.402.191.058.03.098.045.112.07.015.025.015.147-.129.552z"/>
+                        </svg>
+                        <span>WhatsApp</span>
+                      </a>
+                    </div>
+                  </div>
+                `).join('')}
               </div>
             </div>
           `;
