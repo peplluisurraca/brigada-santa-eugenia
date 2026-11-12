@@ -38,6 +38,13 @@ Es un proyecto **distinto e independiente** de «Proposta Santa Eugènia» (form
   - ✅ Sistema de notificacions emergents no intrusives (**Toasts**) per a canvis de connectivitat i confirmació d'accions en substitució d'`alert()` bloquejants.
   - ✅ Millores a la pantalla d'operari: pestanyes «Tasques Pendents» i «Resoltes / Finalitzades» amb accés directe a justificants PDF i eliminació de referències tècniques («Haversine»).
   - ✅ Suite de tests automatitzada `tests/offline.test.mjs` (100% tests verds).
+- **Fase 4 completada (12/11/2026)** a la branca `fix/fase-4-extreure-adjunts`:
+  - ✅ Extracció d'imatges i signatures pesades en Base64 cap a la subcol·lecció `tasques/{id}/adjunts/{tipus}` (`fotoInicial`, `fotoFinal`, `signatura`), reduint el document principal de la tasca a < 2 KB (eliminat el risc de superar el límit d'1 MB de Firestore en el pla Spark).
+  - ✅ Càrrega sota demanda (**Lazy Loading**) dels adjunts mitjançant `carregarAdjunt(taskId, tipus)` i memòria cau en memòria `ADJUNTS_CACHE` (descarrega fotos només en obrir visors o generar el justificant PDF).
+  - ✅ Banderes booleanes lleugeres al document pare (`teFotoInicial`, `teFotoFinal`, `teSignatura`) per a renderitzat ràpid de targetes sense consum de xarxa.
+  - ✅ Compressió adaptativa client-side amb fallback a JPEG i límit de mida < 350 KB per a compatibilitat total amb Safari/iOS.
+  - ✅ Actualització de `firestore.rules` per blindar la subcol·lecció `match /adjunts/{adjuntId}` amb validació de mida màxima (< 950 KB per fitxer) i permisos estrictes per rol i operari assignat.
+  - ✅ Suite de tests automatitzada `tests/adjunts.test.mjs` (100% tests verds).
 - **Auditoría del 12/11/2026** (`AUDITORIA_2026-11-12.md` en esta carpeta y en el repo, `docs/`):
   - 🔴 **Firestore es público sin autenticar para LEER, ESCRIBIR y BORRAR.** Verificado con sondas que no modifican nada. Expone nombre, teléfono y **PIN** del personal, además de firmas, fotos y ubicaciones.
   - 🔴 Login solo visual: contraseña de admin `1234` en el código, PIN maestro `1234`, sesión falsificable en localStorage.

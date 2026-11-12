@@ -65,12 +65,41 @@ service cloud.firestore {
           'tempsTotalSegons', 
           'tempsInici', 
           'tempsPausa', 
+          'tempsFinalitzacio',
+          'finalitzadaEl',
           'fotoFinal', 
           'signatura', 
           'nomSignatari', 
-          'observacionsTancament'
+          'observacionsTancament',
+          'teFotoInicial',
+          'teFotoFinal',
+          'teSignatura',
+          'téFotoInicial',
+          'téFotoFinal',
+          'téSignatura'
         ])
       );
+
+      // Subcol·lecció d'adjunts pesats (fotografies i signatures en Base64 fora del document principal)
+      match /adjunts/{adjuntId} {
+        // Lectura permesa a l'administrador i als operaris assignats a la tasca pare
+        allow read: if isAdmin() || (
+          isOperari() &&
+          get(/databases/$(database)/documents/tasques/$(tascaId)).data.operariIds is list &&
+          getOperariId() in get(/databases/$(database)/documents/tasques/$(tascaId)).data.operariIds
+        );
+
+        // Escriptura permesa a l'administrador o operari assignat (fotoInicial, fotoFinal, signatura)
+        allow write: if (isAdmin() || (
+          isOperari() &&
+          get(/databases/$(database)/documents/tasques/$(tascaId)).data.operariIds is list &&
+          getOperariId() in get(/databases/$(database)/documents/tasques/$(tascaId)).data.operariIds &&
+          adjuntId in ['fotoInicial', 'fotoFinal', 'signatura']
+        )) && (
+          // Comprovació de seguretat: màxim 950 KB per fitxer per no superar mai la quota Firestore
+          request.resource.data.data is string && request.resource.data.data.size() < 972800
+        );
+      }
     }
 
     // Tasques programades (manteniment preventiu):
