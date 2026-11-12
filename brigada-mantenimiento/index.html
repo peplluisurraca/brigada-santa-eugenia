@@ -531,19 +531,40 @@
           </div>
         </div>
 
-        <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl flex items-center space-x-3 text-xs text-amber-900">
-          <i data-lucide="coffee" class="w-5 h-5 text-amber-700 flex-shrink-0"></i>
-          <div>
-            <span class="font-bold">Finestra de descans:</span> Descompte automàtic de 30 min d'esmorzar en torn matinal (07:00 - 14:00).
+        <!-- Finestra de descans (compacta i amb franja real d'esmorzar 10:00 - 10:30) -->
+        <div class="bg-amber-50/90 border border-amber-200/80 px-3.5 py-2 rounded-xl flex items-center justify-between text-xs text-amber-900 shadow-2xs">
+          <div class="flex items-center space-x-2.5">
+            <i data-lucide="coffee" class="w-4 h-4 text-amber-700 flex-shrink-0"></i>
+            <div>
+              <span class="font-bold">Pausa descans:</span> 30 min d'esmorzar (franja 10:00 - 10:30 h).
+            </div>
           </div>
+          <span class="text-[10px] text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-md font-bold">Torn matí</span>
+        </div>
+
+        <!-- Pestanyes de filtre: Tasques Pendents vs Resoltas -->
+        <div class="flex items-center bg-gray-100 p-1 rounded-xl gap-1 text-xs font-semibold">
+          <button id="btn-operari-tab-pendents" onclick="setOperariTab('pendents')" class="flex-1 py-2 px-3 rounded-lg bg-white text-[#1D3557] shadow-xs flex items-center justify-center space-x-1.5 transition-all font-bold">
+            <i data-lucide="clock" class="w-3.5 h-3.5 text-[#2A9D8F]"></i>
+            <span>Tasques Pendents</span>
+            <span id="badge-operari-pendents" class="px-1.5 py-0.2 rounded-full text-[10px] bg-teal-100 text-teal-800 font-bold ml-1">0</span>
+          </button>
+          <button id="btn-operari-tab-resoltes" onclick="setOperariTab('resoltes')" class="flex-1 py-2 px-3 rounded-lg text-gray-600 hover:text-gray-900 flex items-center justify-center space-x-1.5 transition-all font-medium">
+            <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600"></i>
+            <span>Resoltas / Finalitzades</span>
+            <span id="badge-operari-resoltes" class="px-1.5 py-0.2 rounded-full text-[10px] bg-gray-200 text-gray-700 font-bold ml-1">0</span>
+          </button>
         </div>
 
         <div class="flex items-center justify-between px-1">
-          <h4 class="font-bold text-sm text-[#1D3557] flex items-center space-x-1.5">
+          <h4 id="operari-tasks-header-title" class="font-bold text-sm text-[#1D3557] flex items-center space-x-1.5">
             <i data-lucide="list-ordered" class="w-4 h-4 text-[#2A9D8F]"></i>
-            <span>Tasques ordenades per proximitat (GPS)</span>
+            <span>Ordre per proximitat (GPS)</span>
           </h4>
-          <span class="text-xs text-gray-500 font-medium">Haversine</span>
+          <span id="operari-tasks-header-badge" class="inline-flex items-center space-x-1 text-[11px] font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-100">
+            <i data-lucide="navigation" class="w-3 h-3 text-[#2A9D8F]"></i>
+            <span>Ruta més propera</span>
+          </span>
         </div>
 
         <div id="operari-tasks-list" class="space-y-3">
@@ -1571,6 +1592,7 @@
       currentRole: 'admin',
       currentView: 'login',
       activeOperari: null,
+      operariTab: 'pendents', // 'pendents' | 'resoltes'
       currentGps: { lat: 39.62410, lng: 2.83720 },
       operatorsFilter: 'all',
       kpiFilter: null, // 'obertes' | 'urgents' | 'importants' | 'actius'
@@ -3562,16 +3584,203 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       document.getElementById('operari-work-panel').classList.add('hidden');
     }
 
+    function setOperariTab(tab) {
+      APP_STATE.operariTab = tab;
+      const btnPendents = document.getElementById('btn-operari-tab-pendents');
+      const btnResoltes = document.getElementById('btn-operari-tab-resoltes');
+      const headerTitle = document.getElementById('operari-tasks-header-title');
+      const headerBadge = document.getElementById('operari-tasks-header-badge');
+
+      if (tab === 'pendents') {
+        if (btnPendents) {
+          btnPendents.className = 'flex-1 py-2 px-3 rounded-lg bg-white text-[#1D3557] shadow-xs flex items-center justify-center space-x-1.5 transition-all font-bold';
+        }
+        if (btnResoltes) {
+          btnResoltes.className = 'flex-1 py-2 px-3 rounded-lg text-gray-600 hover:text-gray-900 flex items-center justify-center space-x-1.5 transition-all font-medium';
+        }
+        if (headerTitle) {
+          headerTitle.innerHTML = `
+            <i data-lucide="list-ordered" class="w-4 h-4 text-[#2A9D8F]"></i>
+            <span>Ordre per proximitat (GPS)</span>
+          `;
+        }
+        if (headerBadge) {
+          headerBadge.innerHTML = `
+            <i data-lucide="navigation" class="w-3 h-3 text-[#2A9D8F]"></i>
+            <span>Ruta més propera</span>
+          `;
+        }
+      } else {
+        if (btnPendents) {
+          btnPendents.className = 'flex-1 py-2 px-3 rounded-lg text-gray-600 hover:text-gray-900 flex items-center justify-center space-x-1.5 transition-all font-medium';
+        }
+        if (btnResoltes) {
+          btnResoltes.className = 'flex-1 py-2 px-3 rounded-lg bg-white text-emerald-800 shadow-xs flex items-center justify-center space-x-1.5 transition-all font-bold';
+        }
+        if (headerTitle) {
+          headerTitle.innerHTML = `
+            <i data-lucide="check-check" class="w-4 h-4 text-emerald-600"></i>
+            <span>Tasques finalitzades</span>
+          `;
+        }
+        if (headerBadge) {
+          headerBadge.innerHTML = `
+            <i data-lucide="award" class="w-3 h-3 text-emerald-600"></i>
+            <span>Historial del torn</span>
+          `;
+        }
+      }
+      renderOperariScreen();
+    }
+
     function renderOperariScreen() {
       if (!APP_STATE.activeOperari) return;
       const container = document.getElementById('operari-tasks-list');
-      
-      let myTasks = APP_STATE.tasks.filter(t => {
+      if (!container) return;
+
+      const activeTab = APP_STATE.operariTab || 'pendents';
+
+      // Filtrar totes les tasques que corresponen a aquest operari
+      const allMyTasks = APP_STATE.tasks.filter(t => {
         const ids = t.operariIds && t.operariIds.length > 0 ? t.operariIds : (t.operariId ? [t.operariId] : []);
-        return ids.includes(APP_STATE.activeOperari.id) && t.estat !== 'finalitzada';
+        return ids.includes(APP_STATE.activeOperari.id);
       });
 
-      myTasks.forEach(task => {
+      const pendingTasks = allMyTasks.filter(t => t.estat !== 'finalitzada');
+      const resolvedTasks = allMyTasks.filter(t => t.estat === 'finalitzada');
+
+      // Actualitzar comptadors de les pestanyes
+      const badgePendents = document.getElementById('badge-operari-pendents');
+      const badgeResoltes = document.getElementById('badge-operari-resoltes');
+      if (badgePendents) badgePendents.innerText = pendingTasks.length;
+      if (badgeResoltes) badgeResoltes.innerText = resolvedTasks.length;
+
+      // -----------------------------------------------------------------------
+      // PESTANYA 2: TASQUES RESOLTES I SIGNADES
+      // -----------------------------------------------------------------------
+      if (activeTab === 'resoltes') {
+        if (resolvedTasks.length === 0) {
+          container.innerHTML = `
+            <div class="bg-white p-6 rounded-2xl border border-gray-200 text-center space-y-3 shadow-xs">
+              <div class="w-12 h-12 rounded-full bg-gray-100 text-gray-400 mx-auto flex items-center justify-center">
+                <i data-lucide="clock" class="w-6 h-6"></i>
+              </div>
+              <div>
+                <h4 class="font-bold text-gray-800 text-base">Cap tasca resolta encara</h4>
+                <p class="text-xs text-gray-500 mt-0.5">A mesura que finalitzis i signis feines d'aquest torn, es guardaran aquí.</p>
+              </div>
+              <button onclick="setOperariTab('pendents')" class="min-touch px-4 py-2 bg-teal-50 hover:bg-teal-100 text-[#2A9D8F] border border-teal-200 rounded-xl text-xs font-bold inline-flex items-center space-x-1.5 transition-colors">
+                <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+                <span>Tornar a tasques pendents (${pendingTasks.length})</span>
+              </button>
+            </div>
+          `;
+          lucide.createIcons();
+          return;
+        }
+
+        resolvedTasks.sort((a, b) => new Date(b.tempsFinalitzacio || b.creatEl || 0) - new Date(a.tempsFinalitzacio || a.creatEl || 0));
+
+        container.innerHTML = resolvedTasks.map(task => {
+          const finalDateStr = task.tempsFinalitzacio
+            ? new Date(task.tempsFinalitzacio).toLocaleDateString('ca-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+            : (task.finalitzadaEl || 'Avui');
+
+          return `
+            <div class="bg-white rounded-2xl border border-emerald-200/80 p-4 shadow-xs space-y-3">
+              <div class="flex items-start justify-between">
+                <div>
+                  <div class="flex items-center space-x-2 flex-wrap gap-y-1">
+                    <span class="text-xs font-mono font-bold text-[#1D3557]">${task.id}</span>
+                    <span class="px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-800 rounded-full flex items-center space-x-1">
+                      <i data-lucide="check-circle" class="w-3 h-3 text-emerald-600"></i>
+                      <span>RESOLTA</span>
+                    </span>
+                    <span class="px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-[#1D3557] rounded-full">
+                      ${CATEGORIA_LABELS[task.categoria] || task.categoria}
+                    </span>
+                  </div>
+                  <h4 class="font-bold text-base text-gray-900 leading-snug mt-1">${task.titol}</h4>
+                </div>
+                <span class="text-[11px] text-gray-500 font-medium whitespace-nowrap">${finalDateStr}</span>
+              </div>
+
+              <div class="flex items-center space-x-1.5 text-xs text-gray-700 bg-gray-50 p-2.5 rounded-xl border border-gray-200">
+                <i data-lucide="map-pin" class="w-4 h-4 text-[#2A9D8F] flex-shrink-0"></i>
+                <span class="font-medium">${task.nucli} · ${task.via}</span>
+              </div>
+
+              ${task.descripcio ? `
+                <p class="text-xs text-gray-600">${task.descripcio}</p>
+              ` : ''}
+
+              ${task.observacionsTancament ? `
+                <div class="bg-emerald-50/70 border border-emerald-200 rounded-xl p-2.5 text-xs text-emerald-950">
+                  <span class="font-bold block text-emerald-900">Observacions de finalització:</span>
+                  <span class="text-emerald-800">${task.observacionsTancament}</span>
+                </div>
+              ` : ''}
+
+              <!-- Previsualització de fotografies inicial i final -->
+              ${(task.fotoInicial || task.fotoFinal) ? `
+                <div class="grid grid-cols-2 gap-2 pt-1 text-xs">
+                  ${task.fotoInicial ? `
+                    <div class="space-y-1">
+                      <span class="text-[10px] font-bold text-gray-500 uppercase flex items-center space-x-1">
+                        <i data-lucide="camera" class="w-3 h-3"></i>
+                        <span>Foto inicial</span>
+                      </span>
+                      <div class="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-100 cursor-pointer h-28 group" onclick="openPhotoViewerById('${task.id}')" title="Clica per ampliar">
+                        <img src="${task.fotoInicial}" alt="Foto inicial" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                        <div class="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[9px] px-2 py-0.5 rounded-full flex items-center space-x-0.5">
+                          <i data-lucide="maximize-2" class="w-2.5 h-2.5"></i>
+                          <span>Ampliar</span>
+                        </div>
+                      </div>
+                    </div>
+                  ` : '<div></div>'}
+
+                  ${task.fotoFinal ? `
+                    <div class="space-y-1">
+                      <span class="text-[10px] font-bold text-emerald-700 uppercase flex items-center space-x-1">
+                        <i data-lucide="check-circle" class="w-3 h-3 text-emerald-600"></i>
+                        <span>Foto reparació</span>
+                      </span>
+                      <div class="relative rounded-xl overflow-hidden border border-emerald-300 bg-emerald-50/30 cursor-pointer h-28 group" onclick="openPhotoViewerFinalById('${task.id}')" title="Clica per ampliar">
+                        <img src="${task.fotoFinal}" alt="Foto final" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                        <div class="absolute bottom-1.5 right-1.5 bg-emerald-700 text-white text-[9px] px-2 py-0.5 rounded-full flex items-center space-x-0.5">
+                          <i data-lucide="maximize-2" class="w-2.5 h-2.5"></i>
+                          <span>Ampliar</span>
+                        </div>
+                      </div>
+                    </div>
+                  ` : '<div></div>'}
+                </div>
+              ` : ''}
+
+              <!-- Peu de la tasca resolta: signatari i justificant oficial -->
+              <div class="flex items-center justify-between pt-2 border-t border-gray-100 text-xs">
+                <div class="flex items-center space-x-1.5 text-gray-600">
+                  <i data-lucide="pen-tool" class="w-3.5 h-3.5 text-emerald-600"></i>
+                  <span>Validat per: <strong class="text-gray-900">${task.nomSignatari || 'Operari'}</strong></span>
+                </div>
+                <button onclick="openReportModal('${task.id}')" class="min-touch px-3 py-1.5 bg-[#1D3557] hover:bg-[#152741] text-white rounded-xl font-bold text-xs flex items-center space-x-1 shadow-xs transition-colors">
+                  <i data-lucide="file-text" class="w-3.5 h-3.5 text-teal-300"></i>
+                  <span>Justificant PDF</span>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        lucide.createIcons();
+        return;
+      }
+
+      // -----------------------------------------------------------------------
+      // PESTANYA 1: TASQUES PENDENTS I EN CURS
+      // -----------------------------------------------------------------------
+      pendingTasks.forEach(task => {
         task.distanciaKm = calculateHaversineDistance(
           APP_STATE.currentGps.lat,
           APP_STATE.currentGps.lng,
@@ -3580,21 +3789,31 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         );
       });
 
-      myTasks.sort((a, b) => a.distanciaKm - b.distanciaKm);
+      pendingTasks.sort((a, b) => a.distanciaKm - b.distanciaKm);
 
-      if (myTasks.length === 0) {
+      if (pendingTasks.length === 0) {
         container.innerHTML = `
-          <div class="bg-white p-6 rounded-2xl border border-gray-200 text-center space-y-2">
-            <i data-lucide="check-circle-2" class="w-10 h-10 text-emerald-500 mx-auto"></i>
-            <h4 class="font-bold text-gray-800">Totes les ordres completades</h4>
-            <p class="text-xs text-gray-500">No tens tasques pendents per a aquest torn.</p>
+          <div class="bg-white p-6 rounded-2xl border border-gray-200 text-center space-y-3 shadow-xs">
+            <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-500 mx-auto flex items-center justify-center">
+              <i data-lucide="check-circle-2" class="w-7 h-7"></i>
+            </div>
+            <div>
+              <h4 class="font-bold text-gray-800 text-base">Totes les ordres completades</h4>
+              <p class="text-xs text-gray-500 mt-0.5">No tens tasques pendents per a aquest torn.</p>
+            </div>
+            ${resolvedTasks.length > 0 ? `
+              <button onclick="setOperariTab('resoltes')" class="min-touch px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold inline-flex items-center space-x-1.5 transition-colors">
+                <i data-lucide="check-check" class="w-3.5 h-3.5"></i>
+                <span>Consultar les ${resolvedTasks.length} tasques resoltes</span>
+              </button>
+            ` : ''}
           </div>
         `;
         lucide.createIcons();
         return;
       }
 
-      container.innerHTML = myTasks.map(task => {
+      container.innerHTML = pendingTasks.map(task => {
         const isRunning = task.estat === 'en_curs';
         const isPaused = task.estat === 'pendent_material';
         const gmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${task.lat},${task.lng}`;
@@ -3802,6 +4021,13 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       const task = APP_STATE.tasks.find(t => t.id === taskId);
       if (task && task.fotoInicial) {
         openPhotoViewer(task.fotoInicial, `${task.id} - ${task.titol || 'Fotografia'}`);
+      }
+    }
+
+    function openPhotoViewerFinalById(taskId) {
+      const task = APP_STATE.tasks.find(t => t.id === taskId);
+      if (task && task.fotoFinal) {
+        openPhotoViewer(task.fotoFinal, `${task.id} (Foto de la Reparació Acabada) - ${task.titol || ''}`);
       }
     }
 
