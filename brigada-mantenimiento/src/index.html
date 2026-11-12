@@ -936,6 +936,9 @@
         <p>Ajusta el títol, abast dels treballs, especialitat tècnica necessària o reassigna l'operari responsable si les circumstàncies de la feina ho requereixen.</p>
       </div>
 
+      <!-- Preview de la foto adjunta de la tasca -->
+      <div id="edit-tasca-foto-preview" class="hidden"></div>
+
       <form id="form-editar-tasca" onsubmit="saveTaskModifications(event)" class="space-y-4 text-xs">
         <input type="hidden" id="edit-tasca-id" />
 
@@ -1254,6 +1257,8 @@
     </div>
   </div>
   <!-- ========================================================================= -->
+  <!-- MODAL DE FINALITZACIÓ I SIGNATURA DE TASQUES                             -->
+  <!-- ========================================================================= -->
   <div id="modal-finalitzar-tasca" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white w-full max-w-lg rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-gray-100 pb-3">
@@ -1267,6 +1272,9 @@
       </div>
 
       <div class="space-y-4">
+        <!-- Resum de la tasca i foto inicial -->
+        <div id="modal-finalitzar-task-summary" class="bg-gray-50 p-3 rounded-xl border border-gray-200 text-xs"></div>
+
         <div class="bg-blue-50/70 p-3.5 rounded-xl border border-blue-200 text-xs space-y-1">
           <p class="font-bold text-[#1D3557]">Càlcul de Temps de Feina:</p>
           <p class="text-gray-700">Temps cronometrat: <span id="modal-cronometre-val" class="font-mono font-bold text-[#1D3557]">1h 15m</span></p>
@@ -1277,13 +1285,13 @@
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-gray-700 mb-1">Fotografia Final del Treball Realitzat *</label>
-          <div class="border-2 border-dashed border-gray-300 rounded-xl p-3 text-center cursor-pointer hover:bg-gray-50" onclick="document.getElementById('input-foto-final').click()">
+          <label class="block text-xs font-semibold text-gray-700 mb-1">Fotografia Final del Treball Realitzat</label>
+          <div class="border-2 border-dashed border-gray-300 rounded-xl p-3 text-center cursor-pointer hover:bg-gray-50 transition-colors" onclick="document.getElementById('input-foto-final').click()">
             <input type="file" id="input-foto-final" accept="image/*" class="hidden" onchange="previewFinalPhoto(this)" />
             <div id="preview-final-box" class="flex flex-col items-center justify-center space-y-1">
               <i data-lucide="camera" class="w-6 h-6 text-[#2A9D8F]"></i>
-              <span class="text-xs font-medium text-gray-600">Capturar foto de la reparació acabada</span>
-              <span class="text-[10px] text-gray-400">Requerida per a la conformitat municipal</span>
+              <span class="text-xs font-medium text-gray-600">Capturar o adjuntar foto de la reparació acabada</span>
+              <span class="text-[10px] text-gray-400">Recomanat per a la conformitat municipal</span>
             </div>
           </div>
         </div>
@@ -1296,11 +1304,17 @@
         <div>
           <div class="flex items-center justify-between mb-1">
             <label class="text-xs font-semibold text-gray-700">Firma del Responsable / Encarregat</label>
-            <button type="button" onclick="clearSignatureCanvas()" class="text-[11px] text-red-600 hover:underline">
-              Esborrar firma
+            <button type="button" onclick="clearSignatureCanvas()" class="text-[11px] text-red-600 hover:underline flex items-center space-x-1">
+              <i data-lucide="trash-2" class="w-3 h-3"></i>
+              <span>Esborrar firma</span>
             </button>
           </div>
-          <canvas id="signature-canvas" width="440" height="130" class="w-full"></canvas>
+          <div class="relative bg-white border-2 border-dashed border-gray-300 rounded-xl overflow-hidden shadow-inner">
+            <canvas id="signature-canvas" class="w-full touch-none cursor-crosshair bg-white" style="touch-action: none; height: 130px; display: block;"></canvas>
+            <div id="signature-placeholder" class="absolute inset-0 flex items-center justify-center pointer-events-none text-gray-400 text-xs italic">
+              ✍️ Signa aquí amb el dit o el ratolí
+            </div>
+          </div>
           <input type="text" id="modal-nom-signatari" placeholder="Nom i Llinatges de qui valida la feina" class="w-full mt-2 p-2 border border-gray-200 rounded-lg text-xs" />
         </div>
 
@@ -1309,6 +1323,21 @@
           <span>Validar i Finalitzar Definitivament</span>
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL VISOR D'IMATGES EN ALTA RESOLUCIÓ (LIGHTBOX)                      -->
+  <!-- ========================================================================= -->
+  <div id="photo-viewer-modal" class="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-4 hidden" onclick="closePhotoViewer()">
+    <div class="relative max-w-3xl max-h-[90vh] flex flex-col items-center" onclick="event.stopPropagation()">
+      <div class="w-full flex items-center justify-between text-white pb-2">
+        <span id="photo-viewer-title" class="text-xs font-bold truncate max-w-[80%]">Fotografia de la incidència</span>
+        <button onclick="closePhotoViewer()" class="p-1.5 bg-white/20 hover:bg-white/30 rounded-full text-white min-touch">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <img id="photo-viewer-img" src="" alt="Foto" class="max-h-[80vh] w-auto max-w-full rounded-xl object-contain border border-white/20 shadow-2xl bg-black" />
     </div>
   </div>
 
@@ -2700,14 +2729,30 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         return `
           <tr class="hover:bg-gray-50 transition-colors">
             <td class="px-4 py-3">
-              <div class="font-bold text-[#1D3557] flex items-center space-x-1.5 flex-wrap gap-y-1">
-                <span>${task.id}</span>
-                ${task.esImportant ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 font-bold border border-amber-300">★ IMPORTANT</span>' : ''}
-                ${task.esProgramada ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-purple-100 text-purple-900 font-bold border border-purple-300 flex items-center space-x-0.5"><span>🔄</span><span>Preventiu (${FREQUENCIA_LABELS[task.frequencia]?.label || task.frequencia})</span></span>` : ''}
-                ${assignedOps.length > 1 ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-teal-50 text-teal-700 font-semibold border border-teal-200">👥 Equip</span>' : ''}
+              <div class="flex items-start space-x-3">
+                ${task.fotoInicial ? `
+                  <div class="w-12 h-12 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0 cursor-pointer group relative bg-gray-100" onclick="openPhotoViewer('${task.fotoInicial}', '${(task.titol || '').replace(/'/g, "\\'")}')" title="Clica per ampliar la fotografia">
+                    <img src="${task.fotoInicial}" alt="Foto" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                      <i data-lucide="zoom-in" class="w-3.5 h-3.5 text-white"></i>
+                    </div>
+                  </div>
+                ` : `
+                  <div class="w-12 h-12 rounded-lg border border-dashed border-gray-300 flex-shrink-0 flex items-center justify-center bg-gray-50 text-gray-400" title="Sense fotografia adjunta">
+                    <i data-lucide="image" class="w-4 h-4"></i>
+                  </div>
+                `}
+                <div>
+                  <div class="font-bold text-[#1D3557] flex items-center space-x-1.5 flex-wrap gap-y-1">
+                    <span>${task.id}</span>
+                    ${task.esImportant ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 font-bold border border-amber-300">★ IMPORTANT</span>' : ''}
+                    ${task.esProgramada ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-purple-100 text-purple-900 font-bold border border-purple-300 flex items-center space-x-0.5"><span>🔄</span><span>Preventiu (${FREQUENCIA_LABELS[task.frequencia]?.label || task.frequencia})</span></span>` : ''}
+                    ${assignedOps.length > 1 ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-teal-50 text-teal-700 font-semibold border border-teal-200">👥 Equip</span>' : ''}
+                  </div>
+                  <p class="text-xs text-gray-900 font-medium mt-0.5">${task.titol}</p>
+                  <p class="text-[11px] text-gray-500 line-clamp-1 italic">${task.descripcio || 'Sense descripció addicional'}</p>
+                </div>
               </div>
-              <p class="text-xs text-gray-900 font-medium mt-0.5">${task.titol}</p>
-              <p class="text-[11px] text-gray-500 line-clamp-1 italic">${task.descripcio || 'Sense descripció addicional'}</p>
             </td>
             <td class="px-4 py-3 text-xs">
               <span class="px-2 py-0.5 rounded-full font-semibold text-[11px] ${isClima ? 'bg-cyan-50 text-cyan-800 border border-cyan-200' : 'bg-gray-100 text-gray-700'}">
@@ -2760,6 +2805,26 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       document.getElementById('edit-tasca-estat').value = task.estat;
       document.getElementById('edit-tasca-es-important').checked = task.esImportant;
       document.getElementById('edit-tasca-motiu').value = '';
+
+      // Mostrar foto adjunta al modal d'edició si existeix
+      const fotoPreview = document.getElementById('edit-tasca-foto-preview');
+      if (fotoPreview) {
+        if (task.fotoInicial) {
+          fotoPreview.innerHTML = `
+            <div class="flex items-center space-x-3 p-2.5 bg-gray-50 rounded-xl border border-gray-200">
+              <img src="${task.fotoInicial}" class="w-16 h-16 rounded-lg object-cover border border-gray-300 cursor-pointer shadow-xs" onclick="openPhotoViewer('${task.fotoInicial}', '${(task.titol || '').replace(/'/g, "\\'")}')" />
+              <div class="text-xs">
+                <span class="font-bold text-[#1D3557] block">📷 Fotografia de l'avaria / incidència adjunta</span>
+                <span class="text-[11px] text-[#2A9D8F] font-semibold cursor-pointer hover:underline" onclick="openPhotoViewer('${task.fotoInicial}', '${(task.titol || '').replace(/'/g, "\\'")}')">Clica per ampliar en alta resolució</span>
+              </div>
+            </div>
+          `;
+          fotoPreview.classList.remove('hidden');
+        } else {
+          fotoPreview.innerHTML = '';
+          fotoPreview.classList.add('hidden');
+        }
+      }
 
       const assignedIds = task.operariIds && task.operariIds.length > 0
         ? task.operariIds
@@ -2851,7 +2916,8 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       }
 
       if (window.FB && window.FB.isReady) {
-        window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques', task.id), task, { merge: true }).catch(err => {
+        const clean = sanitizeForFirestore(task);
+        window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques', task.id), clean, { merge: true }).catch(err => {
           console.warn('Avís actualitzant tasca a Firestore:', err);
         });
       }
@@ -3491,6 +3557,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
       container.innerHTML = myTasks.map(task => {
         const isRunning = task.estat === 'en_curs';
+        const isPaused = task.estat === 'pendent_material';
         const gmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${task.lat},${task.lng}`;
 
         // Altres companys assignats a la mateixa tasca (equip)
@@ -3511,7 +3578,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         }
 
         return `
-          <div class="bg-white rounded-2xl border ${isRunning ? 'border-[#2A9D8F] ring-2 ring-[#2A9D8F]/20' : 'border-gray-200'} p-4 shadow-sm space-y-3">
+          <div class="bg-white rounded-2xl border ${isRunning ? 'border-[#2A9D8F] ring-2 ring-[#2A9D8F]/20' : isPaused ? 'border-purple-300 ring-2 ring-purple-200/50' : 'border-gray-200'} p-4 shadow-sm space-y-3">
             <div class="flex items-start justify-between">
               <div>
                 <div class="flex items-center space-x-2">
@@ -3548,23 +3615,46 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               <span class="text-gray-500">${task.descripcio || 'Sense indicacions addicionals'}</span>
             </div>
 
+            ${task.fotoInicial ? `
+              <div class="space-y-1">
+                <div class="flex items-center justify-between text-[11px] text-gray-700">
+                  <span class="font-semibold flex items-center space-x-1 text-[#1D3557]">
+                    <i data-lucide="camera" class="w-3.5 h-3.5 text-[#2A9D8F]"></i>
+                    <span>Foto adjunta de la incidència:</span>
+                  </span>
+                  <button type="button" onclick="openPhotoViewer('${task.fotoInicial}', '${(task.titol || '').replace(/'/g, "\\'")}')" class="text-xs text-[#2A9D8F] font-bold hover:underline">
+                    Ampliar foto
+                  </button>
+                </div>
+                <div class="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-100 cursor-pointer group" onclick="openPhotoViewer('${task.fotoInicial}', '${(task.titol || '').replace(/'/g, "\\'")}')">
+                  <img src="${task.fotoInicial}" alt="Foto incidència" class="w-full h-44 object-cover hover:scale-[1.01] transition-transform duration-200" />
+                  <div class="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2.5 py-1 rounded-full flex items-center space-x-1 backdrop-blur-xs">
+                    <i data-lucide="maximize-2" class="w-3 h-3"></i>
+                    <span>Clica per ampliar</span>
+                  </div>
+                </div>
+              </div>
+            ` : ''}
+
             ${isRunning ? `
               <div class="bg-teal-50 border border-teal-200 rounded-xl p-3 flex items-center justify-between">
                 <div class="flex items-center space-x-2">
                   <span class="w-3 h-3 rounded-full bg-[#2A9D8F] animate-ping"></span>
-                  <span class="text-xs font-bold text-teal-900">En curs · Comptant temps</span>
+                  <span class="text-xs font-bold text-teal-900">En curs · Comptant temps de feina</span>
                 </div>
                 <span class="font-mono font-bold text-sm text-[#1D3557]">01:15:20</span>
+              </div>
+            ` : isPaused ? `
+              <div class="bg-purple-50 border border-purple-200 rounded-xl p-2.5 flex items-center justify-between text-xs text-purple-900">
+                <div class="flex items-center space-x-2">
+                  <i data-lucide="pause-circle" class="w-4 h-4 text-purple-600 flex-shrink-0"></i>
+                  <span class="font-bold">En pausa: Pendent de material / eines</span>
+                </div>
               </div>
             ` : ''}
 
             <div class="grid grid-cols-2 gap-2 pt-1">
-              ${!isRunning ? `
-                <button onclick="startTaskTimer('${task.id}')" class="min-touch col-span-2 py-3 bg-[#2A9D8F] hover:bg-[#238276] text-white font-bold rounded-xl shadow-xs flex items-center justify-center space-x-2">
-                  <i data-lucide="play" class="w-5 h-5"></i>
-                  <span>Iniciar Feina</span>
-                </button>
-              ` : `
+              ${isRunning ? `
                 <button onclick="openModalFinalitzar('${task.id}')" class="min-touch py-3 bg-[#1D3557] hover:bg-[#152741] text-white font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
                   <i data-lucide="check-square" class="w-4 h-4 text-emerald-400"></i>
                   <span>Finalitzar i Signar</span>
@@ -3572,6 +3662,24 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                 <button onclick="pauseTaskMaterial('${task.id}')" class="min-touch py-3 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
                   <i data-lucide="pause-circle" class="w-4 h-4"></i>
                   <span>Pausa / Material</span>
+                </button>
+              ` : isPaused ? `
+                <button onclick="startTaskTimer('${task.id}')" class="min-touch py-3 bg-[#2A9D8F] hover:bg-[#238276] text-white font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
+                  <i data-lucide="play" class="w-4 h-4"></i>
+                  <span>Reprendre Feina</span>
+                </button>
+                <button onclick="openModalFinalitzar('${task.id}')" class="min-touch py-3 bg-[#1D3557] hover:bg-[#152741] text-white font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
+                  <i data-lucide="check-square" class="w-4 h-4 text-emerald-400"></i>
+                  <span>Finalitzar i Signar</span>
+                </button>
+              ` : `
+                <button onclick="startTaskTimer('${task.id}')" class="min-touch py-3 bg-[#2A9D8F] hover:bg-[#238276] text-white font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
+                  <i data-lucide="play" class="w-4 h-4"></i>
+                  <span>Iniciar Feina</span>
+                </button>
+                <button onclick="openModalFinalitzar('${task.id}')" class="min-touch py-3 bg-gray-100 hover:bg-gray-200 text-[#1D3557] border border-gray-300 font-bold rounded-xl shadow-xs flex items-center justify-center space-x-1.5 text-xs">
+                  <i data-lucide="check-square" class="w-4 h-4 text-emerald-600"></i>
+                  <span>Finalitzar i Signar</span>
                 </button>
               `}
             </div>
@@ -3587,9 +3695,11 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       if (task) {
         task.estat = 'en_curs';
         if (window.FB && window.FB.isReady) {
-          window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques', task.id), { estat: 'en_curs' }, { merge: true }).catch(() => {});
+          const clean = sanitizeForFirestore(task);
+          window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques', task.id), clean, { merge: true }).catch(e => console.warn(e));
         }
         renderOperariScreen();
+        renderAdminTasks();
       }
     }
 
@@ -3598,120 +3708,298 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       if (task) {
         task.estat = 'pendent_material';
         if (window.FB && window.FB.isReady) {
-          window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques', task.id), { estat: 'pendent_material' }, { merge: true }).catch(() => {});
+          const clean = sanitizeForFirestore(task);
+          window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques', task.id), clean, { merge: true }).catch(e => console.warn(e));
         }
-        alert(`Tasca ${task.id} marcada com a pendent de material.`);
+        alert(`Tasca ${task.id} posada en pausa: Marcada com a pendent de material.`);
         renderOperariScreen();
+        renderAdminTasks();
       }
     }
 
     // -------------------------------------------------------------------------
-    // CANVAS DE SIGNATURA I TANCAMENT
+    // VISOR D'IMATGES (LIGHTBOX)
+    // -------------------------------------------------------------------------
+    function openPhotoViewer(url, title = "Fotografia de la incidència") {
+      if (!url) return;
+      const modal = document.getElementById('photo-viewer-modal');
+      const img = document.getElementById('photo-viewer-img');
+      const titleEl = document.getElementById('photo-viewer-title');
+      if (modal && img) {
+        img.src = url;
+        if (titleEl) titleEl.innerText = title;
+        modal.classList.remove('hidden');
+        lucide.createIcons();
+      }
+    }
+
+    function closePhotoViewer() {
+      const modal = document.getElementById('photo-viewer-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    // -------------------------------------------------------------------------
+    // CANVAS DE SIGNATURA DIGITAL I TANCAMENT D'ORDRES
     // -------------------------------------------------------------------------
     let currentClosingTaskId = null;
     let signatureCanvas = null;
     let signatureCtx = null;
     let isDrawing = false;
+    let hasDrawnSignature = false;
+
+    function initSignaturePad() {
+      signatureCanvas = document.getElementById('signature-canvas');
+      if (!signatureCanvas) return;
+      signatureCtx = signatureCanvas.getContext('2d');
+
+      const rect = signatureCanvas.getBoundingClientRect();
+      const width = Math.max(rect.width || 0, 360);
+      const height = 130;
+      signatureCanvas.width = width;
+      signatureCanvas.height = height;
+
+      // Fons blanc sòlid inicial
+      signatureCtx.fillStyle = '#FFFFFF';
+      signatureCtx.fillRect(0, 0, width, height);
+
+      signatureCtx.strokeStyle = '#1D3557';
+      signatureCtx.lineWidth = 2.5;
+      signatureCtx.lineCap = 'round';
+      signatureCtx.lineJoin = 'round';
+
+      hasDrawnSignature = false;
+      const ph = document.getElementById('signature-placeholder');
+      if (ph) ph.style.display = 'flex';
+
+      // Esdeveniments unificats de punter (Pointer Events: ratolí, touch mòbil i stylus)
+      signatureCanvas.onpointerdown = (e) => {
+        isDrawing = true;
+        hasDrawnSignature = true;
+        const ph = document.getElementById('signature-placeholder');
+        if (ph) ph.style.display = 'none';
+
+        try { signatureCanvas.setPointerCapture(e.pointerId); } catch (_) {}
+        const r = signatureCanvas.getBoundingClientRect();
+        const scaleX = signatureCanvas.width / r.width;
+        const scaleY = signatureCanvas.height / r.height;
+        const x = (e.clientX - r.left) * scaleX;
+        const y = (e.clientY - r.top) * scaleY;
+        signatureCtx.beginPath();
+        signatureCtx.moveTo(x, y);
+      };
+
+      signatureCanvas.onpointermove = (e) => {
+        if (!isDrawing) return;
+        const r = signatureCanvas.getBoundingClientRect();
+        const scaleX = signatureCanvas.width / r.width;
+        const scaleY = signatureCanvas.height / r.height;
+        const x = (e.clientX - r.left) * scaleX;
+        const y = (e.clientY - r.top) * scaleY;
+        signatureCtx.lineTo(x, y);
+        signatureCtx.stroke();
+      };
+
+      signatureCanvas.onpointerup = (e) => {
+        if (isDrawing) {
+          isDrawing = false;
+          try { signatureCanvas.releasePointerCapture(e.pointerId); } catch (_) {}
+        }
+      };
+
+      signatureCanvas.onpointercancel = (e) => {
+        isDrawing = false;
+        try { signatureCanvas.releasePointerCapture(e.pointerId); } catch (_) {}
+      };
+    }
+
+    function clearSignatureCanvas() {
+      if (signatureCtx && signatureCanvas) {
+        signatureCtx.fillStyle = '#FFFFFF';
+        signatureCtx.fillRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+        hasDrawnSignature = false;
+        const ph = document.getElementById('signature-placeholder');
+        if (ph) ph.style.display = 'flex';
+      }
+    }
 
     function openModalFinalitzar(taskId) {
       currentClosingTaskId = taskId;
-      document.getElementById('modal-finalitzar-tasca').classList.remove('hidden');
+      const task = APP_STATE.tasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      // Resum i foto prèvia de la incidència al modal
+      const summaryEl = document.getElementById('modal-finalitzar-task-summary');
+      if (summaryEl) {
+        summaryEl.innerHTML = `
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <div class="flex items-center space-x-1.5">
+                <span class="font-mono font-bold text-[#1D3557]">${task.id}</span>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-[#1D3557]">${CATEGORIA_LABELS[task.categoria] || task.categoria}</span>
+              </div>
+              <h4 class="font-bold text-gray-900 mt-1">${task.titol}</h4>
+              <p class="text-[11px] text-gray-500">${task.nucli} · ${task.via}</p>
+            </div>
+            ${task.fotoInicial ? `
+              <div class="flex flex-col items-center flex-shrink-0 cursor-pointer" onclick="openPhotoViewer('${task.fotoInicial}', '${(task.titol || '').replace(/'/g, "\\'")}')" title="Clica per ampliar">
+                <img src="${task.fotoInicial}" class="w-14 h-14 rounded-lg object-cover border border-gray-300 shadow-xs" />
+                <span class="text-[9px] text-[#2A9D8F] font-bold mt-0.5">Veure foto</span>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }
+
+      // Reiniciar camps del formulari
+      const inputNom = document.getElementById('modal-nom-signatari');
+      if (inputNom) {
+        inputNom.value = APP_STATE.activeOperari ? APP_STATE.activeOperari.nom : (APP_STATE.currentUser?.nom || "Toni Coll (Oficial 1ª)");
+      }
+      const obsInput = document.getElementById('modal-observacions-tancament');
+      if (obsInput) obsInput.value = '';
+
+      const photoInput = document.getElementById('input-foto-final');
+      if (photoInput) photoInput.value = '';
+      const previewBox = document.getElementById('preview-final-box');
+      if (previewBox) {
+        previewBox.innerHTML = `
+          <i data-lucide="camera" class="w-6 h-6 text-[#2A9D8F]"></i>
+          <span class="text-xs font-medium text-gray-600">Capturar o adjuntar foto de la reparació acabada</span>
+          <span class="text-[10px] text-gray-400">Recomanat per a la conformitat municipal</span>
+        `;
+      }
+
+      const modal = document.getElementById('modal-finalitzar-tasca');
+      modal.classList.remove('hidden');
 
       setTimeout(() => {
-        signatureCanvas = document.getElementById('signature-canvas');
-        signatureCtx = signatureCanvas.getContext('2d');
-        signatureCtx.strokeStyle = '#1D3557';
-        signatureCtx.lineWidth = 2.5;
-        signatureCtx.lineCap = 'round';
-
-        signatureCanvas.addEventListener('mousedown', startDrawing);
-        signatureCanvas.addEventListener('mousemove', draw);
-        signatureCanvas.addEventListener('mouseup', stopDrawing);
-
-        signatureCanvas.addEventListener('touchstart', (e) => {
-          e.preventDefault();
-          startDrawing(e.touches[0]);
-        });
-        signatureCanvas.addEventListener('touchmove', (e) => {
-          e.preventDefault();
-          draw(e.touches[0]);
-        });
-        signatureCanvas.addEventListener('touchend', stopDrawing);
-      }, 50);
+        initSignaturePad();
+        lucide.createIcons();
+      }, 60);
 
       lucide.createIcons();
     }
 
     function closeModalFinalitzar() {
-      document.getElementById('modal-finalitzar-tasca').classList.add('hidden');
+      const modal = document.getElementById('modal-finalitzar-tasca');
+      if (modal) modal.classList.add('hidden');
       currentClosingTaskId = null;
-    }
-
-    function startDrawing(e) {
-      isDrawing = true;
-      const rect = signatureCanvas.getBoundingClientRect();
-      signatureCtx.beginPath();
-      signatureCtx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
-    }
-
-    function draw(e) {
-      if (!isDrawing) return;
-      const rect = signatureCanvas.getBoundingClientRect();
-      signatureCtx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
-      signatureCtx.stroke();
-    }
-
-    function stopDrawing() { isDrawing = false; }
-
-    function clearSignatureCanvas() {
-      if (signatureCtx && signatureCanvas) {
-        signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
-      }
     }
 
     function previewFinalPhoto(input) {
       if (input.files && input.files[0]) {
         const reader = new FileReader();
         reader.onload = function(e) {
-          document.getElementById('preview-final-box').innerHTML = `
-            <img src="${e.target.result}" class="h-24 rounded-lg object-cover shadow-sm" />
-            <span class="text-xs text-emerald-600 font-semibold mt-1">✓ Foto final afegida</span>
-          `;
+          const previewBox = document.getElementById('preview-final-box');
+          if (previewBox) {
+            previewBox.innerHTML = `
+              <img src="${e.target.result}" class="h-28 rounded-lg object-cover shadow-sm mx-auto" />
+              <span class="text-xs text-emerald-600 font-semibold mt-1 block">✓ Foto final afegida</span>
+            `;
+          }
         };
         reader.readAsDataURL(input.files[0]);
       }
     }
 
+    // Estampa de signatura digital oficial si l'operari no ha dibuixat traç al canvas
+    function generateDigitalStamp(nom, dataStr) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 440;
+      canvas.height = 130;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, 440, 130);
+
+      ctx.strokeStyle = '#2A9D8F';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(8, 8, 424, 114);
+
+      ctx.fillStyle = '#1D3557';
+      ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillText('VALIDACIÓ DIGITAL OFICIAL · BRIGADA', 22, 34);
+
+      ctx.font = '12px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillStyle = '#374151';
+      ctx.fillText(`Validat per: ${nom}`, 22, 60);
+      ctx.fillText(`Data i hora: ${dataStr}`, 22, 82);
+
+      ctx.font = 'italic 11px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillStyle = '#6B7280';
+      ctx.fillText('Conformitat tècnica - Ajuntament de Santa Eugènia', 22, 104);
+
+      return canvas.toDataURL('image/png');
+    }
+
+    function sanitizeForFirestore(obj) {
+      const clean = {};
+      for (const [key, value] of Object.entries(obj)) {
+        if (value === undefined) {
+          clean[key] = null;
+        } else if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+          clean[key] = sanitizeForFirestore(value);
+        } else if (Array.isArray(value)) {
+          clean[key] = value.map(v => v === undefined ? null : v);
+        } else {
+          clean[key] = value;
+        }
+      }
+      return clean;
+    }
+
     async function confirmTaskCompletion() {
       const task = APP_STATE.tasks.find(t => t.id === currentClosingTaskId);
-      if (!task) return;
+      if (!task) {
+        alert("Error: No s'ha trobat la tasca a finalitzar.");
+        return;
+      }
+
+      const nomSignatari = document.getElementById('modal-nom-signatari')?.value?.trim() || 
+                           (APP_STATE.activeOperari ? APP_STATE.activeOperari.nom : "Cap de Brigada / Encarregat");
+      const observacions = document.getElementById('modal-observacions-tancament')?.value?.trim() || "";
+      const nowStr = new Date().toLocaleString('ca-ES');
+
+      // Si s'ha dibuixat al canvas es desa el traç; si no, es genera l'estampa oficial
+      let sigData = null;
+      if (hasDrawnSignature && signatureCanvas) {
+        sigData = signatureCanvas.toDataURL('image/png');
+      } else {
+        sigData = generateDigitalStamp(nomSignatari, nowStr);
+      }
 
       task.estat = 'finalitzada';
-      const sigData = signatureCanvas.toDataURL();
       task.signatura = sigData;
-      task.nomSignatari = document.getElementById('modal-nom-signatari').value || "Cap de Brigada / Encarregat";
-      task.tempsTranscorregut = 4500;
+      task.nomSignatari = nomSignatari;
+      task.observacionsTancament = observacions;
+      task.tempsFinalitzacio = new Date().toISOString();
+      if (!task.tempsTranscorregut || task.tempsTranscorregut === 0) {
+        task.tempsTranscorregut = 4500; // 1h 15m
+      }
 
-      // Pujada al Firebase Cloud Storage de la signatura i de la fotografia de finalització
+      // Processar foto final si s'ha capturat
+      const photoInput = document.getElementById('input-foto-final');
+      if (photoInput && photoInput.files && photoInput.files[0]) {
+        try {
+          const photoUrl = await compressImageFile(photoInput.files[0]);
+          if (photoUrl) task.fotoFinal = photoUrl;
+        } catch (err) {
+          console.warn("Avís comprimint foto final:", err);
+        }
+      }
+
+      // Desar a Firebase Firestore en temps real
       if (window.FB && window.FB.isReady) {
         try {
-          const sigUrl = await uploadPhotoToFirebaseStorage(sigData, `tasques/${task.id}/signatura_${Date.now()}.png`);
-          if (sigUrl) task.signatura = sigUrl;
-
-          const photoInput = document.getElementById('input-foto-final');
-          if (photoInput && photoInput.files && photoInput.files[0]) {
-            const photoUrl = await uploadPhotoToFirebaseStorage(photoInput.files[0], `tasques/${task.id}/foto_final_${Date.now()}.jpg`);
-            if (photoUrl) task.fotoFinal = photoUrl;
-          }
-
-          await window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques', task.id), task, { merge: true });
+          const cleanTask = sanitizeForFirestore(task);
+          await window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques', task.id), cleanTask, { merge: true });
+          console.log(`✓ Ordre ${task.id} desada com a finalitzada a Firestore.`);
         } catch (err) {
-          console.warn('Avís desant tancament a Firestore:', err);
+          console.error('Error desant tancament a Firestore:', err);
         }
       }
 
       closeModalFinalitzar();
-      alert(`Ordre ${task.id} finalitzada i signada.`);
+      alert(`Ordre ${task.id} finalitzada i signada correctament.`);
       renderOperariScreen();
       renderAdminTasks();
     }
