@@ -55,6 +55,13 @@ Es un proyecto **distinto e independiente** de «Proposta Santa Eugènia» (form
   - ✅ **Feedback d'Acció**: estats de càrrega amb bloqueig de botons per prevenir dobles enviaments a la creació d'ordres, login i tancament. Substitució de tots els `alert()` bloquejants per `showToast()`.
   - ✅ **Revisió Lingüística Integral en Català Normatiu**: correcció sistemàtica de «Callejero» → «Nomenclàtor», «Núcli» → «Nucli», «Vía» → «Via».
   - ✅ Suite de tests automatitzada `tests/usabilitat.test.mjs` (8/8 tests verds).
+- **Fase 6 completada (13/11/2026)** a la branca `fix/fase-6-higiene-repo`:
+  - ✅ **Eliminació de fitxers i còpies duplicades**: esborrat `brigada-mantenimiento/src/index.html` (còpia desfasada de 263 KB), carpetes redundants `public/` i `src/`, servidors i tests antics PowerShell (`server.ps1`, `autotest.ps1`).
+  - ✅ **Arxiu de documentació històrica**: moguts els esquemes antics de Supabase i requeriments obsolets a `docs/arxiu/` corregint rutes absolutes de Windows (`file:///C:/`).
+  - ✅ **Seguretat de desplegament (`firebase.json`)**: afegit a `"ignore"` els directoris interns `docs/**`, `tests/**`, `scripts/**`, `server.*`, `package*.json`, `*.md` i `src/**` per evitar la publicació indeguda a Firebase Hosting.
+  - ✅ **Fixació de dependències i compilació d'estils**: substituït el CDN dinàmic de Tailwind pel build minificat estàtic (`css/dist.css`, 38 KB), fixada la versió de Lucide Icons a `0.468.0`, i actualitzat el Service Worker a la versió `1.4.0`.
+  - ✅ **Integració contínua (CI) i proves**: plantilla de workflow de GitHub Actions (`scripts/ci.yml`) per compilar estils i executar la suite de proves en cada PR i push; configurat `npm test` per validar automàticament les 24 proves del projecte (XSS, Offline PWA, Adjunts i Usabilitat).
+  - ✅ **Documentació tècnica actualitzada**: actualitzats els fitxers `README.md` (arrel i aplicació) reflectint la pila tecnològica real (Firebase Auth, Cloud Firestore persistent, gestió de rols i PWA).
 - **Auditoría del 12/11/2026** (`AUDITORIA_2026-11-12.md` en esta carpeta y en el repo, `docs/`):
   - 🔴 **Firestore es público sin autenticar para LEER, ESCRIBIR y BORRAR.** Verificado con sondas que no modifican nada. Expone nombre, teléfono y **PIN** del personal, además de firmas, fotos y ubicaciones.
   - 🔴 Login solo visual: contraseña de admin `1234` en el código, PIN maestro `1234`, sesión falsificable en localStorage.

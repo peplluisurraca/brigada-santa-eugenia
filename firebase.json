@@ -23,7 +23,14 @@
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "docs/**",
+      "tests/**",
+      "scripts/**",
+      "server.*",
+      "package*.json",
+      "*.md",
+      "src/**"
     ],
     "rewrites": [
       {

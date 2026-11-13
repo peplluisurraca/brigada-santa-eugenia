@@ -1,9 +1,9 @@
 // =============================================================================
 // Service Worker - Brigada Municipal de Santa Eugènia
-// Versió: 1.3.0 (Àmbit arrel /, suport offline complet PWA i Firestore persistence)
+// Versió: 1.4.0 (Àmbit arrel /, suport offline complet PWA i dependències fixades)
 // =============================================================================
 
-const CACHE_NAME = 'brigada-se-v1.3.0';
+const CACHE_NAME = 'brigada-se-v1.4.0';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -12,8 +12,8 @@ const STATIC_ASSETS = [
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable.png',
-  'https://cdn.tailwindcss.com',
-  'https://unpkg.com/lucide@latest',
+  './css/dist.css',
+  'https://unpkg.com/lucide@0.468.0',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
 ];

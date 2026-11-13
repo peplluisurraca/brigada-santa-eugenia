@@ -29,7 +29,7 @@ flowchart LR
    - **Nivell de Prioritat**: Reajust a *Urgent*, *Alta*, *Normal* o *Baixa*.
    - **Estat de la Tasca**: Transició fluida entre estats (`pendent`, `assignada`, `en_curs`, `pendent_material`, `finalitzada`).
    - **Motiu de la Modificació**: Camp per a auditoria de control intern municipal.
-3. **Persistència a Supabase**: La funció [`fn_modificar_abast_tasca()`](file:///C:/Users/jlurracam/.gemini/antigravity/scratch/brigada-mantenimiento/docs/arquitectura-supabase.sql) enregistra cada canvi afegint una entrada cronològica a la columna JSONB `historial_canvis`.
+3. **Persistència a Supabase**: La funció [`fn_modificar_abast_tasca()`](./arquitectura-supabase.sql) enregistra cada canvi afegint una entrada cronològica a la columna JSONB `historial_canvis`.
 
 ---
 
@@ -101,5 +101,5 @@ flowchart TD
 
 ## 5. Verificació de Canvis en Directe
 
-La PWA actualitzada està disponible a [index.html](file:///C:/Users/jlurracam/.gemini/antigravity/scratch/brigada-mantenimiento/index.html) i al servidor local actiu:
+La PWA actualitzada està disponible a [index.html](../../brigada-mantenimiento/index.html) i al servidor local actiu:
 👉 **[http://localhost:8080](http://localhost:8080)**

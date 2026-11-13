@@ -1,0 +1,31 @@
+name: CI - Brigada Santa Eugènia
+
+on:
+  push:
+    branches: [ main, 'fix/**', 'feature/**' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Verificació i Bateria de Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del codi
+        uses: actions/checkout@v4
+
+      - name: Configuració de Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Instal·lació de dependències
+        run: npm ci
+
+      - name: Compilació d'estils Tailwind CSS
+        run: npm run build:css
+
+      - name: Execució de la suite de proves automatitzada
+        run: npm test
