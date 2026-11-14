@@ -7,7 +7,7 @@ PWA para la Brigada Municipal del **Ajuntament de Santa Eugènia** (Mallorca, CP
 Es un proyecto **distinto e independiente** de «Proposta Santa Eugènia» (formación en IA, carpeta en ADMINISTRACIONES PÚBLICAS) y de «Santa Eugènia — MITECO 2026 — Mobilitat compartida».
 
 ## Ubicaciones
-- **Código:** GitHub `peplluisurraca/brigada-santa-eugenia` (rama principal `main`). App en `brigada-mantenimiento/index.html` (un solo fichero de unas 4.900 líneas).
+- **Código:** GitHub `peplluisurraca/brigada-santa-eugenia` (rama de producció `main`, branca d'integració `develop`). App en `brigada-mantenimiento/index.html`.
 - **Firebase:** proyecto `brigada-santa-eugenia` (Firestore + Hosting, plan Spark). Colecciones: `tasques`, `operaris`, `tasques_programades`.
 - **Desarrollo anterior:** hecho con Google **Antigravity** (las rutas `C:\Users\jlurracam\.gemini\antigravity\scratch\` aparecen en docs y tests). En Drive existe además `brigada-claude-code.zip` (26/10/2026, otra carpeta).
 - **Esta carpeta:** `Cowork/Projects/App Brigada Santa Eugènia/`.
