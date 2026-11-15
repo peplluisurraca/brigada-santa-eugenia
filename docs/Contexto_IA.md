@@ -12,7 +12,11 @@ Es un proyecto **distinto e independiente** de «Proposta Santa Eugènia» (form
 - **Desarrollo anterior:** hecho con Google **Antigravity** (las rutas `C:\Users\jlurracam\.gemini\antigravity\scratch\` aparecen en docs y tests). En Drive existe además `brigada-claude-code.zip` (26/10/2026, otra carpeta).
 - **Esta carpeta:** `Cowork/Projects/App Brigada Santa Eugènia/`.
 
-## Estado actual (14/11/2026)
+## Estado actual (15/11/2026)
+- **Provisió d'Autenticació i Rols a Producció (Live) completada (15/11/2026)**:
+  - Activació de Firebase Authentication al projecte `brigada-santa-eugenia`.
+  - Executat el script de provisió `scripts/bootstrap-production.mjs`: creats els comptes d'Auth i assignats els documents de rols a Firestore (`rols/{uid}`) per a l'administrador (`admin@brigada-santa-eugenia.local`) i els 4 operaris (`op-1` a `op-4` amb PIN per defecte `123456`).
+  - Verificat l'inici de sessió real via API Identity Toolkit i la lectura de rols a Firestore amb token JWT retornant `HTTP 200`.
 - **Desplegament a Producció (Live) completat (14/11/2026)**:
   - Fases 1 a 6 consolidades i fusionades a la branca `main` (`ac02c08..a35615c`) i desplegades a Firebase Hosting (`https://brigada-santa-eugenia.web.app`) i Firestore Rules amb autorització de l'usuari.
   - Verificada la resposta en viu `HTTP 200`, capçaleres Content-Security-Policy (CSP), Service Worker v1.4.0 i manifest PWA normatiu.
