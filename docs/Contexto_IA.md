@@ -13,6 +13,14 @@ Es un proyecto **distinto e independiente** de «Proposta Santa Eugènia» (form
 - **Esta carpeta:** `Cowork/Projects/App Brigada Santa Eugènia/`.
 
 ## Estado actual (16/11/2026)
+- **Correcció d'Autenticació i Inicialització Mòbil a Producció (Live) (16/11/2026)**:
+  - Resolt el problema d'inici de sessió al mòbil (*«El servei d'autenticació encara s'està inicialitzant. Espera un moment i torna-ho a provar»*).
+  - ✅ **Espera Activa d'Autenticació (`ensureFirebaseAuthReady`)**: Quan l'operari prem «Entrar al Torn de Feina», si Firebase encara s'està inicialitzant a través de la xarxa mòbil, el botó mostra un spinner amb «*Connectant amb el servei municipal...*» i resol automàticament l'inici de sessió sense mostrar missatges de rebuig.
+  - ✅ **Inicialització Progressiva i Resistent**: L'objecte `window.FB` s'inicialitza immediatament amb el mòdul d'Auth actiu, evitant bloquejos causats per fallades a la memòria persistent d'IndexedDB en navegadors mòbils / WebKit Safari en mode privat o PWA (afegit doble fallback a `memoryLocalCache`).
+  - ✅ **Retirada de dependència no utilitzada**: Eliminada la importació remota de `firebase-storage.js` (~100 KB estalviats en xarxes mòbils).
+  - ✅ **Teclat numèric directe**: Afegit `inputmode="numeric"` i `pattern="[0-9]*"` al camp de PIN per obrir directament el teclat numèric en telèfons intel·ligents.
+  - ✅ **Actualització del Service Worker (`sw.js`)**: Bump de versió a `v1.5.0` per forçar la renovació de la memòria cau a tots els dispositius.
+  - ✅ Desplegat a Firebase Hosting (`https://brigada-santa-eugenia.web.app`) i suite de proves ampliada a 34/34 tests verds.
 - **Desplegament de la Fase 7 a Producció (Live) completat (16/11/2026)**:
   - Consolidació i fusió de `feat/fase-7-informes` cap a `develop` i `main` (commit `1fb2f25`).
   - Desplegament amb èxit a Firebase Hosting (`https://brigada-santa-eugenia.web.app`) i Firestore Rules sota autorització expressa de l'usuari.
