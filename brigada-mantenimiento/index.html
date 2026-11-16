@@ -130,10 +130,12 @@
       body * {
         visibility: hidden;
       }
-      #print-report-modal, #print-report-modal * {
+      #print-report-modal, #print-report-modal *,
+      #modal-informe-global-pdf, #modal-informe-global-pdf * {
         visibility: visible;
       }
-      #print-report-modal {
+      #print-report-modal,
+      #modal-informe-global-pdf {
         position: absolute;
         left: 0;
         top: 0;
@@ -172,9 +174,9 @@
       </div>
 
       <div class="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0 ml-auto">
-        <div id="conn-status" class="flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-semibold bg-emerald-950/60 text-emerald-300 border border-emerald-700/50 shadow-xs transition-colors" title="Estat de sincronització">
+        <div id="conn-status" class="flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-950/60 text-emerald-300 border border-emerald-700/50 shadow-xs transition-colors" title="Estat de sincronització">
           <span id="conn-indicator-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span id="conn-status-text" class="hidden xs:inline">En línia</span>
+          <span id="conn-status-text" class="text-[11px] font-semibold leading-none">En línia</span>
         </div>
 
         <!-- Sessió d'Usuari Centralitzada (Admin / Operari) -->
@@ -213,6 +215,11 @@
       <button onclick="navigateView('gestor-operaris')" id="tab-gestor-operaris" class="nav-tab flex items-center space-x-2 px-3 py-2 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100 min-touch">
         <i data-lucide="users" class="w-4 h-4 text-gray-600"></i>
         <span>Gestió de Personal</span>
+      </button>
+
+      <button onclick="navigateView('informes-analitica')" id="tab-informes-analitica" class="nav-tab flex items-center space-x-2 px-3 py-2 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100 min-touch">
+        <i data-lucide="bar-chart-3" class="w-4 h-4 text-indigo-600"></i>
+        <span>Informes i Analítica</span>
       </button>
 
       <button onclick="navigateView('operari-view')" id="tab-operari-view" class="nav-tab flex items-center space-x-2 px-3 py-2 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100 min-touch">
@@ -841,6 +848,230 @@
       </div>
     </section>
 
+    <!-- --------------------------------------------------------------------- -->
+    <!-- PANTALLA 7: INFORMES I ANALÍTICA MUNICIPAL (BACKOFFICE P1)               -->
+    <!-- --------------------------------------------------------------------- -->
+    <section id="view-informes-analitica" class="space-y-6 hidden">
+      <!-- Capçalera del Tauler d'Informes -->
+      <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-4">
+        <div class="border-b border-gray-100 pb-4 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-indigo-50 text-indigo-700 rounded-xl flex items-center justify-center">
+              <i data-lucide="bar-chart-3" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <h2 class="text-lg font-bold text-[#1D3557]">Informes i Analítica Municipal</h2>
+              <p class="text-xs text-gray-500">Ajuntament de Santa Eugènia · Balanç d'actuacions, rendiment de la brigada i justificació d'hores per a Intervenció i Secretaria</p>
+            </div>
+          </div>
+
+          <!-- Botons d'Acció: Exportació CSV i PDF Institucional -->
+          <div class="flex items-center space-x-2">
+            <button id="btn-exportar-csv" data-action="exportar-csv" class="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 font-bold text-xs rounded-xl flex items-center space-x-1.5 shadow-xs min-touch transition-all">
+              <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-600"></i>
+              <span>Exportar Excel / CSV</span>
+            </button>
+            <button id="btn-generar-informe-pdf" data-action="open-modal-informe-pdf" class="px-4 py-2 bg-[#1D3557] hover:bg-[#152741] text-white font-bold text-xs rounded-xl flex items-center space-x-1.5 shadow-sm min-touch transition-all">
+              <i data-lucide="printer" class="w-4 h-4 text-amber-400"></i>
+              <span>Generar Informe PDF Municipal</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Panell de Filtres -->
+        <div class="bg-gray-50/80 p-4 rounded-xl border border-gray-200/80 space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span class="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+              <i data-lucide="filter" class="w-3.5 h-3.5 text-[#2A9D8F]"></i>
+              <span>Filtres de Rang Temporal:</span>
+            </span>
+            <!-- Píndoles de rang ràpid -->
+            <div class="flex flex-wrap items-center gap-1.5 text-xs font-semibold" id="informes-quick-ranges">
+              <button type="button" data-action="set-range" data-id="mes_actual" class="btn-range px-2.5 py-1 rounded-lg bg-[#1D3557] text-white shadow-xs font-bold">Mes actual</button>
+              <button type="button" data-action="set-range" data-id="mes_anterior" class="btn-range px-2.5 py-1 rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 font-medium">Mes anterior</button>
+              <button type="button" data-action="set-range" data-id="trimestre" class="btn-range px-2.5 py-1 rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 font-medium">Últim trimestre</button>
+              <button type="button" data-action="set-range" data-id="any_actual" class="btn-range px-2.5 py-1 rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 font-medium">Any 2026</button>
+              <button type="button" data-action="set-range" data-id="tots" class="btn-range px-2.5 py-1 rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 font-medium">Històric complet</button>
+            </div>
+          </div>
+
+          <!-- Selectors Personalitzats de Dates i Àmbits -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 pt-1 text-xs">
+            <div>
+              <label for="informes-data-inici" class="block font-semibold text-gray-700 mb-1">Data d'inici</label>
+              <input type="date" id="informes-data-inici" onchange="applyInformesFilters()" class="w-full p-2 border border-gray-300 rounded-lg bg-white text-xs font-medium focus:border-[#2A9D8F]" />
+            </div>
+            <div>
+              <label for="informes-data-fi" class="block font-semibold text-gray-700 mb-1">Data de fi</label>
+              <input type="date" id="informes-data-fi" onchange="applyInformesFilters()" class="w-full p-2 border border-gray-300 rounded-lg bg-white text-xs font-medium focus:border-[#2A9D8F]" />
+            </div>
+            <div>
+              <label for="informes-filter-categoria" class="block font-semibold text-gray-700 mb-1">Especialitat</label>
+              <select id="informes-filter-categoria" onchange="applyInformesFilters()" class="w-full p-2 border border-gray-300 rounded-lg bg-white text-xs font-medium focus:border-[#2A9D8F]">
+                <option value="">Totes les Especialitats</option>
+              </select>
+            </div>
+            <div>
+              <label for="informes-filter-nucli" class="block font-semibold text-gray-700 mb-1">Nucli Poblacional</label>
+              <select id="informes-filter-nucli" onchange="applyInformesFilters()" class="w-full p-2 border border-gray-300 rounded-lg bg-white text-xs font-medium focus:border-[#2A9D8F]">
+                <option value="">Tots els Nuclis</option>
+                <option value="Santa Eugènia (Vila)">Santa Eugènia (Vila)</option>
+                <option value="Ses Alqueries">Ses Alqueries</option>
+                <option value="Ses Olleries">Ses Olleries</option>
+                <option value="Ses Coves">Ses Coves</option>
+              </select>
+            </div>
+            <div>
+              <label for="informes-filter-operari" class="block font-semibold text-gray-700 mb-1">Operari Assignat</label>
+              <select id="informes-filter-operari" onchange="applyInformesFilters()" class="w-full p-2 border border-gray-300 rounded-lg bg-white text-xs font-medium focus:border-[#2A9D8F]">
+                <option value="">Tots els Operaris</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tauler de Mètriques KPI -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div class="p-4 bg-white rounded-xl border border-gray-200 shadow-xs">
+            <div class="flex items-center justify-between text-gray-500 mb-1">
+              <span class="text-[11px] font-bold uppercase tracking-wider">Total Ordres</span>
+              <i data-lucide="clipboard-list" class="w-4 h-4 text-blue-600"></i>
+            </div>
+            <p id="kpi-total-ordres" class="text-2xl font-bold text-[#1D3557]">0</p>
+            <p id="kpi-sub-ordres" class="text-[11px] text-gray-500 mt-0.5">0 finalitzades</p>
+          </div>
+
+          <div class="p-4 bg-emerald-50/50 rounded-xl border border-emerald-200 shadow-xs">
+            <div class="flex items-center justify-between text-emerald-700 mb-1">
+              <span class="text-[11px] font-bold uppercase tracking-wider">Taxa Resolució</span>
+              <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600"></i>
+            </div>
+            <p id="kpi-taxa-resolucio" class="text-2xl font-bold text-emerald-800">0%</p>
+            <p id="kpi-sub-pendents" class="text-[11px] text-emerald-600 mt-0.5">0 pendents</p>
+          </div>
+
+          <div class="p-4 bg-blue-50/50 rounded-xl border border-blue-200 shadow-xs">
+            <div class="flex items-center justify-between text-blue-700 mb-1">
+              <span class="text-[11px] font-bold uppercase tracking-wider">Hores Registrades</span>
+              <i data-lucide="clock" class="w-4 h-4 text-blue-600"></i>
+            </div>
+            <p id="kpi-hores-totals" class="text-2xl font-bold text-[#1D3557]">0 h</p>
+            <p class="text-[11px] text-blue-600 mt-0.5">Còmput real efectiu</p>
+          </div>
+
+          <div class="p-4 bg-purple-50/50 rounded-xl border border-purple-200 shadow-xs">
+            <div class="flex items-center justify-between text-purple-700 mb-1">
+              <span class="text-[11px] font-bold uppercase tracking-wider">Temps Mitjà</span>
+              <i data-lucide="timer" class="w-4 h-4 text-purple-600"></i>
+            </div>
+            <p id="kpi-temps-mitja" class="text-2xl font-bold text-purple-900">-</p>
+            <p class="text-[11px] text-purple-600 mt-0.5">Període obertura-tancament</p>
+          </div>
+
+          <div class="p-4 bg-amber-50/50 rounded-xl border border-amber-200 shadow-xs col-span-2 md:col-span-1">
+            <div class="flex items-center justify-between text-amber-700 mb-1">
+              <span class="text-[11px] font-bold uppercase tracking-wider">Urgències</span>
+              <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600"></i>
+            </div>
+            <p id="kpi-urgencies" class="text-2xl font-bold text-amber-900">0%</p>
+            <p id="kpi-sub-urgencies" class="text-[11px] text-amber-700 mt-0.5">0 de 0 resoltes</p>
+          </div>
+        </div>
+
+        <!-- Secció de Distribucions (Grid 2 columnes) -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <!-- Distribució per Especialitat -->
+          <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-xs space-y-3">
+            <div class="flex items-center justify-between border-b border-gray-100 pb-2">
+              <h3 class="font-bold text-sm text-[#1D3557] flex items-center gap-2">
+                <i data-lucide="wrench" class="w-4 h-4 text-[#2A9D8F]"></i>
+                <span>Distribució per Especialitat Tècnica</span>
+              </h3>
+              <span class="text-xs text-gray-400 font-medium">Volum d'ordres i hores</span>
+            </div>
+            <div id="container-distribucio-especialitats" class="space-y-2.5 text-xs">
+              <!-- Es genera dinàmicament -->
+            </div>
+          </div>
+
+          <!-- Distribució Territorial per Nucli -->
+          <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-xs space-y-3">
+            <div class="flex items-center justify-between border-b border-gray-100 pb-2">
+              <h3 class="font-bold text-sm text-[#1D3557] flex items-center gap-2">
+                <i data-lucide="map-pin" class="w-4 h-4 text-purple-600"></i>
+                <span>Distribució Territorial per Nucli</span>
+              </h3>
+              <span class="text-xs text-gray-400 font-medium">Santa Eugènia i llogarets</span>
+            </div>
+            <div id="container-distribucio-nuclis" class="space-y-2.5 text-xs">
+              <!-- Es genera dinàmicament -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Parte de Treball per Operari -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
+          <div class="p-4 border-b border-gray-100 flex items-center justify-between">
+            <h3 class="font-bold text-sm text-[#1D3557] flex items-center gap-2">
+              <i data-lucide="users" class="w-4 h-4 text-teal-600"></i>
+              <span>Parte de Treball per Operari (Rendiment Municipal)</span>
+            </h3>
+            <span class="text-xs text-gray-500">Còmput d'hores registrades sense deduccions automàtiques</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-gray-50 text-gray-500 uppercase text-[10px] tracking-wider border-b border-gray-200">
+                  <th class="px-4 py-3">Operari</th>
+                  <th class="px-4 py-3">Especialitat</th>
+                  <th class="px-4 py-3 text-center">Tasques Assignades</th>
+                  <th class="px-4 py-3 text-center">Tasques Tancades</th>
+                  <th class="px-4 py-3 text-center">Hores Registrades</th>
+                  <th class="px-4 py-3 text-center">Mitjana / Tasca</th>
+                  <th class="px-4 py-3 text-right">Eficàcia Resolució</th>
+                </tr>
+              </thead>
+              <tbody id="informes-operaris-tbody" class="divide-y divide-gray-100">
+                <!-- Es genera dinàmicament -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Taula Detallada d'Actuacions del Període -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
+          <div class="p-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
+            <h3 class="font-bold text-sm text-[#1D3557] flex items-center gap-2">
+              <i data-lucide="list-ordered" class="w-4 h-4 text-[#1D3557]"></i>
+              <span>Llistat d'Ordres de Treball del Període</span>
+              <span id="badge-informes-llistat-total" class="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-[#1D3557] font-bold">0</span>
+            </h3>
+            <span class="text-xs text-gray-400 italic">* Fes clic sobre la icona de la fitxa per obrir el justificant</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-gray-50 text-gray-500 uppercase text-[10px] tracking-wider border-b border-gray-200">
+                  <th class="px-4 py-3">Codi</th>
+                  <th class="px-4 py-3">Data Registre</th>
+                  <th class="px-4 py-3">Títol & Descripció</th>
+                  <th class="px-4 py-3">Ubicació</th>
+                  <th class="px-4 py-3">Especialitat</th>
+                  <th class="px-4 py-3">Equip</th>
+                  <th class="px-4 py-3 text-center">Hores</th>
+                  <th class="px-4 py-3 text-center">Estat</th>
+                  <th class="px-4 py-3 text-right">Accions</th>
+                </tr>
+              </thead>
+              <tbody id="informes-tasques-tbody" class="divide-y divide-gray-100">
+                <!-- Es genera dinàmicament -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <!-- ========================================================================= -->
@@ -1278,9 +1509,9 @@
         <div class="bg-blue-50/70 p-3.5 rounded-xl border border-blue-200 text-xs space-y-1">
           <p class="font-bold text-[#1D3557]">Càlcul de Temps de Feina:</p>
           <p class="text-gray-700">Temps cronometrat: <span id="modal-cronometre-val" class="font-mono font-bold text-[#1D3557]">1h 15m</span></p>
-          <p class="text-emerald-700 flex items-center space-x-1">
-            <i data-lucide="coffee" class="w-3.5 h-3.5"></i>
-            <span id="modal-pausa-esmorzar-text">Pausa d'esmorzar de 30 minuts deduïda automàticament.</span>
+          <p class="text-blue-700 flex items-center space-x-1">
+            <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+            <span>Temps efectiu registrat al sistema.</span>
           </p>
         </div>
 
@@ -1409,17 +1640,13 @@
 
         <div class="border border-gray-200 rounded-xl p-3.5 text-xs">
           <h4 class="font-bold text-[#1D3557] mb-1">Còmput Horari del Treball</h4>
-          <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="grid grid-cols-2 gap-2 text-center">
             <div class="bg-gray-50 p-2 rounded-lg">
-              <span class="block text-gray-500 text-xs">Durada Total</span>
+              <span class="block text-gray-500 text-xs">Temps de Treball Registrat</span>
               <span id="pdf-durada-total" class="font-bold text-sm text-gray-800">-</span>
             </div>
-            <div class="bg-gray-50 p-2 rounded-lg">
-              <span class="block text-gray-500 text-xs">Pausa Esmorzar Deduïda</span>
-              <span id="pdf-pausa-esmorzar" class="font-bold text-sm text-amber-700">30 min</span>
-            </div>
             <div class="bg-blue-50 p-2 rounded-lg">
-              <span class="block text-blue-700 text-xs">Temps Net Efectiu</span>
+              <span class="block text-blue-700 text-xs">Còmput Efectiu</span>
               <span id="pdf-temps-net" class="font-bold text-sm text-[#1D3557]">-</span>
             </div>
           </div>
@@ -1457,6 +1684,35 @@
           </div>
         </div>
 
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: INFORME OFICIAL MUNICIPAL EN PDF (PERÍODE / INTERVENCIÓ)           -->
+  <!-- ========================================================================= -->
+  <div id="modal-informe-global-pdf" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 sm:p-4 hidden">
+    <div class="bg-white w-full max-w-4xl max-h-[92vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+      <!-- Barra superior no imprimible -->
+      <div class="no-print bg-[#1D3557] text-white p-3.5 px-6 flex items-center justify-between border-b border-gray-200 flex-shrink-0">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="printer" class="w-5 h-5 text-amber-400"></i>
+          <span class="font-bold text-sm sm:text-base">Previsualització de l'Informe Oficial Municipal</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button onclick="window.print()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-sm flex items-center space-x-1.5 transition-colors min-touch">
+            <i data-lucide="printer" class="w-4 h-4"></i>
+            <span>Imprimir / Guardar com a PDF</span>
+          </button>
+          <button data-action="close-modal-informe-pdf" class="p-1 text-gray-300 hover:text-white rounded-lg">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Contingut Imprimible (format oficial Ajuntament de Santa Eugènia) -->
+      <div id="printable-informe-municipal" class="p-6 sm:p-8 space-y-6 overflow-y-auto flex-1 text-xs">
+        <!-- Es generarà dinàmicament amb dades oficials, escut, taules i peu de signatures -->
       </div>
     </div>
   </div>
@@ -2203,6 +2459,9 @@
           APP_STATE.tasks = remoteTasks;
           renderAdminTasks();
           renderOperariScreen();
+          if (APP_STATE.currentView === 'informes-analitica') {
+            renderInformesAnalitica();
+          }
 
           isFirebaseConnected = true;
           const hasPendingWrites = snapshot.metadata.hasPendingWrites;
@@ -2231,6 +2490,9 @@
             renderLoginOperatorsSelect();
             renderCreateTaskOperatorsSelect();
             renderUnifiedLoginOperatorsSelect();
+            if (APP_STATE.currentView === 'informes-analitica') {
+              renderInformesAnalitica();
+            }
 
             if (APP_STATE.currentUser && APP_STATE.currentUser.role === 'operari') {
               const op = APP_STATE.operaris.find(o => o.id === APP_STATE.currentUser.operariId);
@@ -2445,6 +2707,18 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           break;
         case 'navigate-view':
           if (id) navigateView(id);
+          break;
+        case 'exportar-csv':
+          exportarInformesCSV();
+          break;
+        case 'open-modal-informe-pdf':
+          openModalInformeGlobalPDF();
+          break;
+        case 'close-modal-informe-pdf':
+          closeModalInformeGlobalPDF();
+          break;
+        case 'set-range':
+          if (id) setInformesRange(id);
           break;
         case 'logout':
           logoutUnified();
@@ -2795,6 +3069,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         'view-gestor-programades',
         'view-gestor-nomenclator',
         'view-gestor-operaris',
+        'view-informes-analitica',
         'view-operari-view'
       ];
 
@@ -2966,6 +3241,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         'view-gestor-programades',
         'view-gestor-nomenclator',
         'view-gestor-operaris',
+        'view-informes-analitica',
         'view-operari-view'
       ];
 
@@ -2998,6 +3274,8 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         renderNomenclatorTable();
       } else if (viewId === 'gestor-operaris') {
         renderOperatorsCards();
+      } else if (viewId === 'informes-analitica') {
+        renderInformesAnalitica();
       } else if (viewId === 'operari-view') {
         renderLoginOperatorsSelect();
         renderOperariScreen();
@@ -5334,6 +5612,673 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
     }
 
     // -------------------------------------------------------------------------
+    // MÒDUL D'INFORMES I ANALÍTICA MUNICIPAL (FASE 7 - BACKOFFICE P1)
+    // -------------------------------------------------------------------------
+    const INFORMES_STATE = {
+      quickRange: 'mes_actual',
+      dataInici: '',
+      dataFi: '',
+      categoria: '',
+      nucli: '',
+      operariId: ''
+    };
+
+    function initInformesModule() {
+      setInformesRange('mes_actual', false);
+      populateInformesFiltersSelectors();
+    }
+
+    function setInformesRange(rangeId, shouldRender = true) {
+      INFORMES_STATE.quickRange = rangeId;
+      const now = new Date();
+      let dInici = new Date();
+      let dFi = new Date();
+
+      if (rangeId === 'mes_actual') {
+        dInici = new Date(now.getFullYear(), now.getMonth(), 1);
+        dFi = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      } else if (rangeId === 'mes_anterior') {
+        dInici = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        dFi = new Date(now.getFullYear(), now.getMonth(), 0);
+      } else if (rangeId === 'trimestre') {
+        dInici = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+        dFi = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      } else if (rangeId === 'any_actual') {
+        dInici = new Date(now.getFullYear(), 0, 1);
+        dFi = new Date(now.getFullYear(), 11, 31);
+      } else if (rangeId === 'tots') {
+        dInici = new Date(2025, 0, 1);
+        dFi = new Date(now.getFullYear() + 1, 11, 31);
+      }
+
+      const formatYMD = (d) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+
+      INFORMES_STATE.dataInici = formatYMD(dInici);
+      INFORMES_STATE.dataFi = formatYMD(dFi);
+
+      const inputInici = document.getElementById('informes-data-inici');
+      const inputFi = document.getElementById('informes-data-fi');
+      if (inputInici) inputInici.value = INFORMES_STATE.dataInici;
+      if (inputFi) inputFi.value = INFORMES_STATE.dataFi;
+
+      document.querySelectorAll('#informes-quick-ranges .btn-range').forEach(btn => {
+        const bid = btn.getAttribute('data-id');
+        if (bid === rangeId) {
+          btn.className = "btn-range px-2.5 py-1 rounded-lg bg-[#1D3557] text-white shadow-xs font-bold";
+        } else {
+          btn.className = "btn-range px-2.5 py-1 rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 font-medium";
+        }
+      });
+
+      if (shouldRender) {
+        renderInformesAnalitica();
+      }
+    }
+
+    function populateInformesFiltersSelectors() {
+      const catSelect = document.getElementById('informes-filter-categoria');
+      if (catSelect && catSelect.options.length <= 1) {
+        Object.entries(CATEGORIA_LABELS).forEach(([val, label]) => {
+          const opt = document.createElement('option');
+          opt.value = val;
+          opt.textContent = label;
+          catSelect.appendChild(opt);
+        });
+      }
+
+      const opSelect = document.getElementById('informes-filter-operari');
+      if (opSelect) {
+        const curVal = opSelect.value;
+        opSelect.innerHTML = '<option value="">Tots els Operaris</option>';
+        APP_STATE.operaris.forEach(op => {
+          const opt = document.createElement('option');
+          opt.value = String(op.id);
+          opt.textContent = `${op.nom} (${CATEGORIA_LABELS[op.especialitat] || op.especialitat})`;
+          opSelect.appendChild(opt);
+        });
+        if (curVal) opSelect.value = curVal;
+      }
+    }
+
+    function applyInformesFilters() {
+      const inputInici = document.getElementById('informes-data-inici');
+      const inputFi = document.getElementById('informes-data-fi');
+      const catSelect = document.getElementById('informes-filter-categoria');
+      const nucliSelect = document.getElementById('informes-filter-nucli');
+      const opSelect = document.getElementById('informes-filter-operari');
+
+      if (inputInici) INFORMES_STATE.dataInici = inputInici.value;
+      if (inputFi) INFORMES_STATE.dataFi = inputFi.value;
+      if (catSelect) INFORMES_STATE.categoria = catSelect.value;
+      if (nucliSelect) INFORMES_STATE.nucli = nucliSelect.value;
+      if (opSelect) INFORMES_STATE.operariId = opSelect.value;
+
+      renderInformesAnalitica();
+    }
+
+    function getFilteredInformesTasks() {
+      const startMs = INFORMES_STATE.dataInici ? new Date(`${INFORMES_STATE.dataInici}T00:00:00`).getTime() : 0;
+      const endMs = INFORMES_STATE.dataFi ? new Date(`${INFORMES_STATE.dataFi}T23:59:59`).getTime() : Infinity;
+
+      return APP_STATE.tasks.filter(task => {
+        const taskDate = task.creatEl ? new Date(task.creatEl).getTime() : 0;
+        if (taskDate < startMs || taskDate > endMs) return false;
+
+        if (INFORMES_STATE.categoria && task.categoria !== INFORMES_STATE.categoria) return false;
+        if (INFORMES_STATE.nucli && task.nucli !== INFORMES_STATE.nucli) return false;
+
+        if (INFORMES_STATE.operariId) {
+          const opIdNum = parseInt(INFORMES_STATE.operariId, 10);
+          const hasOp = (task.operariIds && task.operariIds.includes(opIdNum)) || (task.operariId === opIdNum);
+          if (!hasOp) return false;
+        }
+
+        return true;
+      });
+    }
+
+    function renderInformesAnalitica() {
+      populateInformesFiltersSelectors();
+      const filteredTasks = getFilteredInformesTasks();
+
+      // 1. Càlcul de KPIs Generals
+      const totalOrdres = filteredTasks.length;
+      const resoltes = filteredTasks.filter(t => t.estat === 'finalitzada').length;
+      const pendents = totalOrdres - resoltes;
+      const taxaResolucio = totalOrdres > 0 ? Math.round((resoltes / totalOrdres) * 100) : 0;
+
+      // Hores totals: còmput real estricte (sense deducció d'esmorzar per mandat municipal)
+      let totalSegons = 0;
+      filteredTasks.forEach(t => {
+        totalSegons += (t.tempsTranscorregut || 0);
+      });
+      const totalHores = totalSegons / 3600;
+      const totalHoresStr = `${totalHores.toFixed(1)} h`;
+
+      // Temps mitjà de resolució
+      let resolucioTempsTotalMs = 0;
+      let resolucioComptador = 0;
+      filteredTasks.forEach(t => {
+        if (t.estat === 'finalitzada' && t.creatEl) {
+          const cDate = new Date(t.creatEl).getTime();
+          const fDate = t.tempsFinalitzacio ? new Date(t.tempsFinalitzacio).getTime() : (t.finalitzadaEl ? new Date(t.finalitzadaEl).getTime() : 0);
+          if (fDate >= cDate) {
+            resolucioTempsTotalMs += (fDate - cDate);
+            resolucioComptador++;
+          }
+        }
+      });
+      let tempsMitjaStr = "-";
+      if (resolucioComptador > 0) {
+        const avgHores = (resolucioTempsTotalMs / resolucioComptador) / (1000 * 3600);
+        if (avgHores < 24) {
+          tempsMitjaStr = `${avgHores.toFixed(1)} h`;
+        } else {
+          tempsMitjaStr = `${(avgHores / 24).toFixed(1)} dies`;
+        }
+      }
+
+      // Compliment d'urgències
+      const urgents = filteredTasks.filter(t => t.prioritat === 'urgent');
+      const urgentsResoltes = urgents.filter(t => t.estat === 'finalitzada').length;
+      const percUrgents = urgents.length > 0 ? Math.round((urgentsResoltes / urgents.length) * 100) : 100;
+
+      // Actualitzar elements del DOM
+      const elTot = document.getElementById('kpi-total-ordres');
+      const elSubOrd = document.getElementById('kpi-sub-ordres');
+      const elTaxa = document.getElementById('kpi-taxa-resolucio');
+      const elSubPend = document.getElementById('kpi-sub-pendents');
+      const elHores = document.getElementById('kpi-hores-totals');
+      const elTemps = document.getElementById('kpi-temps-mitja');
+      const elUrg = document.getElementById('kpi-urgencies');
+      const elSubUrg = document.getElementById('kpi-sub-urgencies');
+
+      if (elTot) elTot.textContent = String(totalOrdres);
+      if (elSubOrd) elSubOrd.textContent = `${resoltes} finalitzades (${pendents} en curs)`;
+      if (elTaxa) elTaxa.textContent = `${taxaResolucio}%`;
+      if (elSubPend) elSubPend.textContent = `${pendents} pendents de tancament`;
+      if (elHores) elHores.textContent = totalHoresStr;
+      if (elTemps) elTemps.textContent = tempsMitjaStr;
+      if (elUrg) elUrg.textContent = `${percUrgents}%`;
+      if (elSubUrg) elSubUrg.textContent = `${urgentsResoltes} de ${urgents.length} resoltes`;
+
+      // 2. Render de Desglossaments
+      renderDistribucioEspecialitats(filteredTasks);
+      renderDistribucioNuclis(filteredTasks);
+      renderParteOperaris(filteredTasks);
+      renderTaulaActuacions(filteredTasks);
+
+      lucide.createIcons();
+    }
+
+    function renderDistribucioEspecialitats(tasks) {
+      const container = document.getElementById('container-distribucio-especialitats');
+      if (!container) return;
+
+      const total = tasks.length;
+      if (total === 0) {
+        container.innerHTML = '<p class="text-gray-400 italic text-center py-4">Cap ordre trobada en el període seleccionat.</p>';
+        return;
+      }
+
+      // Agrupació per especialitat
+      const map = {};
+      tasks.forEach(t => {
+        const cat = t.categoria || 'altres';
+        if (!map[cat]) map[cat] = { count: 0, seconds: 0 };
+        map[cat].count++;
+        map[cat].seconds += (t.tempsTranscorregut || 0);
+      });
+
+      const items = Object.entries(map).map(([cat, d]) => ({
+        cat,
+        nom: CATEGORIA_LABELS[cat] || cat,
+        count: d.count,
+        hores: (d.seconds / 3600).toFixed(1),
+        perc: Math.round((d.count / total) * 100)
+      })).sort((a, b) => b.count - a.count);
+
+      container.innerHTML = items.map(item => `
+        <div class="space-y-1">
+          <div class="flex items-center justify-between font-medium">
+            <span class="text-gray-800">${esc(item.nom)}</span>
+            <span class="text-gray-500 font-mono text-[11px]">${item.count} ordres (${item.hores} h · ${item.perc}%)</span>
+          </div>
+          <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+            <div class="bg-[#2A9D8F] h-2 rounded-full transition-all" style="width: ${item.perc}%"></div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderDistribucioNuclis(tasks) {
+      const container = document.getElementById('container-distribucio-nuclis');
+      if (!container) return;
+
+      const total = tasks.length;
+      if (total === 0) {
+        container.innerHTML = '<p class="text-gray-400 italic text-center py-4">Cap ordre trobada en el període seleccionat.</p>';
+        return;
+      }
+
+      const nuclis = [
+        "Santa Eugènia (Vila)",
+        "Ses Alqueries",
+        "Ses Olleries",
+        "Ses Coves"
+      ];
+
+      const counts = {};
+      nuclis.forEach(n => counts[n] = { count: 0, seconds: 0 });
+
+      tasks.forEach(t => {
+        const n = t.nucli || "Santa Eugènia (Vila)";
+        if (!counts[n]) counts[n] = { count: 0, seconds: 0 };
+        counts[n].count++;
+        counts[n].seconds += (t.tempsTranscorregut || 0);
+      });
+
+      container.innerHTML = Object.entries(counts).map(([nom, d]) => {
+        const perc = total > 0 ? Math.round((d.count / total) * 100) : 0;
+        const hores = (d.seconds / 3600).toFixed(1);
+        return `
+          <div class="space-y-1">
+            <div class="flex items-center justify-between font-medium">
+              <span class="text-gray-800 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                <span>${esc(nom)}</span>
+              </span>
+              <span class="text-gray-500 font-mono text-[11px]">${d.count} actuacions (${hores} h · ${perc}%)</span>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+              <div class="bg-purple-600 h-2 rounded-full transition-all" style="width: ${perc}%"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderParteOperaris(tasks) {
+      const tbody = document.getElementById('informes-operaris-tbody');
+      if (!tbody) return;
+
+      if (APP_STATE.operaris.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-6 text-center text-gray-400 italic">No hi ha operaris registrats al directori.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = APP_STATE.operaris.map(op => {
+        const opTasks = tasks.filter(t => {
+          const assignedIds = t.operariIds && t.operariIds.length > 0 ? t.operariIds : (t.operariId ? [t.operariId] : []);
+          return assignedIds.includes(op.id);
+        });
+
+        const totalAssignades = opTasks.length;
+        const totalTancades = opTasks.filter(t => t.estat === 'finalitzada').length;
+
+        let totalSegons = 0;
+        opTasks.forEach(t => totalSegons += (t.tempsTranscorregut || 0));
+        const totalHores = (totalSegons / 3600).toFixed(1);
+
+        const mitjanaMinuts = totalTancades > 0 ? Math.round((totalSegons / totalTancades) / 60) : 0;
+        const eficacia = totalAssignades > 0 ? Math.round((totalTancades / totalAssignades) * 100) : 0;
+
+        return `
+          <tr class="hover:bg-gray-50/80 transition-colors">
+            <td class="px-4 py-3">
+              <div class="flex items-center space-x-2.5">
+                <div class="w-7 h-7 rounded-lg bg-teal-50 text-[#2A9D8F] flex items-center justify-center font-bold text-xs border border-teal-200">
+                  ${esc(getInitials(op.nom))}
+                </div>
+                <div>
+                  <span class="font-bold text-gray-900 block">${esc(op.nom)}</span>
+                  <span class="text-[10px] text-gray-400 font-mono">op-${op.id}</span>
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-gray-600 font-medium">
+              ${esc(CATEGORIA_LABELS[op.especialitat] || op.especialitat || '-')}
+            </td>
+            <td class="px-4 py-3 text-center font-bold text-gray-800">
+              ${totalAssignades}
+            </td>
+            <td class="px-4 py-3 text-center font-bold text-emerald-700">
+              ${totalTancades}
+            </td>
+            <td class="px-4 py-3 text-center font-mono font-bold text-[#1D3557]">
+              ${totalHores} h
+            </td>
+            <td class="px-4 py-3 text-center text-gray-600 font-mono text-[11px]">
+              ${mitjanaMinuts > 0 ? `${mitjanaMinuts} min` : '-'}
+            </td>
+            <td class="px-4 py-3 text-right">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ${eficacia >= 75 ? 'bg-emerald-100 text-emerald-800' : (eficacia >= 40 ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600')}">
+                ${eficacia}%
+              </span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderTaulaActuacions(tasks) {
+      const tbody = document.getElementById('informes-tasques-tbody');
+      const badgeTotal = document.getElementById('badge-informes-llistat-total');
+      if (badgeTotal) badgeTotal.textContent = String(tasks.length);
+      if (!tbody) return;
+
+      if (tasks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="px-4 py-8 text-center text-gray-400 italic">No s\'ha trobat cap ordre de treball coincident amb els filtres aplicats.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = tasks.map(task => {
+        const assignedIds = task.operariIds && task.operariIds.length > 0 ? task.operariIds : (task.operariId ? [task.operariId] : []);
+        const assignedOps = APP_STATE.operaris.filter(o => assignedIds.includes(o.id));
+        const teamNames = assignedOps.map(o => o.nom.split(' ')[0]).join(', ') || 'Sense assignar';
+        const dataRegStr = task.creatEl ? new Date(task.creatEl).toLocaleDateString('ca-ES') : '-';
+        const duradaHores = task.tempsTranscorregut ? (task.tempsTranscorregut / 3600).toFixed(1) : '0.0';
+
+        const estatBadge = {
+          pendent: 'bg-red-100 text-red-800',
+          assignada: 'bg-amber-100 text-amber-800',
+          en_curs: 'bg-teal-100 text-teal-800',
+          pendent_material: 'bg-purple-100 text-purple-800',
+          finalitzada: 'bg-gray-100 text-gray-700'
+        }[task.estat] || 'bg-gray-100 text-gray-700';
+
+        return `
+          <tr class="hover:bg-gray-50/80 transition-colors">
+            <td class="px-4 py-3 font-mono font-bold text-[#1D3557] text-[11px] whitespace-nowrap">
+              ${esc(task.id)}
+            </td>
+            <td class="px-4 py-3 text-gray-500 whitespace-nowrap text-[11px]">
+              ${dataRegStr}
+            </td>
+            <td class="px-4 py-3 max-w-xs">
+              <span class="font-bold text-gray-900 block truncate">${esc(task.titol)}</span>
+              <span class="text-[11px] text-gray-400 block truncate">${esc(task.descripcio || '')}</span>
+            </td>
+            <td class="px-4 py-3 text-[11px]">
+              <span class="font-medium text-gray-800 block">${esc(task.nucli)}</span>
+              <span class="text-gray-400 font-mono text-[10px] block">${esc(task.via)}</span>
+            </td>
+            <td class="px-4 py-3 text-[11px]">
+              <span class="px-2 py-0.5 rounded-full font-semibold bg-blue-50 text-blue-900 border border-blue-200">
+                ${esc(CATEGORIA_LABELS[task.categoria] || task.categoria)}
+              </span>
+            </td>
+            <td class="px-4 py-3 text-[11px] text-gray-700">
+              👥 ${esc(teamNames)}
+            </td>
+            <td class="px-4 py-3 text-center font-mono font-bold text-gray-800 text-[11px]">
+              ${duradaHores} h
+            </td>
+            <td class="px-4 py-3 text-center">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${estatBadge}">
+                ${esc(task.estat || 'pendent')}
+              </span>
+            </td>
+            <td class="px-4 py-3 text-right">
+              <button data-action="open-report" data-id="${esc(task.id)}" title="Veure Justificant Oficial" class="p-1.5 text-gray-600 hover:text-[#1D3557] rounded-lg hover:bg-gray-100 inline-flex min-touch">
+                <i data-lucide="file-text" class="w-4 h-4"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function exportarInformesCSV() {
+      const tasks = getFilteredInformesTasks();
+      if (tasks.length === 0) {
+        showToast("No hi ha ordres per exportar en el període seleccionat.", "info");
+        return;
+      }
+
+      const header = [
+        "Codi",
+        "Data Registre",
+        "Data Finalitzacio",
+        "Titol",
+        "Categoria",
+        "Nucli",
+        "Via",
+        "Prioritat",
+        "Estat",
+        "Equip Assignat",
+        "Hores Registrades (minuts)",
+        "Hores Registrades (decimals)",
+        "Validador Conformat"
+      ];
+
+      const formatCsvCell = (val) => {
+        const str = String(val === null || val === undefined ? '' : val);
+        if (str.includes(';') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const rows = tasks.map(t => {
+        const regDate = t.creatEl ? new Date(t.creatEl).toLocaleDateString('ca-ES') : '-';
+        const finDate = t.tempsFinalitzacio ? new Date(t.tempsFinalitzacio).toLocaleDateString('ca-ES') : (t.finalitzadaEl || '-');
+        const assignedIds = t.operariIds && t.operariIds.length > 0 ? t.operariIds : (t.operariId ? [t.operariId] : []);
+        const assignedNames = APP_STATE.operaris.filter(o => assignedIds.includes(o.id)).map(o => o.nom).join(', ');
+        const duradaMins = t.tempsTranscorregut ? Math.round(t.tempsTranscorregut / 60) : 0;
+        const duradaHoresDec = (duradaMins / 60).toFixed(2);
+
+        return [
+          t.id,
+          regDate,
+          finDate,
+          t.titol,
+          CATEGORIA_LABELS[t.categoria] || t.categoria,
+          t.nucli,
+          t.via,
+          t.prioritat ? t.prioritat.toUpperCase() : 'NORMAL',
+          t.estat ? t.estat.toUpperCase() : 'PENDENT',
+          assignedNames || 'Sense assignar',
+          duradaMins,
+          duradaHoresDec,
+          t.nomSignatari || '-'
+        ].map(formatCsvCell).join(';');
+      });
+
+      // Byte Order Mark (BOM) UTF-8 per garantir compatibilitat amb accents i apòstrofs a Excel europeu
+      const csvContent = "\uFEFF" + header.map(formatCsvCell).join(';') + "\r\n" + rows.join("\r\n");
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const dataStr = new Date().toISOString().split('T')[0];
+      a.href = url;
+      a.download = `informe_brigada_santa_eugenia_${dataStr}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast("Fitxer CSV descarregat correctament.", "success");
+    }
+
+    function openModalInformeGlobalPDF() {
+      const modal = document.getElementById('modal-informe-global-pdf');
+      const container = document.getElementById('printable-informe-municipal');
+      if (!modal || !container) return;
+
+      const tasks = getFilteredInformesTasks();
+      const totalOrdres = tasks.length;
+      const resoltes = tasks.filter(t => t.estat === 'finalitzada').length;
+      const pendents = totalOrdres - resoltes;
+      const taxaResolucio = totalOrdres > 0 ? Math.round((resoltes / totalOrdres) * 100) : 0;
+
+      let totalSegons = 0;
+      tasks.forEach(t => totalSegons += (t.tempsTranscorregut || 0));
+      const totalHoresStr = `${(totalSegons / 3600).toFixed(1)} h`;
+
+      const avuiStr = new Date().toLocaleDateString('ca-ES', { day: '2-digit', month: 'long', year: 'numeric' });
+      const dIniciStr = INFORMES_STATE.dataInici ? new Date(`${INFORMES_STATE.dataInici}T00:00:00`).toLocaleDateString('ca-ES') : 'Inici històric';
+      const dFiStr = INFORMES_STATE.dataFi ? new Date(`${INFORMES_STATE.dataFi}T00:00:00`).toLocaleDateString('ca-ES') : 'Actualitat';
+
+      container.innerHTML = `
+        <!-- Capçalera Oficial Municipal -->
+        <div class="flex items-center justify-between border-b-2 border-[#1D3557] pb-4">
+          <div class="flex items-center space-x-3.5">
+            <div class="w-14 h-14 bg-white p-1 rounded-lg border border-gray-200 flex items-center justify-center shadow-xs">
+              <img src="./logo-santa-eugenia.jpg" alt="Escut Santa Eugènia" class="w-full h-full object-contain" />
+            </div>
+            <div>
+              <h1 class="text-xl font-bold tracking-tight text-[#1D3557]">AJUNTAMENT DE SANTA EUGÈNIA</h1>
+              <p class="text-xs font-semibold text-gray-700">Àrea d'Obres Públiques, Manteniment Viari i Serveis Municipals</p>
+              <p class="text-[11px] text-gray-500">Codi Postal 07142 · Illes Balears · NIF: P0705300B</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="inline-block px-3 py-1 bg-blue-50 text-[#1D3557] border border-blue-200 font-bold text-xs rounded-md font-mono">
+              CERTIFICAT D'ACTIVITAT
+            </span>
+            <p class="text-[11px] text-gray-500 mt-1">Data d'emissió: ${avuiStr}</p>
+          </div>
+        </div>
+
+        <!-- Títol i Període Certificat -->
+        <div class="bg-gray-50 p-3.5 rounded-xl border border-gray-200">
+          <h2 class="font-bold text-sm text-[#1D3557]">INFORME DE RENDIMENT DE LA BRIGADA I CÒMPUT HORARI OFICIAL</h2>
+          <p class="text-xs text-gray-600 mt-0.5">
+            <strong>Període analitzat:</strong> des del <strong>${dIniciStr}</strong> fins al <strong>${dFiStr}</strong>
+            ${INFORMES_STATE.nucli ? ` · <strong>Nucli:</strong> ${esc(INFORMES_STATE.nucli)}` : ''}
+            ${INFORMES_STATE.categoria ? ` · <strong>Especialitat:</strong> ${esc(CATEGORIA_LABELS[INFORMES_STATE.categoria] || INFORMES_STATE.categoria)}` : ''}
+          </p>
+        </div>
+
+        <!-- Indicadors Clau (KPI) -->
+        <div class="grid grid-cols-4 gap-3 text-center">
+          <div class="border border-gray-200 p-2.5 rounded-xl bg-white">
+            <span class="block text-[10px] text-gray-500 font-bold uppercase">Total Actuacions</span>
+            <span class="block text-lg font-bold text-[#1D3557] font-mono mt-0.5">${totalOrdres}</span>
+          </div>
+          <div class="border border-emerald-200 p-2.5 rounded-xl bg-emerald-50/50">
+            <span class="block text-[10px] text-emerald-800 font-bold uppercase">Ordres Resoltes</span>
+            <span class="block text-lg font-bold text-emerald-800 font-mono mt-0.5">${resoltes}</span>
+          </div>
+          <div class="border border-blue-200 p-2.5 rounded-xl bg-blue-50/50">
+            <span class="block text-[10px] text-blue-800 font-bold uppercase">Hores Registrades</span>
+            <span class="block text-lg font-bold text-[#1D3557] font-mono mt-0.5">${totalHoresStr}</span>
+          </div>
+          <div class="border border-purple-200 p-2.5 rounded-xl bg-purple-50/50">
+            <span class="block text-[10px] text-purple-800 font-bold uppercase">Taxa Resolució</span>
+            <span class="block text-lg font-bold text-purple-900 font-mono mt-0.5">${taxaResolucio}%</span>
+          </div>
+        </div>
+
+        <!-- Resum Territorial per Nuclis -->
+        <div class="space-y-1.5">
+          <h3 class="font-bold text-xs text-[#1D3557] uppercase tracking-wider">1. Distribució Territorial Municipal</h3>
+          <table class="w-full text-left border border-gray-200 rounded-lg overflow-hidden text-xs">
+            <thead class="bg-gray-100 text-gray-700 font-bold text-[10px] uppercase">
+              <tr>
+                <th class="p-2 border-b">Nucli Poblacional</th>
+                <th class="p-2 border-b text-center">Nombre d'Actuacions</th>
+                <th class="p-2 border-b text-center">Hores Registrades</th>
+                <th class="p-2 border-b text-right">% sobre el Total</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              ${["Santa Eugènia (Vila)", "Ses Alqueries", "Ses Olleries", "Ses Coves"].map(n => {
+                const sub = tasks.filter(t => (t.nucli || "Santa Eugènia (Vila)") === n);
+                let segons = 0;
+                sub.forEach(t => segons += (t.tempsTranscorregut || 0));
+                const perc = totalOrdres > 0 ? Math.round((sub.length / totalOrdres) * 100) : 0;
+                return `
+                  <tr>
+                    <td class="p-2 font-medium">${esc(n)}</td>
+                    <td class="p-2 text-center font-bold">${sub.length}</td>
+                    <td class="p-2 text-center font-mono">${(segons / 3600).toFixed(1)} h</td>
+                    <td class="p-2 text-right font-bold text-gray-600">${perc}%</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Resum per Operaris -->
+        <div class="space-y-1.5">
+          <h3 class="font-bold text-xs text-[#1D3557] uppercase tracking-wider">2. Còmput Horari del Personal de la Brigada</h3>
+          <table class="w-full text-left border border-gray-200 rounded-lg overflow-hidden text-xs">
+            <thead class="bg-gray-100 text-gray-700 font-bold text-[10px] uppercase">
+              <tr>
+                <th class="p-2 border-b">Treballador / Operari</th>
+                <th class="p-2 border-b">Especialitat</th>
+                <th class="p-2 border-b text-center">Tasques Assignades</th>
+                <th class="p-2 border-b text-center">Tasques Tancades</th>
+                <th class="p-2 border-b text-center">Hores Reals Registrades</th>
+                <th class="p-2 border-b text-right">Eficàcia</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              ${APP_STATE.operaris.map(op => {
+                const opTasks = tasks.filter(t => {
+                  const assignedIds = t.operariIds && t.operariIds.length > 0 ? t.operariIds : (t.operariId ? [t.operariId] : []);
+                  return assignedIds.includes(op.id);
+                });
+                const totalAssignades = opTasks.length;
+                const totalTancades = opTasks.filter(t => t.estat === 'finalitzada').length;
+                let segons = 0;
+                opTasks.forEach(t => segons += (t.tempsTranscorregut || 0));
+                const hores = (segons / 3600).toFixed(1);
+                const eficacia = totalAssignades > 0 ? Math.round((totalTancades / totalAssignades) * 100) : 0;
+                return `
+                  <tr>
+                    <td class="p-2 font-bold text-gray-900">${esc(op.nom)}</td>
+                    <td class="p-2 text-gray-600">${esc(CATEGORIA_LABELS[op.especialitat] || op.especialitat || '-')}</td>
+                    <td class="p-2 text-center font-bold">${totalAssignades}</td>
+                    <td class="p-2 text-center font-bold text-emerald-800">${totalTancades}</td>
+                    <td class="p-2 text-center font-mono font-bold text-[#1D3557]">${hores} h</td>
+                    <td class="p-2 text-right font-bold">${eficacia}%</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+          <p class="text-[10px] text-gray-500 italic">* Nota: Còmput real sense deduccions d'esmorzar aplicades, en compliment dels acords municipals.</p>
+        </div>
+
+        <!-- Peu Formal de Signatures -->
+        <div class="pt-8 border-t border-gray-200 grid grid-cols-2 gap-8 text-center">
+          <div>
+            <p class="text-xs font-semibold text-gray-700">Vist i plau i verificació d'obres:</p>
+            <div class="h-20 border-b border-gray-300 mt-2 flex items-center justify-center text-gray-400 italic text-[11px]">
+              (Signatura del Cap de Brigada)
+            </div>
+            <p class="font-bold text-xs text-[#1D3557] mt-1.5">El Cap de la Brigada Municipal</p>
+            <p class="text-[10px] text-gray-500">Ajuntament de Santa Eugènia</p>
+          </div>
+          <div>
+            <p class="text-xs font-semibold text-gray-700">Conformat per a Secretaria i Intervenció:</p>
+            <div class="h-20 border-b border-gray-300 mt-2 flex items-center justify-center text-gray-400 italic text-[11px]">
+              (Segell municipal i signatura d'Alcaldia)
+            </div>
+            <p class="font-bold text-xs text-[#1D3557] mt-1.5">El Batle / Regidoria Delegada de Serveis</p>
+            <p class="text-[10px] text-gray-500">Ajuntament de Santa Eugènia</p>
+          </div>
+        </div>
+      `;
+
+      modal.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeModalInformeGlobalPDF() {
+      const modal = document.getElementById('modal-informe-global-pdf');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    // -------------------------------------------------------------------------
     // INICIALITZACIÓ GLOBAL
     // -------------------------------------------------------------------------
     window.addEventListener('DOMContentLoaded', () => {
@@ -5344,6 +6289,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       renderLoginOperatorsSelect();
       renderNomenclatorTable();
       renderProgramadesCards();
+      initInformesModule();
       updateNetworkStatus();
       initSession();
       lucide.createIcons();

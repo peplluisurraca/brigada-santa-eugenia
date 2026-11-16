@@ -12,7 +12,18 @@ Es un proyecto **distinto e independiente** de «Proposta Santa Eugènia» (form
 - **Desarrollo anterior:** hecho con Google **Antigravity** (las rutas `C:\Users\jlurracam\.gemini\antigravity\scratch\` aparecen en docs y tests). En Drive existe además `brigada-claude-code.zip` (26/10/2026, otra carpeta).
 - **Esta carpeta:** `Cowork/Projects/App Brigada Santa Eugènia/`.
 
-## Estado actual (15/11/2026)
+## Estado actual (16/11/2026)
+- **Fase 7 completada (16/11/2026)** a la branca `feat/fase-7-informes`:
+  - ✅ **Mòdul complet d'Informes i Analítica Municipal**: Nova vista d'administració (`view-informes-analitica`) amb pestanya de navegació dedicada (`tab-informes-analitica`) i icona `bar-chart-3`.
+  - ✅ **Filtres ràpids i controls d'àmbit**: Botons de selecció de període (`mes_actual`, `mes_anterior`, `trimestre`, `any_actual`, `tots`) i desplegables per Nucli (4 nuclis oficials), Especialitat i Operari amb etiquetes accessibles (`label for`).
+  - ✅ **Tauler de Mètriques KPI**: Càlcul dinàmic d'ordres totals, taxa de resolució (%), hores reals totals registrades, temps mitjà de resolució i compliment d'urgències.
+  - ✅ **Desglossament d'activitat i Territori**: Gràfics de barra i percentatges per especialitat (electricitat, obra/paleteria, peó/neteja viària, etc.) i territorial per nucli (Santa Eugènia Vila, Ses Alqueries, Ses Olleries, Ses Coves).
+  - ✅ **Parte de Treball per Operari**: Taula detallada de còmput horari del personal de la brigada, tasques assignades, tasques finalitzades i ràtio d'eficàcia.
+  - ✅ **Retirada de la deducció automàtica d'esmorzar (Acord Batlia)**: Eliminat el descompte arbitrari de 30 minuts als informes, justificants de treball i modal de tancament. Còmput exclusiu del temps real cronometrat i registrat.
+  - ✅ **Exportació oficial a CSV / Excel**: Generació de fitxer CSV amb BOM UTF-8 (`\uFEFF`) per a perfecta visualització de caràcters catalans a Microsoft Excel i separador per punt i coma (`;`), dissenyat per a Secretaria i Intervenció.
+  - ✅ **Informe Global PDF Municipal**: Modal d'informe d'activitat amb capçalera oficial de l'Ajuntament de Santa Eugènia, escut municipal (`logo-santa-eugenia.jpg`), taules resumides i peus de signatura per al Cap de la Brigada Municipal i Alcaldia / Regidoria Delegada. Estils CSS `@media print` per impressió neta sense capçaleres de l'app ni elements sobrants.
+  - ✅ **Millora d'usabilitat a la capçalera (Header)**: Indicador de connectivitat (`#conn-status`) amb text «● En línia» clarament visible sense classes d'ocultació responsive buides.
+  - ✅ **Suite de proves automatitzada**: 9/9 tests verds a `tests/informes.test.mjs`, i suite global de 33/33 proves verdes a `npm test`.
 - **Provisió d'Autenticació i Rols a Producció (Live) completada (15/11/2026)**:
   - Activació de Firebase Authentication al projecte `brigada-santa-eugenia`.
   - Executat el script de provisió `scripts/bootstrap-production.mjs`: creats els comptes d'Auth i assignats els documents de rols a Firestore (`rols/{uid}`) per a l'administrador (`admin@brigada-santa-eugenia.local`) i els 4 operaris (`op-1` a `op-4` amb PIN per defecte `123456`).
