@@ -13,7 +13,11 @@ Es un proyecto **distinto e independiente** de «Proposta Santa Eugènia» (form
 - **Esta carpeta:** `Cowork/Projects/App Brigada Santa Eugènia/`.
 
 ## Estado actual (16/11/2026)
-- **Fase 7 completada (16/11/2026)** a la branca `feat/fase-7-informes`:
+- **Desplegament de la Fase 7 a Producció (Live) completat (16/11/2026)**:
+  - Consolidació i fusió de `feat/fase-7-informes` cap a `develop` i `main` (commit `1fb2f25`).
+  - Desplegament amb èxit a Firebase Hosting (`https://brigada-santa-eugenia.web.app`) i Firestore Rules sota autorització expressa de l'usuari.
+  - Verificada la resposta en viu `HTTP 200`, el funcionament de la nova vista d'informes i analítica municipal, la correcció de l'indicador «● En línia» al header i el blindatge de selectors d'operaris contra pantalles buides.
+- **Fase 7 completada (16/11/2026)**:
   - ✅ **Mòdul complet d'Informes i Analítica Municipal**: Nova vista d'administració (`view-informes-analitica`) amb pestanya de navegació dedicada (`tab-informes-analitica`) i icona `bar-chart-3`.
   - ✅ **Filtres ràpids i controls d'àmbit**: Botons de selecció de període (`mes_actual`, `mes_anterior`, `trimestre`, `any_actual`, `tots`) i desplegables per Nucli (4 nuclis oficials), Especialitat i Operari amb etiquetes accessibles (`label for`).
   - ✅ **Tauler de Mètriques KPI**: Càlcul dinàmic d'ordres totals, taxa de resolució (%), hores reals totals registrades, temps mitjà de resolució i compliment d'urgències.
