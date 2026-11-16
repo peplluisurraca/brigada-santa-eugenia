@@ -267,6 +267,10 @@
           <div>
             <label for="unified-login-operari-select" class="block text-xs font-semibold text-gray-700 mb-1.5">Selecciona el teu Nom *</label>
             <select id="unified-login-operari-select" name="operari" class="w-full p-3 border border-gray-300 rounded-xl bg-gray-50 text-sm font-medium focus:border-[#2A9D8F] focus:outline-none">
+              <option value="1">Toni Coll — Oficial 1ª Obra / Paleteria</option>
+              <option value="2">Joan Bibiloni — Especialista Electricitat</option>
+              <option value="3">Biel Pou — Peó / Neteja Viària</option>
+              <option value="4">Pere Ramis — Oficial Climatització i Calefacció</option>
             </select>
           </div>
 
@@ -2776,15 +2780,26 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
     function initMap() {
       if (leafletMap) return;
-      leafletMap = L.map('map').setView([39.62410, 2.83750], 14);
+      if (typeof L === 'undefined' || !L.map) {
+        console.warn('Llibreria Leaflet no disponible encara');
+        return;
+      }
+      const mapEl = document.getElementById('map');
+      if (!mapEl) return;
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© Ajuntament de Santa Eugènia · OpenStreetMap',
-        maxZoom: 18
-      }).addTo(leafletMap);
+      try {
+        leafletMap = L.map('map').setView([39.62410, 2.83750], 14);
 
-      mapMarkersLayer = L.layerGroup().addTo(leafletMap);
-      renderMapMarkers();
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© Ajuntament de Santa Eugènia · OpenStreetMap',
+          maxZoom: 18
+        }).addTo(leafletMap);
+
+        mapMarkersLayer = L.layerGroup().addTo(leafletMap);
+        renderMapMarkers();
+      } catch (err) {
+        console.warn('Avís en inicialitzar mapa Leaflet:', err);
+      }
     }
 
     function renderMapMarkers(filterType = 'all') {
@@ -6282,16 +6297,16 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
     // INICIALITZACIÓ GLOBAL
     // -------------------------------------------------------------------------
     window.addEventListener('DOMContentLoaded', () => {
-      initMap();
-      renderAdminTasks();
-      updateStreetSelector();
-      renderCreateTaskOperatorsSelect();
       renderLoginOperatorsSelect();
+      initSession();
+      renderCreateTaskOperatorsSelect();
+      updateStreetSelector();
+      renderAdminTasks();
       renderNomenclatorTable();
       renderProgramadesCards();
       initInformesModule();
+      initMap();
       updateNetworkStatus();
-      initSession();
       lucide.createIcons();
 
       if ('serviceWorker' in navigator) {
