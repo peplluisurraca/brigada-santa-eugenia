@@ -84,6 +84,7 @@ Es un proyecto **distinto e independiente** de «Proposta Santa Eugènia» (form
 - En el repo se ha añadido `AGENTS.md` con reglas para agentes (no usar producción, no desplegar, catalán, escapar HTML).
 
 ## Decisiones y pendientes
+- **PENDIENTE DE VERIFICAR CON EL BATLE (16/11/2026):** Política de la pausa de desayuno (30 min) en el cómputo de horas (horario oficial y circunstancias exactas en que aplica deducción, ej. si no se para el cronómetro). Mientras tanto, se retira cualquier deducción automática de 30 min en informes PDF y exportaciones CSV, computando exclusivamente el tiempo real cronometrado/registrado.
 - **PENDIENTE URGENTE (manual, Xavi o el responsable de Firebase):** fase 0. Cerrar las reglas de Firestore, cambiar los PIN reales, hacer una copia de seguridad y valorar con el DPD del Ajuntament si procede notificar el incidente RGPD.
 - PENDIENTE: el commit local con la auditoría, `PLAN_ANTIGRAVITY.md` y `AGENTS.md` (rama `claude/focused-darwin-2rx6st`) **no se ha podido subir a GitHub**, porque la app de Claude no tiene acceso al repo. Hay que instalar la Claude GitHub App en el repo o subir los ficheros a mano (están en esta carpeta).
 - PENDIENTE de decisión: ¿plan Blaze (Storage, Functions, emails programados) o mantener Spark? Condiciona las fases 4 y 7.
