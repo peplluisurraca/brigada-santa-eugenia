@@ -127,4 +127,16 @@ describe('Fase 5: Usabilitat, Ergonomia, Accessibilitat i Idempotència', () => 
     assert.ok(html.includes('min-h-[44px]'), 'S\'ha d\'establir l\'alçada mínima tàctil min-h-[44px]');
   });
 
+  test('9. Inicialització robusta d\'autenticació i teclat numèric per a mòbils', () => {
+    const html = fs.readFileSync(indexPath, 'utf8');
+
+    // Assegura teclat numèric directe a mòbils iOS / Android
+    assert.ok(html.includes('inputmode="numeric"'), 'El camp de PIN ha de tenir inputmode="numeric" per a teclat numèric ràpid');
+    assert.ok(html.includes('pattern="[0-9]*"'), 'El camp de PIN ha de tenir pattern="[0-9]*"');
+
+    // Funció de reconnexió i espera activa d\'autenticació per evitar bloquejos de càrrega asíncrona
+    assert.ok(html.includes('ensureFirebaseAuthReady'), 'Ha d\'existir la funció ensureFirebaseAuthReady');
+    assert.ok(html.includes('Connectant amb el servei municipal...'), 'Ha d\'oferir feedback visual durant la inicialització mòbil');
+  });
+
 });
