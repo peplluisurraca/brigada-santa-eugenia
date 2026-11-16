@@ -1,9 +1,9 @@
 // =============================================================================
 // Service Worker - Brigada Municipal de Santa Eugènia
-// Versió: 1.5.0 (Àmbit arrel /, suport offline complet PWA i inicialització robusta)
+// Versió: 1.5.1 (Àmbit arrel /, suport offline complet PWA i compatibilitat PINs)
 // =============================================================================
 
-const CACHE_NAME = 'brigada-se-v1.5.0';
+const CACHE_NAME = 'brigada-se-v1.5.1';
 const STATIC_ASSETS = [
   './',
   './index.html',

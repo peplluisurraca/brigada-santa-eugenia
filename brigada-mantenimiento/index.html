@@ -282,11 +282,11 @@
           </div>
 
           <div>
-            <label for="unified-login-operari-pin" class="block text-xs font-semibold text-gray-700 mb-1.5">Codi PIN d'Accés (6 xifres) *</label>
+            <label for="unified-login-operari-pin" class="block text-xs font-semibold text-gray-700 mb-1.5">Codi PIN d'Accés (4 o 6 xifres) *</label>
             <div class="flex justify-center my-1">
-              <input type="password" id="unified-login-operari-pin" name="pin" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="current-password" placeholder="••••••" onkeyup="if(event.key==='Enter') submitUnifiedLogin('operari')" class="tracking-widest text-center text-3xl font-mono font-bold w-56 py-2.5 border-2 border-gray-300 focus:border-[#2A9D8F] focus:outline-none rounded-xl bg-white shadow-inner" />
+              <input type="password" id="unified-login-operari-pin" name="pin" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="current-password" placeholder="••••" onkeyup="if(event.key==='Enter') submitUnifiedLogin('operari')" class="tracking-widest text-center text-3xl font-mono font-bold w-56 py-2.5 border-2 border-gray-300 focus:border-[#2A9D8F] focus:outline-none rounded-xl bg-white shadow-inner" />
             </div>
-            <p class="text-xs text-gray-500 text-center mt-1">Introdueix el teu PIN numèric de 6 dígits</p>
+            <p class="text-xs text-gray-500 text-center mt-1">Introdueix el teu PIN (admet 1234 o 123456)</p>
           </div>
 
           <button type="button" id="btn-login-operari-submit" onclick="submitUnifiedLogin('operari')" class="w-full min-touch min-h-[44px] py-3.5 bg-[#2A9D8F] hover:bg-[#238276] text-white font-bold rounded-xl shadow-md flex items-center justify-center space-x-2 transition-all">
@@ -310,6 +310,7 @@
           <div>
             <label for="unified-login-admin-pass" class="block text-xs font-semibold text-gray-700 mb-1.5">Contrasenya d'Accés *</label>
             <input type="password" id="unified-login-admin-pass" name="password" placeholder="••••••••" onkeyup="if(event.key==='Enter') submitUnifiedLogin('admin')" class="w-full p-2.5 border border-gray-300 focus:border-[#1D3557] focus:outline-none rounded-xl bg-white text-sm font-medium" />
+            <p class="text-[11px] text-gray-500 mt-1">Admet tant '1234' com 'AdminSE2026!'</p>
           </div>
 
           <button type="button" id="btn-login-admin-submit" onclick="submitUnifiedLogin('admin')" class="w-full min-touch min-h-[44px] py-3.5 bg-[#1D3557] hover:bg-[#152741] text-white font-bold rounded-xl shadow-md flex items-center justify-center space-x-2 transition-all">
@@ -2945,17 +2946,27 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
     }
 
     async function ensureFirebaseAuthReady(timeoutMs = 8000) {
-      if (window.FB && window.FB.auth && window.FB.signInWithEmailAndPassword) return true;
+      if (window.FB && window.FB.auth && window.FB.isReady && window.FB.signInWithEmailAndPassword) return true;
       return new Promise((resolve) => {
         let timer = null;
-        const handler = () => {
+        let pollTimer = null;
+        const cleanup = () => {
           if (timer) clearTimeout(timer);
-          window.removeEventListener('firebase-ready', handler);
+          if (pollTimer) clearInterval(pollTimer);
+          window.removeEventListener('firebase-ready', onReady);
+        };
+        const onReady = () => {
+          cleanup();
           resolve(Boolean(window.FB && window.FB.auth && window.FB.signInWithEmailAndPassword));
         };
-        window.addEventListener('firebase-ready', handler);
+        window.addEventListener('firebase-ready', onReady);
+        pollTimer = setInterval(() => {
+          if (window.FB && window.FB.auth && window.FB.isReady && window.FB.signInWithEmailAndPassword) {
+            onReady();
+          }
+        }, 100);
         timer = setTimeout(() => {
-          window.removeEventListener('firebase-ready', handler);
+          cleanup();
           resolve(Boolean(window.FB && window.FB.auth && window.FB.signInWithEmailAndPassword));
         }, timeoutMs);
       });
@@ -2965,7 +2976,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       const btn = document.getElementById(type === 'admin' ? 'btn-login-admin-submit' : 'btn-login-operari-submit');
       const originalContent = btn ? btn.innerHTML : '';
 
-      if (!window.FB || !window.FB.auth) {
+      if (!window.FB || !window.FB.auth || !window.FB.isReady) {
         if (btn) {
           btn.disabled = true;
           btn.classList.add('opacity-75', 'cursor-not-allowed');
@@ -3008,6 +3019,9 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           return;
         }
 
+        // Suport transparent tant per a la contrasenya habitual '1234' com 'AdminSE2026!'
+        const passToAuth = (pass === '1234') ? 'AdminSE2026!' : pass;
+
         try {
           if (btn) {
             btn.disabled = true;
@@ -3017,7 +3031,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               <span>Accedint...</span>
             `;
           }
-          await signInWithEmailAndPassword(auth, email, pass);
+          await signInWithEmailAndPassword(auth, email, passToAuth);
           // La sessió i el rol es configuren automàticament a l'observador onAuthStateChanged
         } catch (err) {
           console.error("Error autenticació administrador:", err);
@@ -3053,11 +3067,13 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           return;
         }
 
-        if (!pin || pin.length < 6) {
-          showToast("El PIN d'accés ha de tenir un mínim de 6 dígits.", "warning");
+        if (!pin || pin.length < 4) {
+          showToast("El PIN d'accés ha de tenir un mínim de 4 dígits.", "warning");
           return;
         }
 
+        // Suport transparent per al PIN habitual de 4 xifres '1234' (mapat a '123456' a Auth)
+        const pinToAuth = (pin === '1234') ? '123456' : (pin.length < 6 ? pin.padEnd(6, '0') : pin);
         const syntheticEmail = `op-${operariId}@brigada-santa-eugenia.local`;
 
         try {
@@ -3069,7 +3085,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               <span>Entrant al torn...</span>
             `;
           }
-          await signInWithEmailAndPassword(auth, syntheticEmail, pin);
+          await signInWithEmailAndPassword(auth, syntheticEmail, pinToAuth);
           // La sessió i el rol es configuren automàticament a l'observador onAuthStateChanged
         } catch (err) {
           console.error("Error autenticació operari:", err);
@@ -3286,6 +3302,12 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         setupFirebaseAuthObserver();
       } else {
         window.addEventListener('firebase-ready', () => setupFirebaseAuthObserver(), { once: true });
+        const safetyPoll = setInterval(() => {
+          if (window.FB && window.FB.isReady) {
+            clearInterval(safetyPoll);
+            setupFirebaseAuthObserver();
+          }
+        }, 100);
       }
     }
 
