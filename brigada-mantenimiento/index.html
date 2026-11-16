@@ -35,12 +35,9 @@
       getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged 
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { 
-      getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+      getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache,
       collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where 
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-    import { 
-      getStorage, ref, uploadString, uploadBytes, getDownloadURL 
-    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBr_ntrv7rZqF4LbUnvjRCK3GijReSH1Mc",
@@ -55,25 +52,11 @@
     try {
       const app = initializeApp(firebaseConfig);
       const auth = getAuth(app);
-      let db;
-      try {
-        db = initializeFirestore(app, {
-          localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
-        });
-      } catch (cacheErr) {
-        console.warn("No s'ha pogut activar la memòria cau persistent de Firestore, utilitzant memòria per defecte:", cacheErr);
-        db = getFirestore(app);
-      }
-      const storage = getStorage(app);
 
+      // Definim immediatament window.FB amb Auth actiu per no bloquejar l'inici de sessió
       window.FB = {
         app,
         auth,
-        db,
-        initializeFirestore,
-        persistentLocalCache,
-        persistentMultipleTabManager,
-        storage,
         signInWithEmailAndPassword,
         signOut,
         onAuthStateChanged,
@@ -88,17 +71,41 @@
         onSnapshot,
         query,
         where,
-        ref,
-        uploadString,
-        uploadBytes,
-        getDownloadURL,
-        isReady: true
+        persistentLocalCache,
+        persistentMultipleTabManager,
+        memoryLocalCache,
+        isReady: false
       };
+
+      // Inicialització resistent de Firestore amb multi-pestanya i fallback per a Safari/iOS mòbil
+      let db = null;
+      try {
+        db = initializeFirestore(app, {
+          localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+        });
+      } catch (cacheErr) {
+        console.warn("Avís activant memòria cau persistent Firestore (multi-pestanya), provant fallback:", cacheErr);
+        try {
+          db = initializeFirestore(app, {
+            localCache: memoryLocalCache()
+          });
+        } catch (memErr) {
+          console.warn("Avís inicialitzant amb memòria cau en memòria:", memErr);
+          try {
+            db = getFirestore(app);
+          } catch (getErr) {
+            console.error("Error crític obtenint Firestore:", getErr);
+          }
+        }
+      }
+
+      window.FB.db = db;
+      window.FB.isReady = true;
 
       console.log("✓ Firebase SDK carregat i inicialitzat correctament.");
       window.dispatchEvent(new CustomEvent('firebase-ready'));
     } catch (err) {
-      console.warn("Avís d'inicialització Firebase:", err);
+      console.error("Error crític d'inicialització Firebase:", err);
     }
   </script>
 
@@ -277,7 +284,7 @@
           <div>
             <label for="unified-login-operari-pin" class="block text-xs font-semibold text-gray-700 mb-1.5">Codi PIN d'Accés (6 xifres) *</label>
             <div class="flex justify-center my-1">
-              <input type="password" id="unified-login-operari-pin" name="pin" maxlength="6" placeholder="••••••" onkeyup="if(event.key==='Enter') submitUnifiedLogin('operari')" class="tracking-widest text-center text-3xl font-mono font-bold w-56 py-2.5 border-2 border-gray-300 focus:border-[#2A9D8F] focus:outline-none rounded-xl bg-white shadow-inner" />
+              <input type="password" id="unified-login-operari-pin" name="pin" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="current-password" placeholder="••••••" onkeyup="if(event.key==='Enter') submitUnifiedLogin('operari')" class="tracking-widest text-center text-3xl font-mono font-bold w-56 py-2.5 border-2 border-gray-300 focus:border-[#2A9D8F] focus:outline-none rounded-xl bg-white shadow-inner" />
             </div>
             <p class="text-xs text-gray-500 text-center mt-1">Introdueix el teu PIN numèric de 6 dígits</p>
           </div>
@@ -2937,10 +2944,55 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       }).join('');
     }
 
+    async function ensureFirebaseAuthReady(timeoutMs = 8000) {
+      if (window.FB && window.FB.auth && window.FB.signInWithEmailAndPassword) return true;
+      return new Promise((resolve) => {
+        let timer = null;
+        const handler = () => {
+          if (timer) clearTimeout(timer);
+          window.removeEventListener('firebase-ready', handler);
+          resolve(Boolean(window.FB && window.FB.auth && window.FB.signInWithEmailAndPassword));
+        };
+        window.addEventListener('firebase-ready', handler);
+        timer = setTimeout(() => {
+          window.removeEventListener('firebase-ready', handler);
+          resolve(Boolean(window.FB && window.FB.auth && window.FB.signInWithEmailAndPassword));
+        }, timeoutMs);
+      });
+    }
+
     async function submitUnifiedLogin(type) {
+      const btn = document.getElementById(type === 'admin' ? 'btn-login-admin-submit' : 'btn-login-operari-submit');
+      const originalContent = btn ? btn.innerHTML : '';
+
       if (!window.FB || !window.FB.auth) {
-        showToast("El servei d'autenticació encara s'està inicialitzant. Espera un moment i torna-ho a provar.", "info");
-        return;
+        if (btn) {
+          btn.disabled = true;
+          btn.classList.add('opacity-75', 'cursor-not-allowed');
+          btn.innerHTML = `
+            <span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+            <span>Connectant amb el servei municipal...</span>
+          `;
+        }
+
+        const ready = await ensureFirebaseAuthReady(8000);
+        if (!ready) {
+          if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-75', 'cursor-not-allowed');
+            btn.innerHTML = originalContent;
+            lucide.createIcons();
+          }
+          showToast("El servei d'autenticació encara s'està inicialitzant. Espera un moment i torna-ho a provar.", "info");
+          return;
+        }
+
+        if (btn) {
+          btn.disabled = false;
+          btn.classList.remove('opacity-75', 'cursor-not-allowed');
+          btn.innerHTML = originalContent;
+          lucide.createIcons();
+        }
       }
 
       const { auth, signInWithEmailAndPassword } = window.FB;
