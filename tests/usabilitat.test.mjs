@@ -139,4 +139,28 @@ describe('Fase 5: Usabilitat, Ergonomia, Accessibilitat i Idempotència', () => 
     assert.ok(html.includes('Connectant amb el servei municipal...'), 'Ha d\'oferir feedback visual durant la inicialització mòbil');
   });
 
+  test('10. Cronòmetre dinàmic en viu, pauses reals i còmput exacte a finalització', () => {
+    const html = fs.readFileSync(indexPath, 'utf8');
+
+    // 10.1. El valor estàtic '01:15:20' ha estat reemplaçat per l'atribut de cronòmetre dinàmic
+    assert.ok(!html.includes('>01:15:20<'), 'El comptador estàtic 01:15:20 no ha d\'estar present al codi');
+    assert.ok(html.includes('data-timer-task-id'), 'Ha d\'utilitzar l\'atribut data-timer-task-id per al rellotge en temps real');
+
+    // 10.2. Funcions de càlcul i format de temps existents
+    assert.ok(html.includes('function formatSecondsToHHMMSS'), 'Ha d\'existir formatSecondsToHHMMSS');
+    assert.ok(html.includes('function formatSecondsToHoresMinuts'), 'Ha d\'existir formatSecondsToHoresMinuts');
+    assert.ok(html.includes('function getTaskCurrentElapsedSeconds'), 'Ha d\'existir getTaskCurrentElapsedSeconds');
+    assert.ok(html.includes('function initTaskLiveTimer'), 'Ha d\'existir initTaskLiveTimer');
+
+    // 10.3. Gestió de pauses amb còmput acumulat
+    assert.ok(html.includes('task.tempsTotalSegons = segonsAcumulats'), 'pauseTaskMaterial ha d\'acumular segons treballats');
+    assert.ok(html.includes('Temps aturat:'), 'La targeta pausada ha d\'indicar el temps aturat');
+
+    // 10.4. Modal de finalització actualitza el temps cronometrat real
+    assert.ok(html.includes("cronoValEl.textContent = formatSecondsToHoresMinuts(currentSeconds)"), 'openModalFinalitzar ha d\'actualitzar modal-cronometre-val dinàmicament');
+
+    // 10.5. Tancament definitiu guarda tempsTotalSegons real
+    assert.ok(html.includes('tempsTotalSegons: finalSeconds'), 'confirmTaskCompletion ha de desar el temps real a tempsTotalSegons');
+  });
+
 });

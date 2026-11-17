@@ -12,15 +12,21 @@ Es un proyecto **distinto e independiente** de «Proposta Santa Eugènia» (form
 - **Desarrollo anterior:** hecho con Google **Antigravity** (las rutas `C:\Users\jlurracam\.gemini\antigravity\scratch\` aparecen en docs y tests). En Drive existe además `brigada-claude-code.zip` (26/10/2026, otra carpeta).
 - **Esta carpeta:** `Cowork/Projects/App Brigada Santa Eugènia/`.
 
-## Estado actual (16/11/2026)
-- **Correcció d'Autenticació i Inicialització Mòbil a Producció (Live) (16/11/2026)**:
-  - Resolt el problema d'inici de sessió al mòbil (*«El servei d'autenticació encara s'està inicialitzant. Espera un moment i torna-ho a provar»*).
-  - ✅ **Espera Activa d'Autenticació (`ensureFirebaseAuthReady`)**: Quan l'operari prem «Entrar al Torn de Feina», si Firebase encara s'està inicialitzant a través de la xarxa mòbil, el botó mostra un spinner amb «*Connectant amb el servei municipal...*» i resol automàticament l'inici de sessió sense mostrar missatges de rebuig.
-  - ✅ **Inicialització Progressiva i Resistent**: L'objecte `window.FB` s'inicialitza immediatament amb el mòdul d'Auth actiu, evitant bloquejos causats per fallades a la memòria persistent d'IndexedDB en navegadors mòbils / WebKit Safari en mode privat o PWA (afegit doble fallback a `memoryLocalCache`).
-  - ✅ **Retirada de dependència no utilitzada**: Eliminada la importació remota de `firebase-storage.js` (~100 KB estalviats en xarxes mòbils).
-  - ✅ **Teclat numèric directe**: Afegit `inputmode="numeric"` i `pattern="[0-9]*"` al camp de PIN per obrir directament el teclat numèric en telèfons intel·ligents.
-  - ✅ **Actualització del Service Worker (`sw.js`)**: Bump de versió a `v1.5.0` per forçar la renovació de la memòria cau a tots els dispositius.
-  - ✅ Desplegat a Firebase Hosting (`https://brigada-santa-eugenia.web.app`) i suite de proves ampliada a 34/34 tests verds.
+## Estado actual (17/11/2026)
+- **Correcció del Cronòmetre Dinàmic en Viu, Gestió de Pauses i Tancament d'Ordres amb Temps Real (17/11/2026)** a la branca `fix/cronometre-tasques-en-curs`:
+  - ✅ **Substitució del valor estàtic `01:15:20`**: El comptador fix de la targeta d'operari s'ha reemplaçat per un cronòmetre dinàmic en viu segon a segon (`TASK_TIMER_INTERVAL`) formatat en `HH:MM:SS` i vinculat a l'atribut `data-timer-task-id`.
+  - ✅ **Càlcul i Acumulació Precisa de Temps (`tempsTotalSegons`, `tempsInici`, `tempsPausa`)**: En prémer *«Pausa / Material»*, el sistema calcula els segons transcorreguts, els suma al temps acumulat i mostra a la targeta pausada el text clar *«Temps aturat: HH:MM:SS»*. En reprendre la feina (*«Reprendre Feina»*), el cronòmetre continua sumant des d'aquell punt exacte.
+  - ✅ **Modal de Finalització amb Temps Cronometrat Dinàmic**: Al modal de tancament, `#modal-cronometre-val` es calcula i formata automàticament en funció del temps real efectiu (ex. `1h 1m 7s`), eliminant el text fixat d'`1h 15m`.
+  - ✅ **Validació i sincronització amb Firestore**: Sincronització atòmica dels camps de progrés compatibles amb les regles de seguretat de Firestore (`affectedKeys()`).
+  - ✅ **Service Worker v1.5.2**: Actualitzat el nom de la memòria cau a `brigada-se-v1.5.2` per a renovació automàtica d'actius.
+  - ✅ **Suite de tests**: 35/35 tests verds a `npm test` incloent la nova prova d'usabilitat del cronòmetre en viu.
+- **Correcció d'Autenticació, Suport PINs Habituals i Inicialització Mòbil a Producció (Live) (16/11/2026)**:
+  - Resolt el problema d'inici de sessió tant a ordinador com a mòbil.
+  - ✅ **Compatibilitat Dual de PINs i Contrasenyes**: Suport transparent tant per al PIN habitual de 4 xifres `1234` com per a les noves credencials de 6 xifres (`123456` per a operaris i `AdminSE2026!` o `1234` per a administrador), complint els requisits mínims de seguretat de Firebase Auth sense trencar els hàbits d'ús de la brigada.
+  - ✅ **Espera Activa d'Autenticació (`ensureFirebaseAuthReady`)**: Polling actiu i listener d'esdeveniment per no perdre mai l'estat llest de Firebase en xarxes amb latència.
+  - ✅ **Inicialització Progressiva i Resistent**: `window.FB` disponible de forma immediata amb doble fallback de Firestore (`memoryLocalCache`).
+  - ✅ **Service Worker v1.5.1**: Renovació immediata de la memòria cau a tots els dispositius.
+  - ✅ Desplegat a Firebase Hosting (`https://brigada-santa-eugenia.web.app`) i validat automàticament amb proves reals en navegador headless.
 - **Desplegament de la Fase 7 a Producció (Live) completat (16/11/2026)**:
   - Consolidació i fusió de `feat/fase-7-informes` cap a `develop` i `main` (commit `1fb2f25`).
   - Desplegament amb èxit a Firebase Hosting (`https://brigada-santa-eugenia.web.app`) i Firestore Rules sota autorització expressa de l'usuari.

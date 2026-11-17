@@ -4343,6 +4343,63 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       renderOperariScreen();
     }
 
+    // -------------------------------------------------------------------------
+    // CRONÒMETRE DINÀMIC I GESTIÓ DE TEMPS EN TEMPS REAL
+    // -------------------------------------------------------------------------
+    let taskLiveTimerInterval = null;
+
+    function formatSecondsToHHMMSS(totalSeconds) {
+      const s = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+      const hours = Math.floor(s / 3600);
+      const minutes = Math.floor((s % 3600) / 60);
+      const seconds = s % 60;
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    function formatSecondsToHoresMinuts(totalSeconds) {
+      const s = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+      const hours = Math.floor(s / 3600);
+      const minutes = Math.floor((s % 3600) / 60);
+      const seconds = s % 60;
+      if (hours > 0) {
+        return `${hours}h ${minutes}m ${seconds}s`;
+      }
+      if (minutes > 0) {
+        return `${minutes}m ${seconds}s`;
+      }
+      return `${seconds}s`;
+    }
+
+    function getTaskCurrentElapsedSeconds(task) {
+      if (!task) return 0;
+      let base = Number(task.tempsTotalSegons ?? task.tempsTranscorregut) || 0;
+      if (task.estat === 'en_curs' && task.tempsInici) {
+        const startMs = new Date(task.tempsInici).getTime();
+        if (!isNaN(startMs)) {
+          const diffSec = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+          return base + diffSec;
+        }
+      }
+      return base;
+    }
+
+    function initTaskLiveTimer() {
+      if (taskLiveTimerInterval) return;
+      taskLiveTimerInterval = setInterval(() => {
+        const timerEls = document.querySelectorAll('[data-timer-task-id]');
+        if (!timerEls || timerEls.length === 0) return;
+
+        timerEls.forEach(el => {
+          const taskId = el.getAttribute('data-timer-task-id');
+          const task = APP_STATE.tasks.find(t => String(t.id) === String(taskId));
+          if (task && task.estat === 'en_curs') {
+            const currentSec = getTaskCurrentElapsedSeconds(task);
+            el.textContent = formatSecondsToHHMMSS(currentSec);
+          }
+        });
+      }, 1000);
+    }
+
     function renderOperariScreen() {
       if (!APP_STATE.activeOperari) return;
       const container = document.getElementById('operari-tasks-list');
@@ -4661,14 +4718,19 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                   <span class="w-3 h-3 rounded-full bg-[#2A9D8F] animate-ping"></span>
                   <span class="text-xs font-bold text-teal-900">En curs · Comptant temps de feina</span>
                 </div>
-                <span class="font-mono font-bold text-sm text-[#1D3557]">01:15:20</span>
+                <span data-timer-task-id="${esc(task.id)}" class="font-mono font-bold text-sm text-[#1D3557] bg-white px-2.5 py-1 rounded-lg border border-teal-300 shadow-2xs">
+                  ${formatSecondsToHHMMSS(getTaskCurrentElapsedSeconds(task))}
+                </span>
               </div>
             ` : isPaused ? `
-              <div class="bg-purple-50 border border-purple-200 rounded-xl p-2.5 flex items-center justify-between text-xs text-purple-900">
+              <div class="bg-purple-50 border border-purple-200 rounded-xl p-3 flex items-center justify-between flex-wrap gap-2 text-xs text-purple-900">
                 <div class="flex items-center space-x-2">
                   <i data-lucide="pause-circle" class="w-4 h-4 text-purple-600 flex-shrink-0"></i>
                   <span class="font-bold">En pausa: Pendent de material / eines</span>
                 </div>
+                <span class="font-mono font-bold text-xs text-purple-800 bg-white/90 px-2 py-0.5 rounded border border-purple-200">
+                  Temps aturat: ${formatSecondsToHHMMSS(getTaskCurrentElapsedSeconds(task))}
+                </span>
               </div>
             ` : ''}
 
@@ -4707,33 +4769,71 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       }).join('');
 
       lucide.createIcons();
+      initTaskLiveTimer();
     }
 
     function startTaskTimer(taskId) {
       const task = APP_STATE.tasks.find(t => String(t.id) === String(taskId));
-      if (task) {
-        task.estat = 'en_curs';
-        if (window.FB && window.FB.isReady) {
-          const clean = sanitizeForFirestore(task);
-          window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques', task.id), clean, { merge: true }).catch(e => console.warn(e));
-        }
-        renderOperariScreen();
-        renderAdminTasks();
+      if (!task) return;
+
+      const now = new Date();
+      if (typeof task.tempsTotalSegons !== 'number') {
+        task.tempsTotalSegons = Number(task.tempsTranscorregut) || 0;
       }
+      task.estat = 'en_curs';
+      task.tempsInici = now.toISOString();
+      task.tempsPausa = null;
+
+      if (window.FB && window.FB.isReady) {
+        const updateData = {
+          estat: 'en_curs',
+          tempsInici: task.tempsInici,
+          tempsPausa: null,
+          tempsTotalSegons: task.tempsTotalSegons
+        };
+        window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques', task.id), updateData, { merge: true }).catch(e => console.warn(e));
+      }
+
+      showToast(`Ordre ${task.id}: Cronòmetre de feina iniciat.`, 'info');
+      renderOperariScreen();
+      renderAdminTasks();
+      initTaskLiveTimer();
     }
 
     function pauseTaskMaterial(taskId) {
       const task = APP_STATE.tasks.find(t => String(t.id) === String(taskId));
-      if (task) {
-        task.estat = 'pendent_material';
-        if (window.FB && window.FB.isReady) {
-          const clean = sanitizeForFirestore(task);
-          window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques', task.id), clean, { merge: true }).catch(e => console.warn(e));
+      if (!task) return;
+
+      const now = new Date();
+      let segonsAcumulats = Number(task.tempsTotalSegons ?? task.tempsTranscorregut) || 0;
+      if (task.tempsInici) {
+        const startMs = new Date(task.tempsInici).getTime();
+        if (!isNaN(startMs)) {
+          const delta = Math.max(0, Math.floor((now.getTime() - startMs) / 1000));
+          segonsAcumulats += delta;
         }
-        showToast(`Tasca ${task.id} posada en pausa: Marcada com a pendent de material.`, 'info');
-        renderOperariScreen();
-        renderAdminTasks();
       }
+
+      task.tempsTotalSegons = segonsAcumulats;
+      task.tempsTranscorregut = segonsAcumulats;
+      task.tempsInici = null;
+      task.tempsPausa = now.toISOString();
+      task.estat = 'pendent_material';
+
+      if (window.FB && window.FB.isReady) {
+        const updateData = {
+          estat: 'pendent_material',
+          tempsInici: null,
+          tempsPausa: task.tempsPausa,
+          tempsTotalSegons: task.tempsTotalSegons
+        };
+        window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques', task.id), updateData, { merge: true }).catch(e => console.warn(e));
+      }
+
+      const formatTemps = formatSecondsToHoresMinuts(segonsAcumulats);
+      showToast(`Tasca ${task.id} en pausa: Temps aturat (${formatTemps}).`, 'info');
+      renderOperariScreen();
+      renderAdminTasks();
     }
 
     // -------------------------------------------------------------------------
@@ -4898,6 +4998,13 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         `;
       }
 
+      // Temps real cronometrat per a la tasca
+      const currentSeconds = getTaskCurrentElapsedSeconds(task);
+      const cronoValEl = document.getElementById('modal-cronometre-val');
+      if (cronoValEl) {
+        cronoValEl.textContent = formatSecondsToHoresMinuts(currentSeconds);
+      }
+
       // Reiniciar camps del formulari
       const inputNom = document.getElementById('modal-nom-signatari');
       if (inputNom) {
@@ -5003,17 +5110,18 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
         const observacions = document.getElementById('modal-observacions-tancament')?.value?.trim() || "";
         const nowStr = new Date().toLocaleString('ca-ES');
+        const finalSeconds = getTaskCurrentElapsedSeconds(task);
 
         task.estat = 'finalitzada';
-        task.nomSignatari = nomSignatari;
-        task.observacionsTancament = observacions;
+        task.tempsTotalSegons = finalSeconds;
+        task.tempsTranscorregut = finalSeconds;
+        task.tempsInici = null;
         task.tempsFinalitzacio = new Date().toISOString();
         task.finalitzadaEl = nowStr;
+        task.nomSignatari = nomSignatari;
+        task.observacionsTancament = observacions;
         task.teSignatura = true;
         task.teFotoFinal = false;
-        if (!task.tempsTranscorregut || task.tempsTranscorregut === 0) {
-          task.tempsTranscorregut = 4500; // 1h 15m
-        }
 
         ADJUNTS_CACHE.set(`${task.id}_signatura`, sigData);
 
@@ -5036,7 +5144,17 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         if (window.FB && window.FB.isReady) {
           try {
             // Document lleuger de la tasca (< 15 KB sense adjunts pesats Base64)
-            const cleanTask = sanitizeForFirestore(task);
+            const cleanTask = {
+              estat: 'finalitzada',
+              tempsTotalSegons: finalSeconds,
+              tempsInici: null,
+              tempsFinalitzacio: task.tempsFinalitzacio,
+              finalitzadaEl: task.finalitzadaEl,
+              nomSignatari: task.nomSignatari,
+              observacionsTancament: task.observacionsTancament,
+              teSignatura: true,
+              teFotoFinal: !!photoFinalData
+            };
             delete cleanTask.fotoFinal;
             delete cleanTask.signatura;
 
