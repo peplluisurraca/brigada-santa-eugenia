@@ -163,4 +163,16 @@ describe('Fase 5: Usabilitat, Ergonomia, Accessibilitat i Idempotència', () => 
     assert.ok(html.includes('tempsTotalSegons: finalSeconds'), 'confirmTaskCompletion ha de desar el temps real a tempsTotalSegons');
   });
 
+  test('11. Robustesa del mapa Leaflet i guia d\'operari responsable en equips', () => {
+    const html = fs.readFileSync(indexPath, 'utf8');
+
+    // 11.1. Auto-redimensionament de Leaflet amb ResizeObserver
+    assert.ok(html.includes('new ResizeObserver'), 'initMap ha d\'utilitzar ResizeObserver sobre el mapa');
+    assert.ok(html.includes('function refreshLeafletMapSize'), 'Ha d\'existir la funció refreshLeafletMapSize');
+    assert.ok(html.includes('refreshLeafletMapSize()'), 'navigateView ha d\'invocar refreshLeafletMapSize');
+
+    // 11.2. Guia de l\'operari responsable a l\'assignació
+    assert.ok(html.includes('responsable operatiu de referència'), 'El formulari d\'alta ha d\'aclarir el rol de referència del primer operari');
+  });
+
 });

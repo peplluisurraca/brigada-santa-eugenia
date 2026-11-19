@@ -141,4 +141,11 @@ describe('Fase 7: Informes i Analítica Municipal (Backoffice P1)', () => {
     assert.ok(html.includes('esc(task.nucli)'), 'Els nuclis han d\'estar escapats amb esc()');
   });
 
+  test('10. Optimització d\'impressió oficial PDF (A4 net sense despaginació ni buits)', () => {
+    assert.ok(html.includes('@page {'), 'Ha d\'incloure directiva @page');
+    assert.ok(html.includes('size: A4 portrait;'), 'Ha de definir mida A4 portrait');
+    assert.ok(html.includes('break-inside: avoid !important;'), 'Ha d\'evitar talls lletges dins blocs d\'informe');
+    assert.ok(html.includes('#print-report-modal:not(.hidden)'), 'Ha de mostrar només el modal actiu');
+  });
+
 });

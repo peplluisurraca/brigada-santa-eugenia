@@ -1,6 +1,6 @@
 # Contexto_IA — App Brigada Santa Eugènia (PWA de manteniment municipal)
 
-**Última actualización:** 2026-11-12 (creado por Claude Code a petición de Xavi; primera versión. Pendiente de validación humana).
+**Última actualización:** 2026-11-19 (Fase 7 fix: impressió PDF, mapa Leaflet i operaris múltiples).
 
 ## Qué es este proyecto
 PWA para la Brigada Municipal del **Ajuntament de Santa Eugènia** (Mallorca, CP 07142): órdenes de trabajo e incidencias, vista móvil del operario (PIN, GPS, «Com arribar», WhatsApp, cronómetro, firma), mantenimiento preventivo, nomenclátor oficial (37 vías), gestión de personal y ausencias, e informe PDF.
@@ -12,7 +12,14 @@ Es un proyecto **distinto e independiente** de «Proposta Santa Eugènia» (form
 - **Desarrollo anterior:** hecho con Google **Antigravity** (las rutas `C:\Users\jlurracam\.gemini\antigravity\scratch\` aparecen en docs y tests). En Drive existe además `brigada-claude-code.zip` (26/10/2026, otra carpeta).
 - **Esta carpeta:** `Cowork/Projects/App Brigada Santa Eugènia/`.
 
-## Estado actual (17/11/2026)
+## Estado actual (19/11/2026)
+- **Optimització d'Impressió Oficial PDF en A4 net, Auto-redimensionament del Mapa Leaflet i Gestió d'Equips Multidisciplinaris (19/11/2026)** a la branca `fix/impressio-pdf-i-mapa-dashboard`:
+  - ✅ **CSS d'Impressió Oficial Redissenyat (`@media print`)**: S'ha substituït l'antiga estratègia de `visibility: hidden` per `display: none !important` directe sobre totes les vistes, menús i elements de navegació. Això elimina la lentitud/retard en prémer el botó d'impressió (evitant el recalculat complet de la geometria del DOM) i evita la despaginació amb marges superiors massius.
+  - ✅ **Enquadernació A4 i Paginació Neta**: S'ha afegit `@page { size: A4 portrait; margin: 10mm 12mm 12mm 12mm; }`, s'ha desarmat el contenidor flex (`display: block !important; position: static !important; overflow: visible !important`) per a `#print-report-modal` i `#modal-informe-global-pdf`, i s'han protegit taules, capçaleres i blocs de signatura amb `break-inside: avoid !important`. Verificat amb impressió real en Chrome headless reduint el certificat de 3 pàgines desquadrades a exactament 1 pàgina neta.
+  - ✅ **Auto-redimensionament robust del Mapa Leaflet (`#map`)**: S'ha afegit un `ResizeObserver` directe sobre el contenidor `#map` i la utilitat `refreshLeafletMapSize()` disparada a `requestAnimationFrame`, 50 ms i 250 ms en accedir a la vista de gestió (`navigateView('admin-dashboard')`) i en canvis de mida de finestra. Es corregeix el defecte pel qual Leaflet calculava una mida de 0 o 256px mostrant un únic mosaic central («Ses Alqueries») envoltat de gris.
+  - ✅ **Flux i Criteri d'Operaris Múltiples**: S'ha afegit guia explícita a la interfície indicant que, en assignar diversos operaris a una mateixa tasca, el primer seleccionat actua com a operari responsable de referència (`operariId`), mentre que tots dos tenen accés complet per gestionar cronòmetre, pauses, tancament amb signatura digital i generació de certificats.
+  - ✅ **Service Worker v1.5.3**: Actualitzat el nom de memòria cau a `brigada-se-v1.5.3` per a renovació automàtica d'actius a dispositius mòbils i ordinadors.
+  - ✅ **Suite de tests**: 37/37 tests verds a `npm test` incloent les noves verificacions de layout d'impressió i robustesa del mapa Leaflet.
 - **Correcció del Cronòmetre Dinàmic en Viu, Gestió de Pauses i Tancament d'Ordres amb Temps Real (17/11/2026)** a la branca `fix/cronometre-tasques-en-curs`:
   - ✅ **Substitució del valor estàtic `01:15:20`**: El comptador fix de la targeta d'operari s'ha reemplaçat per un cronòmetre dinàmic en viu segon a segon (`TASK_TIMER_INTERVAL`) formatat en `HH:MM:SS` i vinculat a l'atribut `data-timer-task-id`.
   - ✅ **Càlcul i Acumulació Precisa de Temps (`tempsTotalSegons`, `tempsInici`, `tempsPausa`)**: En prémer *«Pausa / Material»*, el sistema calcula els segons transcorreguts, els suma al temps acumulat i mostra a la targeta pausada el text clar *«Temps aturat: HH:MM:SS»*. En reprendre la feina (*«Reprendre Feina»*), el cronòmetre continua sumant des d'aquell punt exacte.

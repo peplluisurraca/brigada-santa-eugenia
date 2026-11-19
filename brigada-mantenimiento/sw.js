@@ -1,9 +1,9 @@
 // =============================================================================
 // Service Worker - Brigada Municipal de Santa Eugènia
-// Versió: 1.5.2 (Cronòmetre dinàmic en viu, pauses reals i gestió de temps)
+// Versió: 1.5.3 (Optimització d'impressió oficial PDF i auto-redimensionament de Leaflet)
 // =============================================================================
 
-const CACHE_NAME = 'brigada-se-v1.5.2';
+const CACHE_NAME = 'brigada-se-v1.5.3';
 const STATIC_ASSETS = [
   './',
   './index.html',
