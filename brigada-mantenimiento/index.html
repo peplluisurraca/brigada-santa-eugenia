@@ -2899,9 +2899,22 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       const select = document.getElementById('unified-login-operari-select');
       if (!select) return;
       const activeOps = APP_STATE.operaris.filter(o => o.actiu);
+      if (activeOps.length === 0) {
+        // Si encara no s'han sincronitzat els operaris de Firestore (pre-login),
+        // conservem les opcions municipals oficials de l'HTML per garantir que el selector mai quedi buit
+        if (select.children.length > 0) return;
+        const fallbackOps = [
+          { id: 1, nom: "Toni Coll", rol: "Oficial 1ª Obra / Paleteria", actiu: true },
+          { id: 2, nom: "Joan Bibiloni", rol: "Especialista Electricitat", actiu: true },
+          { id: 3, nom: "Biel Pou", rol: "Peó / Neteja Viària", actiu: true },
+          { id: 4, nom: "Pere Ramis", rol: "Oficial Climatització i Calefacció", actiu: true }
+        ];
+        select.innerHTML = fallbackOps.map(op => `<option value="${esc(op.id)}">${esc(op.nom)} — ${esc(op.rol)}</option>`).join('');
+        return;
+      }
       select.innerHTML = activeOps.map(op => {
-        const disp = getOperariDisponibilitat(op);
-        const absentNote = disp.isTempAbsent ? ` (${disp.label})` : '';
+        const disp = (typeof getOperariDisponibilitat === 'function') ? getOperariDisponibilitat(op) : { isTempAbsent: false };
+        const absentNote = disp && disp.isTempAbsent ? ` (${disp.label})` : '';
         return `<option value="${esc(op.id)}">${esc(op.nom)} — ${esc(op.rol)}${esc(absentNote)}</option>`;
       }).join('');
     }
@@ -4183,10 +4196,21 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       const select = document.getElementById('login-operari-select');
       if (!select) return;
       const activeOps = APP_STATE.operaris.filter(o => o.actiu);
+      if (activeOps.length === 0) {
+        if (select.children.length > 0) return;
+        const fallbackOps = [
+          { id: 1, nom: "Toni Coll", rol: "Oficial 1ª Obra / Paleteria", actiu: true },
+          { id: 2, nom: "Joan Bibiloni", rol: "Especialista Electricitat", actiu: true },
+          { id: 3, nom: "Biel Pou", rol: "Peó / Neteja Viària", actiu: true },
+          { id: 4, nom: "Pere Ramis", rol: "Oficial Climatització i Calefacció", actiu: true }
+        ];
+        select.innerHTML = fallbackOps.map(op => `<option value="${esc(op.id)}">${esc(op.nom)} — [${esc(op.rol)}]</option>`).join('');
+        return;
+      }
 
       select.innerHTML = activeOps.map(op => {
-        const disp = getOperariDisponibilitat(op);
-        return `<option value="${esc(op.id)}">${esc(op.nom)} — [${esc(op.rol)}] ${disp.isTempAbsent ? '(🏖️ Absent)' : ''}</option>`;
+        const disp = (typeof getOperariDisponibilitat === 'function') ? getOperariDisponibilitat(op) : { isTempAbsent: false };
+        return `<option value="${esc(op.id)}">${esc(op.nom)} — [${esc(op.rol)}] ${disp && disp.isTempAbsent ? '(🏖️ Absent)' : ''}</option>`;
       }).join('');
     }
 
