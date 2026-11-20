@@ -2484,6 +2484,16 @@
       return '#';
     }
 
+    // C1: Sanititzador segur d'orígens d'imatges (preveu injeccions javascript:, onerror= o dominis no autoritzats)
+    function safeImageSrc(v) {
+      if (!v || typeof v !== 'string') return '';
+      const t = v.trim();
+      if (/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(t)) return t;
+      if (/^https:\/\/[^\s"']+$/.test(t)) return t;
+      return '';
+    }
+    window.safeImageSrc = safeImageSrc;
+
     // -------------------------------------------------------------------------
     // INTEGRACIÓ WHATSAPP OFICIAL (AJUNTAMENT DE SANTA EUGÈNIA)
     // Enllaços directes format: https://wa.me/34TEL?text=MENSAJE
@@ -2512,6 +2522,10 @@
         teamLine = `👥 *Treball en equip amb:* ${otherTeammates.join(', ')}\n`;
       }
 
+      const appOrigin = (typeof window !== 'undefined' && window.location && window.location.origin) 
+        ? `${window.location.origin}/` 
+        : 'https://brigada-santa-eugenia.web.app/';
+
       const text = 
 `🏛️ *Ajuntament de Santa Eugènia - Brigada Municipal*
 Hola ${operari.nom}, tens una nova ordre de treball assignada:
@@ -2519,11 +2533,11 @@ Hola ${operari.nom}, tens una nova ordre de treball assignada:
 📋 *Tasca:* ${task.id}
 📌 *Títol:* ${task.titol}
 📍 *Ubicació:* ${task.nucli} - ${task.via}
-⚠️ *Prioritat:* ${task.prioritat.toUpperCase()}
+⚠️ *Prioritat:* ${(task.prioritat || '').toUpperCase()}
 🔧 *Especialitat:* ${CATEGORIA_LABELS[task.categoria] || task.categoria}
 ${teamLine}📝 *Descripció:* ${task.descripcio || 'Sense observacions addicionals'}
 ${task.esImportant ? '⭐ *IMPORTANT:* Retenció indefinida d\'imatges municipals\n' : ''}
-📲 *Gestió PWA:* http://localhost:8080/`;
+📲 *Gestió PWA:* ${appOrigin}`;
 
       return generateWhatsAppLink(operari.telefon, text);
     }
@@ -2648,6 +2662,14 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           break;
         default:
           break;
+      }
+    });
+
+    document.addEventListener('change', (e) => {
+      const actionEl = e.target.closest('[data-action="edit-operari-change"]');
+      if (actionEl) {
+        const taskId = actionEl.getAttribute('data-task-id');
+        if (taskId) updateEditTaskWhatsAppButtons(taskId);
       }
     });
 
@@ -2865,7 +2887,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       select.innerHTML = activeOps.map(op => {
         const disp = getOperariDisponibilitat(op);
         const absentNote = disp.isTempAbsent ? ` (${disp.label})` : '';
-        return `<option value="${op.id}">${op.nom} — ${op.rol}${absentNote}</option>`;
+        return `<option value="${esc(op.id)}">${esc(op.nom)} — ${esc(op.rol)}${esc(absentNote)}</option>`;
       }).join('');
     }
 
@@ -3410,9 +3432,9 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           const disp = getOperariDisponibilitat(op);
           operarisHtml = `
             <div>
-              <span class="font-bold text-[#1D3557] ${!op.actiu ? 'line-through text-gray-400' : ''}">${op.nom}</span>
+              <span class="font-bold text-[#1D3557] ${!op.actiu ? 'line-through text-gray-400' : ''}">${esc(op.nom)}</span>
               <span class="block text-[10px] ${disp.actiu ? 'text-teal-700 font-medium' : 'text-purple-700 font-bold'}">
-                ${op.rol} ${disp.isTempAbsent ? '🏖️ (Absent)' : !op.actiu ? '(De Baixa)' : ''}
+                ${esc(op.rol)} ${disp.isTempAbsent ? '🏖️ (Absent)' : !op.actiu ? '(De Baixa)' : ''}
               </span>
             </div>
           `;
@@ -3430,8 +3452,8 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                   return `
                     <div class="text-[11px] text-gray-800 flex items-center space-x-1">
                       <span class="w-1.5 h-1.5 rounded-full ${disp.actiu ? 'bg-teal-500' : 'bg-purple-500'}"></span>
-                      <span class="font-medium">${op.nom}</span>
-                      <span class="text-[10px] text-gray-500">(${op.rol.split(' ')[0]})</span>
+                      <span class="font-medium">${esc(op.nom)}</span>
+                      <span class="text-[10px] text-gray-500">(${esc(op.rol.split(' ')[0])})</span>
                       ${disp.isTempAbsent ? '<span class="text-[9px] text-purple-600 font-bold">🏖️</span>' : ''}
                     </div>
                   `;
@@ -3458,7 +3480,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                 ${(task.fotoInicial || task.teFotoInicial) ? `
                   <div class="w-12 h-12 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0 cursor-pointer group relative bg-gray-100 flex items-center justify-center" data-action="open-photo-viewer" data-id="${esc(task.id)}" title="Clica per ampliar la fotografia">
                     ${(task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)) ? `
-                      <img src="${task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)}" alt="Foto" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                      <img src="${esc(safeImageSrc(task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)))}" alt="Foto" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                     ` : `
                       <i data-lucide="camera" class="w-5 h-5 text-[#2A9D8F]"></i>
                     `}
@@ -3475,7 +3497,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                   <div class="font-bold text-[#1D3557] flex items-center space-x-1.5 flex-wrap gap-y-1">
                     <span>${esc(task.id)}</span>
                     ${task.esImportant ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 font-bold border border-amber-300">★ IMPORTANT</span>' : ''}
-                    ${task.esProgramada ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-purple-100 text-purple-900 font-bold border border-purple-300 flex items-center space-x-0.5"><span>🔄</span><span>Preventiu (${FREQUENCIA_LABELS[task.frequencia]?.label || task.frequencia})</span></span>` : ''}
+                    ${task.esProgramada ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-purple-100 text-purple-900 font-bold border border-purple-300 flex items-center space-x-0.5"><span>🔄</span><span>Preventiu (${esc(FREQUENCIA_LABELS[task.frequencia]?.label || task.frequencia)})</span></span>` : ''}
                     ${assignedOps.length > 1 ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-teal-50 text-teal-700 font-semibold border border-teal-200">👥 Equip</span>' : ''}
                   </div>
                   <p class="text-xs text-gray-900 font-medium mt-0.5">${esc(task.titol)}</p>
@@ -3485,7 +3507,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
             </td>
             <td class="px-4 py-3 text-xs">
               <span class="px-2 py-0.5 rounded-full font-semibold text-[11px] ${isClima ? 'bg-cyan-50 text-cyan-800 border border-cyan-200' : 'bg-gray-100 text-gray-700'}">
-                ${CATEGORIA_LABELS[task.categoria] || task.categoria}
+                ${esc(CATEGORIA_LABELS[task.categoria] || task.categoria)}
               </span>
             </td>
             <td class="px-4 py-3 text-xs">
@@ -3493,12 +3515,12 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               <p class="text-gray-500 font-mono text-[11px]">${esc(task.via)}</p>
             </td>
             <td class="px-4 py-3 text-xs">
-              <span class="capitalize font-semibold ${task.prioritat === 'urgent' ? 'text-red-600 font-bold' : 'text-gray-700'}">${task.prioritat}</span>
+              <span class="capitalize font-semibold ${task.prioritat === 'urgent' ? 'text-red-600 font-bold' : 'text-gray-700'}">${esc(task.prioritat)}</span>
             </td>
             <td class="px-4 py-3 text-xs">${operarisHtml}</td>
             <td class="px-4 py-3">
               <span class="px-2.5 py-1 text-xs rounded-full border font-semibold ${statusBadges[task.estat]}">
-                ${task.estat.replace('_', ' ').toUpperCase()}
+                ${esc(task.estat.replace('_', ' ').toUpperCase())}
               </span>
             </td>
             <td class="px-4 py-3 text-right space-x-1 whitespace-nowrap">
@@ -3543,7 +3565,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           fotoPreview.innerHTML = `
             <div class="flex items-center space-x-3 p-2.5 bg-gray-50 rounded-xl border border-gray-200">
               ${cached ? `
-                <img src="${cached}" class="w-16 h-16 rounded-lg object-cover border border-gray-300 cursor-pointer shadow-xs" data-action="open-photo-viewer" data-id="${esc(task.id)}" />
+                <img src="${esc(safeImageSrc(cached))}" class="w-16 h-16 rounded-lg object-cover border border-gray-300 cursor-pointer shadow-xs" data-action="open-photo-viewer" data-id="${esc(task.id)}" />
               ` : `
                 <div class="w-16 h-16 rounded-lg bg-teal-50 border border-teal-200 flex items-center justify-center text-[#2A9D8F] cursor-pointer shadow-xs" data-action="open-photo-viewer" data-id="${esc(task.id)}">
                   <i data-lucide="camera" class="w-6 h-6"></i>
@@ -3574,11 +3596,11 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
         return `
           <label class="flex items-center space-x-2.5 p-2 rounded-lg border ${isChecked ? 'bg-teal-50/70 border-teal-300' : 'bg-gray-50 border-gray-200'} hover:bg-gray-100 cursor-pointer text-xs">
-            <input type="checkbox" name="edit-operari-checkbox" value="${op.id}" ${isChecked} ${disabled} onchange="updateEditTaskWhatsAppButtons('${task.id}')" class="w-4 h-4 text-[#2A9D8F] rounded border-gray-300 focus:ring-[#2A9D8F]" />
+            <input type="checkbox" name="edit-operari-checkbox" value="${esc(op.id)}" ${isChecked} ${disabled} data-action="edit-operari-change" data-task-id="${esc(task.id)}" class="w-4 h-4 text-[#2A9D8F] rounded border-gray-300 focus:ring-[#2A9D8F]" />
             <div class="flex-1">
-              <div class="font-bold text-[#1D3557] ${!op.actiu ? 'line-through text-gray-400' : ''}">${op.nom}</div>
-              <div class="text-[10px] text-gray-500">${op.rol}</div>
-              ${disp.isTempAbsent ? `<span class="inline-block mt-0.5 text-[9px] px-1.5 py-0.2 rounded font-bold bg-purple-100 text-purple-800">${disp.label}</span>` : ''}
+              <div class="font-bold text-[#1D3557] ${!op.actiu ? 'line-through text-gray-400' : ''}">${esc(op.nom)}</div>
+              <div class="text-[10px] text-gray-500">${esc(op.rol)}</div>
+              ${disp.isTempAbsent ? `<span class="inline-block mt-0.5 text-[9px] px-1.5 py-0.2 rounded font-bold bg-purple-100 text-purple-800">${esc(disp.label)}</span>` : ''}
               ${!op.actiu ? `<span class="inline-block mt-0.5 text-[9px] px-1.5 py-0.2 rounded font-bold bg-red-100 text-red-800">De Baixa Permanent</span>` : ''}
             </div>
           </label>
@@ -3839,22 +3861,22 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               <div class="flex items-start justify-between">
                 <div class="flex items-center space-x-3">
                   <div class="w-10 h-10 ${!op.actiu ? 'bg-gray-200 text-gray-500' : disp.isTempAbsent ? 'bg-purple-100 text-purple-800' : isClima ? 'bg-cyan-100 text-cyan-800' : 'bg-teal-50 text-[#2A9D8F]'} rounded-full flex items-center justify-center font-bold">
-                    ${op.nom.charAt(0)}
+                    ${esc(op.nom).charAt(0)}
                   </div>
                   <div>
                     <h4 class="font-bold text-sm text-[#1D3557] ${!op.actiu ? 'line-through text-gray-500' : ''}">${esc(op.nom)}</h4>
                     <p class="text-xs text-gray-500 font-medium">${esc(op.rol)}</p>
                   </div>
                 </div>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${disp.badgeClass}">
-                  ${disp.label}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${esc(disp.badgeClass)}">
+                  ${esc(disp.label)}
                 </span>
               </div>
 
               <div class="text-xs text-gray-600 space-y-1 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
-                <p>🔧 Especialitat: <strong class="text-gray-900">${CATEGORIA_LABELS[op.especialitat] || op.especialitat}</strong></p>
+                <p>🔧 Especialitat: <strong class="text-gray-900">${esc(CATEGORIA_LABELS[op.especialitat] || op.especialitat)}</strong></p>
                 <p>📞 Tel: <a href="${sanitizeTel(op.telefon)}" class="font-medium text-[#1D3557] underline">${esc(op.telefon)}</a></p>
-                <p>🔒 Compte Auth: <span class="font-mono text-emerald-800 font-medium">op-${op.id}@brigada-santa-eugenia.local</span></p>
+                <p>🔒 Compte Auth: <span class="font-mono text-emerald-800 font-medium">op-${esc(op.id)}@brigada-santa-eugenia.local</span></p>
                 <p class="text-[11px] pt-1 border-t border-gray-200/60 flex items-center justify-between">
                   <span class="text-gray-500">Tasques en cua:</span>
                   <span class="font-bold px-1.5 py-0.5 rounded ${pendingCount > 0 ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600'}">${pendingCount} pendents</span>
@@ -3883,9 +3905,9 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                       return `
                         <div class="p-1.5 bg-purple-50/80 rounded-lg border border-purple-200 flex items-center justify-between text-[10px] text-purple-950">
                           <div>
-                            <span class="font-bold">${typeInfo.icon} ${typeInfo.label}</span>: 
+                            <span class="font-bold">${esc(typeInfo.icon)} ${esc(typeInfo.label)}</span>: 
                             <span class="font-mono">${formatDateShort(b.dataInici)} al ${formatDateShort(b.dataFi)}</span>
-                            ${b.motiu ? `<p class="text-[9px] text-purple-700 italic truncate max-w-[170px]">${b.motiu}</p>` : ''}
+                            ${b.motiu ? `<p class="text-[9px] text-purple-700 italic truncate max-w-[170px]">${esc(b.motiu)}</p>` : ''}
                           </div>
                           <button data-action="delete-baixa-op" data-id="${esc(op.id)}" data-extra="${bIdx}" title="Eliminar absència" class="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded">
                             <i data-lucide="trash-2" class="w-3 h-3"></i>
@@ -4064,7 +4086,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       const otherOperators = APP_STATE.operaris.filter(o => o.id !== sourceOperariId && o.actiu);
 
       destSelect.innerHTML = otherOperators.map(op => {
-        return `<option value="${op.id}">${op.nom} — [${op.rol}]</option>`;
+        return `<option value="${esc(op.id)}">${esc(op.nom)} — [${esc(op.rol)}]</option>`;
       }).join('');
 
       document.getElementById('modal-reassignar-bloc').classList.remove('hidden');
@@ -4119,11 +4141,11 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
         return `
           <label class="flex items-center space-x-2.5 p-2 rounded-lg border bg-white border-gray-200 hover:bg-gray-50 cursor-pointer text-xs transition-colors">
-            <input type="checkbox" name="create-operari-checkbox" value="${op.id}" ${disabled} class="w-4 h-4 text-[#2A9D8F] rounded border-gray-300 focus:ring-[#2A9D8F]" />
+            <input type="checkbox" name="create-operari-checkbox" value="${esc(op.id)}" ${disabled} class="w-4 h-4 text-[#2A9D8F] rounded border-gray-300 focus:ring-[#2A9D8F]" />
             <div class="flex-1">
-              <div class="font-bold text-[#1D3557] ${!op.actiu ? 'line-through text-gray-400' : ''}">${op.nom}</div>
-              <div class="text-[10px] text-gray-500">${op.rol} · <span class="text-teal-700">${CATEGORIA_LABELS[op.especialitat] || op.especialitat}</span></div>
-              ${disp.isTempAbsent ? `<span class="inline-block mt-0.5 text-[9px] px-1.5 py-0.2 rounded font-bold bg-purple-100 text-purple-800">${disp.label}</span>` : ''}
+              <div class="font-bold text-[#1D3557] ${!op.actiu ? 'line-through text-gray-400' : ''}">${esc(op.nom)}</div>
+              <div class="text-[10px] text-gray-500">${esc(op.rol)} · <span class="text-teal-700">${esc(CATEGORIA_LABELS[op.especialitat] || op.especialitat)}</span></div>
+              ${disp.isTempAbsent ? `<span class="inline-block mt-0.5 text-[9px] px-1.5 py-0.2 rounded font-bold bg-purple-100 text-purple-800">${esc(disp.label)}</span>` : ''}
               ${!op.actiu ? `<span class="inline-block mt-0.5 text-[9px] px-1.5 py-0.2 rounded font-bold bg-red-100 text-red-800">De Baixa Permanent</span>` : ''}
             </div>
           </label>
@@ -4140,7 +4162,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
       select.innerHTML = activeOps.map(op => {
         const disp = getOperariDisponibilitat(op);
-        return `<option value="${op.id}">${op.nom} — [${op.rol}] ${disp.isTempAbsent ? '(🏖️ Absent)' : ''}</option>`;
+        return `<option value="${esc(op.id)}">${esc(op.nom)} — [${esc(op.rol)}] ${disp.isTempAbsent ? '(🏖️ Absent)' : ''}</option>`;
       }).join('');
     }
 
@@ -4158,7 +4180,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
       viaSelect.innerHTML = filteredVies.map(v => {
         const codiText = v.codiMun && v.codiMun !== '—' ? `[${v.codiMun}] ` : '';
-        return `<option value="${v.nom} (${v.codiMun})">${codiText}${v.tipus}: ${v.nom}</option>`;
+        return `<option value="${esc(v.nom)} (${esc(v.codiMun)})">${esc(codiText)}${esc(v.tipus)}: ${esc(v.nom)}</option>`;
       }).join('');
     }
 
@@ -4167,7 +4189,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         const reader = new FileReader();
         reader.onload = function(e) {
           document.getElementById('preview-foto-box').innerHTML = `
-            <img src="${e.target.result}" class="h-28 rounded-lg object-cover shadow-sm" />
+            <img src="${esc(safeImageSrc(e.target.result))}" class="h-28 rounded-lg object-cover shadow-sm" />
             <p class="text-xs text-emerald-600 font-semibold mt-1">✓ Imatge carregada (Comprimida a WebP)</p>
           `;
         };
@@ -4484,7 +4506,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                       </span>
                       <div class="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-100 cursor-pointer h-28 group flex items-center justify-center" data-action="open-photo-viewer" data-id="${esc(task.id)}" title="Clica per ampliar">
                         ${(task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)) ? `
-                          <img src="${task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)}" alt="Foto inicial" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                          <img src="${esc(safeImageSrc(task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)))}" alt="Foto inicial" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                         ` : `
                           <div class="flex flex-col items-center justify-center p-2 text-center text-gray-500">
                             <i data-lucide="camera" class="w-6 h-6 text-[#2A9D8F] mb-1"></i>
@@ -4507,7 +4529,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                       </span>
                       <div class="relative rounded-xl overflow-hidden border border-emerald-300 bg-emerald-50/30 cursor-pointer h-28 group flex items-center justify-center" data-action="open-photo-viewer-final" data-id="${esc(task.id)}" title="Clica per ampliar">
                         ${(task.fotoFinal || ADJUNTS_CACHE.get(`${task.id}_fotoFinal`)) ? `
-                          <img src="${task.fotoFinal || ADJUNTS_CACHE.get(`${task.id}_fotoFinal`)}" alt="Foto final" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                          <img src="${esc(safeImageSrc(task.fotoFinal || ADJUNTS_CACHE.get(`${task.id}_fotoFinal`)))}" alt="Foto final" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                         ` : `
                           <div class="flex flex-col items-center justify-center p-2 text-center text-emerald-700">
                             <i data-lucide="check-circle" class="w-6 h-6 text-emerald-600 mb-1"></i>
@@ -4608,15 +4630,15 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                 ${teammates.map(tm => `
                   <div class="flex items-center justify-between flex-wrap gap-2 pt-1.5 border-t border-teal-200/60 first:border-t-0 first:pt-0">
                     <div>
-                      <span class="font-bold text-[#1D3557]">${tm.nom}</span>
-                      <span class="text-xs text-teal-700 ml-1 font-medium">(${tm.rol})</span>
+                      <span class="font-bold text-[#1D3557]">${esc(tm.nom)}</span>
+                      <span class="text-xs text-teal-700 ml-1 font-medium">(${esc(tm.rol)})</span>
                     </div>
                     <div class="flex items-center space-x-1.5">
-                      <a href="tel:${tm.telefon}" title="Trucar a ${tm.nom}" class="min-touch min-h-[36px] px-2.5 py-1.5 bg-white hover:bg-teal-50 text-[#1D3557] border border-teal-300 rounded-lg flex items-center space-x-1 text-xs font-bold shadow-xs transition-colors">
+                      <a href="${sanitizeTel(tm.telefon)}" title="Trucar a ${esc(tm.nom)}" class="min-touch min-h-[36px] px-2.5 py-1.5 bg-white hover:bg-teal-50 text-[#1D3557] border border-teal-300 rounded-lg flex items-center space-x-1 text-xs font-bold shadow-xs transition-colors">
                         <i data-lucide="phone" class="w-3 h-3 text-[#2A9D8F]"></i>
                         <span>Trucar</span>
                       </a>
-                      <a href="https://wa.me/34${tm.telefon}?text=${encodeURIComponent(`Hola ${tm.nom.split(' ')[0]}, et contacto des de la Brigada per coordinar la tasca ${task.id} (${task.titol}).`)}" target="_blank" rel="noopener noreferrer" title="WhatsApp a ${tm.nom}" class="min-touch min-h-[36px] px-2.5 py-1.5 bg-[#25D366] hover:bg-[#20ba5a] text-white rounded-lg flex items-center space-x-1 text-xs font-bold shadow-xs transition-colors">
+                      <a href="${generateWhatsAppLink(tm.telefon, `Hola ${tm.nom.split(' ')[0]}, et contacto des de la Brigada per coordinar la tasca ${task.id} (${task.titol}).`)}" target="_blank" rel="noopener noreferrer" title="WhatsApp a ${esc(tm.nom)}" class="min-touch min-h-[36px] px-2.5 py-1.5 bg-[#25D366] hover:bg-[#20ba5a] text-white rounded-lg flex items-center space-x-1 text-xs font-bold shadow-xs transition-colors">
                         <svg class="w-3 h-3 fill-current flex-shrink-0" viewBox="0 0 24 24">
                           <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.312.045-.634.053-1.688-.383-1.347-.558-2.221-1.921-2.289-2.01-.067-.089-.54-2.18-.54-2.18s-.201-.274-.201-.527c0-.253.136-.379.184-.428.049-.049.108-.061.144-.061.036 0 .073 0 .105.002.035.002.082-.013.128.098.048.113.165.405.18.435.014.03.023.065.005.101-.019.035-.028.057-.056.09-.028.033-.06.074-.085.1-.029.03-.06.063-.026.121.034.058.151.249.324.403.223.199.412.261.47.29.058.03.092.025.127-.015.035-.04.15-.175.19-.235.04-.06.08-.05.134-.03.054.02.343.162.402.191.058.03.098.045.112.07.015.025.015.147-.129.552z"/>
                         </svg>
@@ -4681,7 +4703,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                 </div>
                 <div class="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-100 cursor-pointer group" data-action="open-photo-viewer" data-id="${esc(task.id)}">
                   ${(task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)) ? `
-                    <img src="${task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)}" alt="Foto incidència" class="w-full h-44 object-cover hover:scale-[1.01] transition-transform duration-200" />
+                    <img src="${esc(safeImageSrc(task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)))}" alt="Foto incidència" class="w-full h-44 object-cover hover:scale-[1.01] transition-transform duration-200" />
                   ` : `
                     <div class="w-full h-28 bg-teal-50/60 border border-teal-100 flex flex-col items-center justify-center p-3 text-center">
                       <i data-lucide="camera" class="w-7 h-7 text-[#2A9D8F] mb-1"></i>
@@ -4970,7 +4992,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
             ${(task.fotoInicial || task.teFotoInicial) ? `
               <div class="flex flex-col items-center flex-shrink-0 cursor-pointer" data-action="open-photo-viewer" data-id="${esc(task.id)}" title="Clica per ampliar">
                 ${(task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)) ? `
-                  <img src="${task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)}" class="w-14 h-14 rounded-lg object-cover border border-gray-300 shadow-xs" />
+                  <img src="${esc(safeImageSrc(task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)))}" class="w-14 h-14 rounded-lg object-cover border border-gray-300 shadow-xs" />
                 ` : `
                   <div class="w-14 h-14 rounded-lg bg-teal-50 border border-teal-200 flex items-center justify-center text-[#2A9D8F] shadow-xs">
                     <i data-lucide="camera" class="w-5 h-5"></i>
@@ -5034,7 +5056,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           const previewBox = document.getElementById('preview-final-box');
           if (previewBox) {
             previewBox.innerHTML = `
-              <img src="${e.target.result}" class="h-28 rounded-lg object-cover shadow-sm mx-auto" />
+              <img src="${esc(safeImageSrc(e.target.result))}" class="h-28 rounded-lg object-cover shadow-sm mx-auto" />
               <span class="text-xs text-emerald-600 font-semibold mt-1 block">✓ Foto final afegida</span>
             `;
           }
@@ -5500,7 +5522,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                     const disp = getOperariDisponibilitat(op);
                     return `
                       <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-lg text-[10px] font-medium ${disp.actiu ? 'bg-teal-50 text-teal-800 border border-teal-200' : 'bg-purple-50 text-purple-800 border border-purple-200'}">
-                        <span>${op.nom}</span>
+                        <span>${esc(op.nom)}</span>
                         ${disp.isTempAbsent ? '<span title="Absent">🏖️</span>' : ''}
                       </span>
                     `;
@@ -5569,10 +5591,10 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
         return `
           <label class="flex items-center space-x-2 p-1.5 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer text-xs">
-            <input type="checkbox" name="prog-operari-checkbox" value="${op.id}" ${isChecked} ${disabled} class="w-4 h-4 text-[#2A9D8F] rounded border-gray-300 focus:ring-[#2A9D8F]" />
+            <input type="checkbox" name="prog-operari-checkbox" value="${esc(op.id)}" ${isChecked} ${disabled} class="w-4 h-4 text-[#2A9D8F] rounded border-gray-300 focus:ring-[#2A9D8F]" />
             <div class="flex-1 truncate">
-              <span class="font-bold text-[#1D3557] ${!op.actiu ? 'line-through text-gray-400' : ''}">${op.nom}</span>
-              <span class="text-[10px] text-gray-500 block truncate">${op.rol}</span>
+              <span class="font-bold text-[#1D3557] ${!op.actiu ? 'line-through text-gray-400' : ''}">${esc(op.nom)}</span>
+              <span class="text-[10px] text-gray-500 block truncate">${esc(op.rol)}</span>
             </div>
             ${disp.isTempAbsent ? '<span class="text-[9px] text-purple-700 font-bold">🏖️</span>' : ''}
           </label>

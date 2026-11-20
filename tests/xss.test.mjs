@@ -286,4 +286,97 @@ test('Fase 2: Seguretat XSS, caràcters especials i Content-Security-Policy', as
     assert.ok(cspValue.includes("connect-src 'self'"), 'CSP ha d\'incloure connect-src');
     assert.ok(cspValue.includes("https://identitytoolkit.googleapis.com"), 'CSP ha de permetre Firebase Auth');
   });
+
+  await t.test('6. Sanitització de fotos safeImageSrc i blindatge de l\'informe contra XSS maliciós', () => {
+    const safeImageSrcMatch = htmlContent.match(/function safeImageSrc\([\s\S]*?\n    \}/);
+    assert.ok(safeImageSrcMatch, 'safeImageSrc ha d\'estar definida a index.html');
+
+    const fnScope = new Function(`
+      ${safeImageSrcMatch[0]}
+      return { safeImageSrc };
+    `)();
+
+    // Imatges vàlides
+    assert.equal(
+      fnScope.safeImageSrc('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='),
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
+    );
+    assert.equal(
+      fnScope.safeImageSrc('https://images.unsplash.com/photo-1544724569-5f546fd6f2b5'),
+      'https://images.unsplash.com/photo-1544724569-5f546fd6f2b5'
+    );
+
+    // Payloads maliciosos han de retornar buit
+    assert.equal(fnScope.safeImageSrc('x" onerror="window.__xss=1'), '');
+    assert.equal(fnScope.safeImageSrc('javascript:alert(1)'), '');
+    assert.equal(fnScope.safeImageSrc('<script>alert(1)</script>'), '');
+    assert.equal(fnScope.safeImageSrc(null), '');
+    assert.equal(fnScope.safeImageSrc(undefined), '');
+
+    // Comprovar amb l'script sencer que window.__xss i window.__xss2 no s'executen en carregar fotos
+    const elements = new Map();
+    function getOrCreateEl(id) {
+      if (!elements.has(id)) {
+        elements.set(id, {
+          id,
+          value: '',
+          innerText: '',
+          innerHTML: '',
+          style: {},
+          classList: {
+            classes: new Set(['hidden']),
+            contains(c) { return this.classes.has(c); },
+            add(c) { this.classes.add(c); },
+            remove(c) { this.classes.delete(c); }
+          }
+        });
+      }
+      return elements.get(id);
+    }
+
+    const sandbox = {
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      document: {
+        getElementById: (id) => getOrCreateEl(id),
+        addEventListener: () => {}
+      },
+      navigator: { onLine: true },
+      location: { reload: () => {}, origin: 'http://localhost' },
+      localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
+      tailwind: { config: {} },
+      lucide: { createIcons: () => {} },
+      L: { map: () => ({ setView: () => ({}) }), tileLayer: () => ({ addTo: () => ({}) }), layerGroup: () => ({ clearLayers: () => {}, addLayer: () => {}, addTo: function() { return this; } }), divIcon: () => ({}), marker: () => ({ bindPopup: () => ({}), addTo: () => ({}) }) },
+      setTimeout: (fn) => fn(),
+      setInterval: () => 1,
+      clearInterval: () => {}
+    };
+    sandbox.window = sandbox;
+
+    const scriptMatch = htmlContent.match(/<script>([\s\S]*?)<\/script>\s*<!-- Contenidor dinàmic/);
+    const context = vm.createContext(sandbox);
+    vm.runInContext(scriptMatch[1], context);
+
+    const task = {
+      id: 'SE-XSS-FOTO',
+      titol: 'Tasca amb injecció a foto',
+      fotoFinal: 'x" onerror="window.__xss=1',
+      fotoInicial: 'x" onerror="window.__xss_ini=1',
+      estat: 'finalitzada'
+    };
+    sandbox.APP_STATE.tasks = [task];
+    sandbox.APP_STATE.operaris = [{
+      id: 88,
+      nom: '<img src=x onerror="window.__xss2=1">',
+      rol: 'Oficial',
+      actiu: true
+    }];
+
+    // Obrir l'informe
+    sandbox.openReportModal('SE-XSS-FOTO');
+
+    assert.equal(sandbox.__xss, undefined, 'window.__xss ha de romandre undefined');
+    assert.equal(sandbox.__xss_ini, undefined, 'window.__xss_ini ha de romandre undefined');
+    assert.equal(sandbox.__xss2, undefined, 'window.__xss2 ha de romandre undefined');
+  });
 });
