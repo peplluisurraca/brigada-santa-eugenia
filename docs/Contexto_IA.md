@@ -1,18 +1,26 @@
 # Contexto_IA — App Brigada Santa Eugènia (PWA de manteniment municipal)
 
-**Última actualización:** 2026-11-19 (Fase 7 fix: impressió PDF, mapa Leaflet i operaris múltiples).
+**Última actualización:** 2026-11-20 (Fase 8: Correcció urgent de seguretat, login i còmput d'hores arran d'auditoria).
 
 ## Qué es este proyecto
 PWA para la Brigada Municipal del **Ajuntament de Santa Eugènia** (Mallorca, CP 07142): órdenes de trabajo e incidencias, vista móvil del operario (PIN, GPS, «Com arribar», WhatsApp, cronómetro, firma), mantenimiento preventivo, nomenclátor oficial (37 vías), gestión de personal y ausencias, e informe PDF.
 Es un proyecto **distinto e independiente** de «Proposta Santa Eugènia» (formación en IA, carpeta en ADMINISTRACIONES PÚBLICAS) y de «Santa Eugènia — MITECO 2026 — Mobilitat compartida».
 
 ## Ubicaciones
-- **Código:** GitHub `peplluisurraca/brigada-santa-eugenia` (rama de producció `main`, branca d'integració `develop`). App en `brigada-mantenimiento/index.html`.
-- **Firebase:** proyecto `brigada-santa-eugenia` (Firestore + Hosting, plan Spark). Colecciones: `tasques`, `operaris`, `tasques_programades`.
+- **Código:** GitHub `peplluisurraca/brigada-santa-eugenia` (rama de producció `main`, branca d'integració `develop`, branca de seguretat `fix/fase-8-seguretat-urgent`). App en `brigada-mantenimiento/index.html`.
+- **Firebase:** proyecto `brigada-santa-eugenia` (Firestore + Hosting, plan Spark). Colecciones: `tasques`, `operaris`, `tasques_programades`, `rols`, `comptadors`.
 - **Desarrollo anterior:** hecho con Google **Antigravity** (las rutas `C:\Users\jlurracam\.gemini\antigravity\scratch\` aparecen en docs y tests). En Drive existe además `brigada-claude-code.zip` (26/10/2026, otra carpeta).
 - **Esta carpeta:** `Cowork/Projects/App Brigada Santa Eugènia/`.
 
-## Estado actual (19/11/2026)
+## Estado actual (20/11/2026)
+- **Fase 8: Correcció Urgent de Seguretat, Login i Còmput d'Hores (20/11/2026)** a la branca `fix/fase-8-seguretat-urgent`:
+  - ✅ **Bloc A (Autenticació i Credencials Segures - commit `719338b`)**: Retirada completa de credencials i PINs per defecte dels formularis HTML i de `scripts/bootstrap-production.mjs`. Enforçat el PIN estrictament numèric de 6 dígits. Aïllament de sessions multi-pestanya amb reintents exponencials de recuperació de rol a Firestore. Desacoblada la comprovació d'inici de sessió d'`APP_STATE.operaris`. Ordre correcte de tancament de sessió (`cleanupFirebaseSync` abans de `signOut`).
+  - ✅ **Bloc B (Regles Firestore i RGPD Salut - commit `cfc5218`)**: Desbloquejada la consulta de tasques per operari (retirada la condició estàtica `is list` que impedia consultes `where('operariIds', 'array-contains', id)`). Protecció de tasques finalitzades (immutables per a operaris) i obligatorietat de signatura (`teSignatura == true`). Subcol·lecció `adjunts` restringida a creació de `fotoFinal` i `signatura` amb regex de validació de Base64, prohibint `fotoInicial` a operaris i sobreescriptures. Helper `isOperari()` exigeix `actiu == true`. Segregació de dades de salut a la subcol·lecció protegida `operaris/{id}/absencies/{absId}` (RGPD Art. 9) amb privadesa entre operaris.
+  - ✅ **Bloc C (Sanitització d'Imatges i Blindatge XSS - commit `471eb31`)**: Introduïda la utilitat `safeImageSrc(url)` per validar que totes les imatges provinguin de Data URLs Base64 o URLs HTTPS segures. Escapament sistemàtic amb `esc()` de més de 40 interpolacions pendents a plantilles innerHTML. Eliminat l'últim manejador inline `onchange` en favor de delegació d'esdeveniments desacoblada.
+  - ✅ **Bloc D (Còmput Canònic de Temps i Certificats - commit `1de77fc`)**: Unificació de tot el càlcul d'hores en el helper canònic `getTaskCurrentElapsedSeconds(task)`. Retirat el valor per defecte de 75 minuts i les deduccions d'esmorzar de 30 minuts als certificats d'activitat (mostra «Sense temps registrat» si és 0). Eliminada la referència no normativa a purga de 30 dies.
+  - ✅ **Bloc E (Transaccionalitat, Gestió d'Errors i CI - commit `9fe9a9c`)**: Eliminat el soroll aleatori de coordenades GPS (posicions deterministes). Generador transaccional atòmic d'identificadors municipals (`getNextTaskIdTransactional()`) sobre `comptadors/tasques` (`SE-YYYY-NNNN`). Eliminats els `.catch(() => {})` silenciosos per toasts informatius. Connexió a emuladors protegida estrictament per `localhost`/`127.0.0.1` i paràmetre `?emulador=1`. CI preparat a `scripts/ci.yml` amb execució d'emuladors. Service Worker actualitzat a `brigada-se-v1.6.0`.
+  - ✅ **Suite de tests**: 52/52 tests verds a `npm test`.
+  - ⚠️ **Desplegament i Fusió**: En compliment de la Regla 1 d'`AGENTS.md`, no s'ha fet deploy directe a producció ni fusió a `main`. Branca llesta a GitHub per a re-auditoria externa.
 - **Optimització d'Impressió Oficial PDF en A4 net, Auto-redimensionament del Mapa Leaflet i Gestió d'Equips Multidisciplinaris (19/11/2026)** a la branca `fix/impressio-pdf-i-mapa-dashboard`:
   - ✅ **CSS d'Impressió Oficial Redissenyat (`@media print`)**: S'ha substituït l'antiga estratègia de `visibility: hidden` per `display: none !important` directe sobre totes les vistes, menús i elements de navegació. Això elimina la lentitud/retard en prémer el botó d'impressió (evitant el recalculat complet de la geometria del DOM) i evita la despaginació amb marges superiors massius.
   - ✅ **Enquadernació A4 i Paginació Neta**: S'ha afegit `@page { size: A4 portrait; margin: 10mm 12mm 12mm 12mm; }`, s'ha desarmat el contenidor flex (`display: block !important; position: static !important; overflow: visible !important`) per a `#print-report-modal` i `#modal-informe-global-pdf`, i s'han protegit taules, capçaleres i blocs de signatura amb `break-inside: avoid !important`. Verificat amb impressió real en Chrome headless reduint el certificat de 3 pàgines desquadrades a exactament 1 pàgina neta.
