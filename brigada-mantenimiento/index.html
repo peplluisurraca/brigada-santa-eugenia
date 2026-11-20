@@ -4379,7 +4379,12 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
     function getTaskCurrentElapsedSeconds(task) {
       if (!task) return 0;
-      let base = Number(task.tempsTotalSegons ?? task.tempsTranscorregut) || 0;
+      let base = 0;
+      if (typeof task.tempsTotalSegons === 'number' && !isNaN(task.tempsTotalSegons)) {
+        base = Math.max(0, task.tempsTotalSegons);
+      } else if (typeof task.tempsTranscorregut === 'number' && !isNaN(task.tempsTranscorregut)) {
+        base = Math.max(0, task.tempsTranscorregut);
+      }
       if (task.estat === 'en_curs' && task.tempsInici) {
         const startMs = new Date(task.tempsInici).getTime();
         if (!isNaN(startMs)) {
@@ -4784,9 +4789,8 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       if (!task) return;
 
       const now = new Date();
-      if (typeof task.tempsTotalSegons !== 'number') {
-        task.tempsTotalSegons = Number(task.tempsTranscorregut) || 0;
-      }
+      task.tempsTotalSegons = getTaskCurrentElapsedSeconds(task);
+      task.tempsTranscorregut = task.tempsTotalSegons;
       task.estat = 'en_curs';
       task.tempsInici = now.toISOString();
       task.tempsPausa = null;
@@ -4812,14 +4816,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       if (!task) return;
 
       const now = new Date();
-      let segonsAcumulats = Number(task.tempsTotalSegons ?? task.tempsTranscorregut) || 0;
-      if (task.tempsInici) {
-        const startMs = new Date(task.tempsInici).getTime();
-        if (!isNaN(startMs)) {
-          const delta = Math.max(0, Math.floor((now.getTime() - startMs) / 1000));
-          segonsAcumulats += delta;
-        }
-      }
+      const segonsAcumulats = getTaskCurrentElapsedSeconds(task);
 
       task.tempsTotalSegons = segonsAcumulats;
       task.tempsTranscorregut = segonsAcumulats;
@@ -5248,15 +5245,16 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       if (retencioEl) {
         retencioEl.innerText = task.esImportant 
           ? "★ Tasca marcada com a IMPORTANT: Custòdia i retenció permanent d'imatges a l'arxiu d'obres públiques."
-          : "Tasca ordinària: Imatges emmagatzemades amb purga automàtica de 30 dies post-finalització (Dades preservades).";
+          : "Tasca ordinària: Imatges i registres preservats a l'arxiu d'obres públiques.";
       }
 
-      const duradaMins = task.tempsTranscorregut ? Math.round(task.tempsTranscorregut / 60) : 75;
+      const totalSecs = getTaskCurrentElapsedSeconds(task);
+      const duradaMins = totalSecs > 0 ? Math.round(totalSecs / 60) : 0;
       const duradaEl = document.getElementById('pdf-durada-total');
-      if (duradaEl) duradaEl.innerText = `${duradaMins} min`;
+      if (duradaEl) duradaEl.innerText = duradaMins > 0 ? `${duradaMins} min` : "Sense temps registrat";
 
       const netEl = document.getElementById('pdf-temps-net');
-      if (netEl) netEl.innerText = `${Math.max(duradaMins - 30, 0)} min`;
+      if (netEl) netEl.innerText = duradaMins > 0 ? `${duradaMins} min` : "Sense temps registrat";
 
       const fotoAbansBox = document.getElementById('pdf-foto-abans-box');
       const fotoDespresBox = document.getElementById('pdf-foto-despres-box');
@@ -5969,7 +5967,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       // Hores totals: còmput real estricte (sense deducció d'esmorzar per mandat municipal)
       let totalSegons = 0;
       filteredTasks.forEach(t => {
-        totalSegons += (t.tempsTranscorregut || 0);
+        totalSegons += getTaskCurrentElapsedSeconds(t);
       });
       const totalHores = totalSegons / 3600;
       const totalHoresStr = `${totalHores.toFixed(1)} h`;
@@ -6046,7 +6044,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         const cat = t.categoria || 'altres';
         if (!map[cat]) map[cat] = { count: 0, seconds: 0 };
         map[cat].count++;
-        map[cat].seconds += (t.tempsTranscorregut || 0);
+        map[cat].seconds += getTaskCurrentElapsedSeconds(t);
       });
 
       const items = Object.entries(map).map(([cat, d]) => ({
@@ -6094,7 +6092,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         const n = t.nucli || "Santa Eugènia (Vila)";
         if (!counts[n]) counts[n] = { count: 0, seconds: 0 };
         counts[n].count++;
-        counts[n].seconds += (t.tempsTranscorregut || 0);
+        counts[n].seconds += getTaskCurrentElapsedSeconds(t);
       });
 
       container.innerHTML = Object.entries(counts).map(([nom, d]) => {
@@ -6136,7 +6134,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         const totalTancades = opTasks.filter(t => t.estat === 'finalitzada').length;
 
         let totalSegons = 0;
-        opTasks.forEach(t => totalSegons += (t.tempsTranscorregut || 0));
+        opTasks.forEach(t => totalSegons += getTaskCurrentElapsedSeconds(t));
         const totalHores = (totalSegons / 3600).toFixed(1);
 
         const mitjanaMinuts = totalTancades > 0 ? Math.round((totalSegons / totalTancades) / 60) : 0;
@@ -6151,7 +6149,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                 </div>
                 <div>
                   <span class="font-bold text-gray-900 block">${esc(op.nom)}</span>
-                  <span class="text-[10px] text-gray-400 font-mono">op-${op.id}</span>
+                  <span class="text-[10px] text-gray-400 font-mono">op-${esc(op.id)}</span>
                 </div>
               </div>
             </td>
@@ -6196,7 +6194,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         const assignedOps = APP_STATE.operaris.filter(o => assignedIds.includes(o.id));
         const teamNames = assignedOps.map(o => o.nom.split(' ')[0]).join(', ') || 'Sense assignar';
         const dataRegStr = task.creatEl ? new Date(task.creatEl).toLocaleDateString('ca-ES') : '-';
-        const duradaHores = task.tempsTranscorregut ? (task.tempsTranscorregut / 3600).toFixed(1) : '0.0';
+        const duradaHores = (getTaskCurrentElapsedSeconds(task) / 3600).toFixed(1);
 
         const estatBadge = {
           pendent: 'bg-red-100 text-red-800',
@@ -6284,7 +6282,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         const finDate = t.tempsFinalitzacio ? new Date(t.tempsFinalitzacio).toLocaleDateString('ca-ES') : (t.finalitzadaEl || '-');
         const assignedIds = t.operariIds && t.operariIds.length > 0 ? t.operariIds : (t.operariId ? [t.operariId] : []);
         const assignedNames = APP_STATE.operaris.filter(o => assignedIds.includes(o.id)).map(o => o.nom).join(', ');
-        const duradaMins = t.tempsTranscorregut ? Math.round(t.tempsTranscorregut / 60) : 0;
+        const duradaMins = Math.round(getTaskCurrentElapsedSeconds(t) / 60);
         const duradaHoresDec = (duradaMins / 60).toFixed(2);
 
         return [
@@ -6331,7 +6329,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       const taxaResolucio = totalOrdres > 0 ? Math.round((resoltes / totalOrdres) * 100) : 0;
 
       let totalSegons = 0;
-      tasks.forEach(t => totalSegons += (t.tempsTranscorregut || 0));
+      tasks.forEach(t => totalSegons += getTaskCurrentElapsedSeconds(t));
       const totalHoresStr = `${(totalSegons / 3600).toFixed(1)} h`;
 
       const avuiStr = new Date().toLocaleDateString('ca-ES', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -6405,7 +6403,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               ${["Santa Eugènia (Vila)", "Ses Alqueries", "Ses Olleries", "Ses Coves"].map(n => {
                 const sub = tasks.filter(t => (t.nucli || "Santa Eugènia (Vila)") === n);
                 let segons = 0;
-                sub.forEach(t => segons += (t.tempsTranscorregut || 0));
+                sub.forEach(t => segons += getTaskCurrentElapsedSeconds(t));
                 const perc = totalOrdres > 0 ? Math.round((sub.length / totalOrdres) * 100) : 0;
                 return `
                   <tr>
@@ -6443,7 +6441,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                 const totalAssignades = opTasks.length;
                 const totalTancades = opTasks.filter(t => t.estat === 'finalitzada').length;
                 let segons = 0;
-                opTasks.forEach(t => segons += (t.tempsTranscorregut || 0));
+                opTasks.forEach(t => segons += getTaskCurrentElapsedSeconds(t));
                 const hores = (segons / 3600).toFixed(1);
                 const eficacia = totalAssignades > 0 ? Math.round((totalTancades / totalAssignades) * 100) : 0;
                 return `
