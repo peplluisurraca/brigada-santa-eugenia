@@ -32,11 +32,12 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { 
-      getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged 
+      getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, connectAuthEmulator 
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { 
       getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache,
-      collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where 
+      collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where,
+      runTransaction, connectFirestoreEmulator 
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -71,6 +72,7 @@
         onSnapshot,
         query,
         where,
+        runTransaction,
         persistentLocalCache,
         persistentMultipleTabManager,
         memoryLocalCache,
@@ -101,6 +103,19 @@
 
       window.FB.db = db;
       window.FB.isReady = true;
+
+      // E4: Connexió als emuladors NOMÉS en localhost si s'especifica ?emulador=1 explícitament a la URL
+      const isLocalHost = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'));
+      const hasEmulatorParam = (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('emulador') === '1');
+      if (isLocalHost && hasEmulatorParam) {
+        try {
+          connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+          if (db) connectFirestoreEmulator(db, '127.0.0.1', 8080);
+          console.log("✓ Connectat als emuladors locals de Firebase Auth (9099) i Firestore (8080).");
+        } catch (emuErr) {
+          console.warn("Avís connectant als emuladors locals:", emuErr);
+        }
+      }
 
       console.log("✓ Firebase SDK carregat i inicialitzat correctament.");
       window.dispatchEvent(new CustomEvent('firebase-ready'));
@@ -3773,7 +3788,10 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       if (window.FB && window.FB.isReady) {
         const opSaved = idStr ? APP_STATE.operaris.find(o => o.id === parseInt(idStr)) : APP_STATE.operaris[APP_STATE.operaris.length - 1];
         if (opSaved) {
-          window.FB.setDoc(window.FB.doc(window.FB.db, 'operaris', String(opSaved.id)), opSaved, { merge: true }).catch(() => {});
+          window.FB.setDoc(window.FB.doc(window.FB.db, 'operaris', String(opSaved.id)), opSaved, { merge: true }).catch(err => {
+            console.error('Error sincronitzant operari a Firestore:', err);
+            showToast("Error en desar l'operari a Firestore.", "error");
+          });
         }
       }
 
@@ -3802,7 +3820,10 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         if (confirm(msg)) {
           op.actiu = false;
           if (window.FB && window.FB.isReady) {
-            window.FB.setDoc(window.FB.doc(window.FB.db, 'operaris', String(op.id)), { actiu: false }, { merge: true }).catch(() => {});
+            window.FB.setDoc(window.FB.doc(window.FB.db, 'operaris', String(op.id)), { actiu: false }, { merge: true }).catch(err => {
+              console.error('Error desactivant operari a Firestore:', err);
+              showToast("Error en desactivar l'operari a Firestore.", "error");
+            });
           }
           showToast(`${op.nom} ha estat donat de BAIXA PERMANENT.`, 'info');
         }
@@ -3810,7 +3831,10 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         if (confirm(`Vols reactivar a ${op.nom} com a personal actiu de la brigada?`)) {
           op.actiu = true;
           if (window.FB && window.FB.isReady) {
-            window.FB.setDoc(window.FB.doc(window.FB.db, 'operaris', String(op.id)), { actiu: true }, { merge: true }).catch(() => {});
+            window.FB.setDoc(window.FB.doc(window.FB.db, 'operaris', String(op.id)), { actiu: true }, { merge: true }).catch(err => {
+              console.error('Error reactivant operari a Firestore:', err);
+              showToast("Error en reactivar l'operari a Firestore.", "error");
+            });
           }
           showToast(`${op.nom} torna a estar ACTIU a la plantilla.`, 'success');
         }
@@ -4197,6 +4221,46 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       }
     }
 
+    // E3: Generador transaccional atòmic d'identificadors d'ordre municipal (SE-YYYY-NNNN)
+    async function getNextTaskIdTransactional() {
+      const currentYear = new Date().getFullYear();
+      if (!window.FB || !window.FB.isReady || !window.FB.runTransaction) {
+        let maxNum = 0;
+        APP_STATE.tasks.forEach(t => {
+          const m = String(t.id).match(/^SE-(\d{4})-(\d+)$/);
+          if (m && Number(m[1]) === currentYear) {
+            maxNum = Math.max(maxNum, Number(m[2]));
+          }
+        });
+        const nextNum = maxNum + 1;
+        return `SE-${currentYear}-${String(nextNum).padStart(4, '0')}`;
+      }
+
+      const comptadorRef = window.FB.doc(window.FB.db, 'comptadors', 'tasques');
+      return await window.FB.runTransaction(window.FB.db, async (transaction) => {
+        const comptadorSnap = await transaction.get(comptadorRef);
+        let darrerNumero = 0;
+        let ultimAny = currentYear;
+
+        if (comptadorSnap.exists()) {
+          const data = comptadorSnap.data();
+          ultimAny = data.ultimAny || currentYear;
+          if (ultimAny === currentYear) {
+            darrerNumero = Number(data.darrerNumero) || 0;
+          }
+        }
+
+        const nouNumero = darrerNumero + 1;
+        transaction.set(comptadorRef, {
+          ultimAny: currentYear,
+          darrerNumero: nouNumero,
+          actualitzatEl: new Date().toISOString()
+        }, { merge: true });
+
+        return `SE-${currentYear}-${String(nouNumero).padStart(4, '0')}`;
+      });
+    }
+
     async function handleCreateTask(e) {
       e.preventDefault();
       const submitBtn = document.getElementById('btn-submit-crear-tasca');
@@ -4215,7 +4279,15 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       const operariId = operariIds.length > 0 ? operariIds[0] : null;
 
       const viaObj = APP_STATE.vies.find(v => via.includes(v.nom)) || { lat: 39.62354, lng: 2.83685 };
-      const newId = `SE-2026-000${APP_STATE.tasks.length + 1}`;
+
+      let newId;
+      try {
+        newId = await getNextTaskIdTransactional();
+      } catch (errTx) {
+        console.warn('Avís generant ID transaccional, utilitzant fallback:', errTx);
+        const currentYear = new Date().getFullYear();
+        newId = `SE-${currentYear}-${String(Date.now()).slice(-4)}`;
+      }
 
       try {
         if (submitBtn) {
@@ -4246,12 +4318,13 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           prioritat,
           nucli,
           via,
-          lat: viaObj.lat + (Math.random() - 0.5) * 0.001,
-          lng: viaObj.lng + (Math.random() - 0.5) * 0.001,
+          lat: viaObj.lat,
+          lng: viaObj.lng,
           estat: operariIds.length > 0 ? 'assignada' : 'pendent',
           operariIds,
           operariId,
           esImportant,
+          tempsTotalSegons: 0,
           tempsTranscorregut: 0,
           teFotoInicial: Boolean(customPhotoData),
           teFotoFinal: false,
@@ -4274,8 +4347,9 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               });
             }
           } catch (err) {
-            console.warn('Avís guardant tasca o adjunts a Firestore:', err);
-            APP_STATE.tasks.unshift(newTask);
+            console.error('Error crític guardant tasca a Firestore:', err);
+            showToast("Error en desar l'ordre de treball a Firestore: " + (err.message || 'Error de connexió o permisos'), 'error');
+            return;
           }
         } else {
           APP_STATE.tasks.unshift(newTask);
@@ -5665,7 +5739,10 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       if (window.FB && window.FB.isReady) {
         const itemToSave = idStr ? APP_STATE.tasquesProgramades.find(p => p.id === idStr) : APP_STATE.tasquesProgramades[0];
         if (itemToSave) {
-          window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques_programades', itemToSave.id), itemToSave, { merge: true }).catch(() => {});
+          window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques_programades', itemToSave.id), itemToSave, { merge: true }).catch(err => {
+            console.error('Error desant rutina a Firestore:', err);
+            showToast("Error en desar la rutina programada a Firestore.", "error");
+          });
         }
       }
 
@@ -5679,7 +5756,10 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
       prog.activa = !prog.activa;
       if (window.FB && window.FB.isReady) {
-        window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques_programades', prog.id), { activa: prog.activa }, { merge: true }).catch(() => {});
+        window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques_programades', prog.id), { activa: prog.activa }, { merge: true }).catch(err => {
+          console.error('Error canviant estat de la rutina a Firestore:', err);
+          showToast("Error en actualitzar l'estat de la rutina a Firestore.", "error");
+        });
       }
       renderProgramadesCards();
     }
@@ -5691,7 +5771,10 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       if (confirm(`Vols eliminar definitivament la rutina periòdica "${prog.titol}"?`)) {
         APP_STATE.tasquesProgramades = APP_STATE.tasquesProgramades.filter(p => p.id !== progId);
         if (window.FB && window.FB.isReady) {
-          window.FB.deleteDoc(window.FB.doc(window.FB.db, 'tasques_programades', progId)).catch(() => {});
+          window.FB.deleteDoc(window.FB.doc(window.FB.db, 'tasques_programades', progId)).catch(err => {
+            console.error('Error eliminant rutina de Firestore:', err);
+            showToast("Error en eliminar la rutina de Firestore.", "error");
+          });
         }
         renderProgramadesCards();
       }
@@ -5714,7 +5797,8 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         return null;
       }
 
-      const newId = `SE-PREV-${Math.floor(1000 + Math.random() * 9000)}`;
+      const execNum = (prog.totalExecucions || 0) + 1;
+      const newId = `SE-PREV-${String(execNum).padStart(4, '0')}`;
       const today = new Date().toISOString().split('T')[0];
 
       const newTask = {
@@ -5726,14 +5810,15 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         prioritat: prog.prioritat || 'normal',
         nucli: prog.nucli,
         via: prog.via,
-        lat: (prog.lat || 39.62410) + (Math.random() - 0.5) * 0.001,
-        lng: (prog.lng || 2.83750) + (Math.random() - 0.5) * 0.001,
+        lat: prog.lat || 39.62410,
+        lng: prog.lng || 2.83750,
         estat: (prog.operariIds && prog.operariIds.length > 0) ? 'assignada' : 'pendent',
         operariIds: [...(prog.operariIds || [])],
         operariId: (prog.operariIds && prog.operariIds.length > 0) ? prog.operariIds[0] : null,
         esImportant: false,
         esProgramada: true,
         frequencia: prog.frequencia,
+        tempsTotalSegons: 0,
         tempsTranscorregut: 0,
         teFotoInicial: false,
         teFotoFinal: false,
@@ -5746,13 +5831,19 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
       APP_STATE.tasks.unshift(newTask);
       prog.darreraExecucio = today;
-      prog.totalExecucions = (prog.totalExecucions || 0) + 1;
+      prog.totalExecucions = execNum;
       prog.properaExecucio = calcularProperaData(today, prog.frequencia);
 
       if (window.FB && window.FB.isReady) {
         const clean = sanitizeForFirestore(newTask);
-        window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques', newId), clean).catch(() => {});
-        window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques_programades', prog.id), prog, { merge: true }).catch(() => {});
+        window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques', newId), clean).catch(err => {
+          console.error('Error desant ordre preventiva a Firestore:', err);
+          showToast("Error en desar l'ordre preventiva a Firestore.", "error");
+        });
+        window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques_programades', prog.id), prog, { merge: true }).catch(err => {
+          console.error('Error actualitzant darrera execució a Firestore:', err);
+          showToast("Error en actualitzar la tasca programada a Firestore.", "error");
+        });
       }
 
       if (!isSilent) {
