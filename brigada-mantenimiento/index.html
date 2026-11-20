@@ -1869,49 +1869,8 @@
       operatorsFilter: 'all',
       kpiFilter: null, // 'obertes' | 'urgents' | 'importants' | 'actius'
       
-      // Personal de manteniment de la brigada (CRUD complet + Bajas temporals en franges de temps)
-      operaris: [
-        { 
-          id: 1, 
-          nom: "Toni Coll", 
-          rol: "Oficial 1ª Obra / Paleteria", 
-          especialitat: "obra_albanileria", 
-          telefon: "611223344", 
-          actiu: true,
-          baixes_temporals: [] 
-        },
-        { 
-          id: 2, 
-          nom: "Joan Bibiloni", 
-          rol: "Especialista Electricitat", 
-          especialitat: "electricitat", 
-          telefon: "622334455", 
-          actiu: true,
-          baixes_temporals: [
-            { id: 101, tipus: "dies_lliures", dataInici: "2026-11-05", dataFi: "2026-11-06", motiu: "Assumptes propis / Permís" }
-          ]
-        },
-        { 
-          id: 3, 
-          nom: "Biel Pou", 
-          rol: "Peó / Neteja Viària", 
-          especialitat: "peo_neteja", 
-          telefon: "633445566", 
-          actiu: true,
-          baixes_temporals: [
-            { id: 102, tipus: "vacances", dataInici: "2026-10-28", dataFi: "2026-11-04", motiu: "Vacances de tardor" }
-          ]
-        },
-        { 
-          id: 4, 
-          nom: "Pere Ramis", 
-          rol: "Oficial Climatització i Calefacció", 
-          especialitat: "climatitzacio", 
-          telefon: "644556677", 
-          actiu: true,
-          baixes_temporals: [] 
-        }
-      ],
+      // Personal de manteniment de la brigada (comença buit, sincronitzat des de Firestore)
+      operaris: [],
 
       // Vies oficials integrades (37)
       vies: [
@@ -1954,203 +1913,11 @@
         { num: 37, codiMun: '—', tipus: 'CAMÍ', codiIne: '—', nom: "Camí de s'Hostalet", nucli: 'Santa Eugènia (Vila)', procedencia: 'Incorporació complementària', alts: '', lat: 39.61750, lng: 2.83800 }
       ],
 
-      tasks: [
-        {
-          id: 'SE-2026-0001',
-          titol: "Reparació de fanal i presa de terra al carrer principal",
-          descripcio: "Fanal intermitent amb perill elèctric davant l'Escoleta municipal. Requereix equip de 2 persones per alçada i seguretat elèctrica.",
-          categoria: "electricitat",
-          prioritat: "urgent",
-          nucli: "Santa Eugènia (Vila)",
-          via: "MAJOR (00103)",
-          lat: 39.62410,
-          lng: 2.83720,
-          estat: "en_curs",
-          operariIds: [2, 1], // Treball en equip: Joan Bibiloni + Toni Coll
-          operariId: 2,
-          esImportant: true,
-          tempsTranscorregut: 3600,
-          fotoInicial: "https://images.unsplash.com/photo-1544724569-5f546fd6f2b5?w=500&auto=format&fit=crop&q=60",
-          fotoFinal: null,
-          signatura: null,
-          creatEl: "2026-10-26T08:30:00Z"
-        },
-        {
-          id: 'SE-2026-0002',
-          titol: "Avaria bomba de calor i aire condicionat a l'Escoleta Infantil",
-          descripcio: "Unitat exterior amb fallada de compressor i fuita de gas refrigerant.",
-          categoria: "climatitzacio",
-          prioritat: "urgent",
-          nucli: "Santa Eugènia (Vila)",
-          via: "ESCOLES, SES (00156)",
-          lat: 39.62580,
-          lng: 2.83850,
-          estat: "assignada",
-          operariIds: [4],
-          operariId: 4,
-          esImportant: true,
-          tempsTranscorregut: 0,
-          fotoInicial: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=500&auto=format&fit=crop&q=60",
-          fotoFinal: null,
-          signatura: null,
-          creatEl: "2026-10-26T09:00:00Z"
-        },
-        {
-          id: 'SE-2026-0003',
-          titol: "Neteja d'esbarzers i manteniment al Camí de Son Mascaró",
-          descripcio: "Visibilitat reduïda a la corba per vegetació salvatge abundant. Feina conjunta de desbrossadora i càrrega.",
-          categoria: "jardineria",
-          prioritat: "alta",
-          nucli: "Santa Eugènia (Vila)",
-          via: "Camí de Son Mascaró",
-          lat: 39.63100,
-          lng: 2.84200,
-          estat: "assignada",
-          operariIds: [1, 3], // Treball en equip: Toni Coll + Biel Pou
-          operariId: 1,
-          esImportant: false,
-          tempsTranscorregut: 0,
-          fotoInicial: "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?w=500&auto=format&fit=crop&q=60",
-          fotoFinal: null,
-          signatura: null,
-          creatEl: "2026-10-26T09:15:00Z"
-        },
-        {
-          id: 'SE-2026-0004',
-          titol: "Fuita a la canonada secundària de la font pública",
-          descripcio: "Pèrdua d'aigua contínua a l'accés rural de Ses Coves.",
-          categoria: "fontaneria",
-          prioritat: "urgent",
-          nucli: "Ses Coves",
-          via: "COVES (ses Coves - 00154)",
-          lat: 39.61189,
-          lng: 2.83104,
-          estat: "pendent",
-          operariIds: [],
-          operariId: null,
-          esImportant: true,
-          tempsTranscorregut: 0,
-          fotoInicial: "https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=500&auto=format&fit=crop&q=60",
-          fotoFinal: null,
-          signatura: null,
-          creatEl: "2026-10-26T07:45:00Z"
-        },
-        {
-          id: 'SE-2026-0005',
-          titol: "Buidatge i reposició de paperes malmeses a la plaça",
-          descripcio: "Revisió general de les paperes i contenidors del nucli d'Olleries.",
-          categoria: "paperes_residus",
-          prioritat: "normal",
-          nucli: "Ses Olleries",
-          via: "OLLERIES (ses Olleries - 00155)",
-          lat: 39.61461,
-          lng: 2.85312,
-          estat: "finalitzada",
-          operariIds: [3],
-          operariId: 3,
-          esImportant: false,
-          tempsTranscorregut: 4500,
-          fotoInicial: "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=500&auto=format&fit=crop&q=60",
-          fotoFinal: "https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=500&auto=format&fit=crop&q=60",
-          signatura: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='40'><path d='M10 20 Q 30 5, 60 25 T 90 20' stroke='black' stroke-width='2' fill='none'/></svg>",
-          nomSignatari: "Miquel Amengual (Cap de Brigada)",
-          creatEl: "2026-10-25T10:00:00Z",
-          tempsFinalitzacio: "2026-10-25T12:00:00Z"
-        }
-      ],
+      // Ordres de treball (comencen buides, sincronitzades en viu des de Firestore)
+      tasks: [],
       programadesFilter: 'all',
-      tasquesProgramades: [
-        {
-          id: 'PROG-001',
-          titol: "Buidatge periòdic de paperes i neteja d'entorns públics",
-          descripcio: "Buidatge i desinfecció de paperes municipals, reposició de bosses de residus i revisió de contenidors als nuclis i zones verdes.",
-          categoria: "paperes_residus",
-          frequencia: "setmanal",
-          diaPreferent: "Dilluns i Divendres",
-          nucli: "Santa Eugènia (Vila)",
-          via: "Plaça Bernat de Santa Eugènia / Carrer Major",
-          lat: 39.62410,
-          lng: 2.83750,
-          prioritat: "normal",
-          operariIds: [3],
-          activa: true,
-          darreraExecucio: "2026-10-24",
-          properaExecucio: "2026-10-31",
-          totalExecucions: 14
-        },
-        {
-          id: 'PROG-002',
-          titol: "Neteja i canvi de filtres del sistema d'osmosi",
-          descripcio: "Revisió de pressió, desinfecció del dipòsit i purga de filtres de sediments i carbó actiu dels punts d'aigua potable.",
-          categoria: "fontaneria",
-          frequencia: "mensual",
-          diaPreferent: "Primer dia feiner de mes",
-          nucli: "Santa Eugènia (Vila)",
-          via: "Edifici Ajuntament i CEIP Santa Eugènia",
-          lat: 39.62354,
-          lng: 2.83685,
-          prioritat: "alta",
-          operariIds: [2, 1],
-          activa: true,
-          darreraExecucio: "2026-10-01",
-          properaExecucio: "2026-11-01",
-          totalExecucions: 8
-        },
-        {
-          id: 'PROG-003',
-          titol: "Control de clor, pH i neteja de bombes de la font municipal",
-          descripcio: "Mesura de nivell de clor i pH, neteja de skimmers i comprovació de filtres a la font ornamental de la plaça i accés a Ses Coves.",
-          categoria: "fontaneria",
-          frequencia: "setmanal",
-          diaPreferent: "Dimecres",
-          nucli: "Ses Coves",
-          via: "Font de ses Coves (00154)",
-          lat: 39.61189,
-          lng: 2.83104,
-          prioritat: "normal",
-          operariIds: [2],
-          activa: true,
-          darreraExecucio: "2026-10-22",
-          properaExecucio: "2026-10-29",
-          totalExecucions: 11
-        },
-        {
-          id: 'PROG-004',
-          titol: "Revisió de quadres elèctrics i fanals de l'enllumenat públic",
-          descripcio: "Inspecció visual de lluminàries LED, rellotges astronòmics i comprovació de línies de baixa tensió al llogaret.",
-          categoria: "electricitat",
-          frequencia: "mensual",
-          diaPreferent: "Segon dimarts de mes",
-          nucli: "Ses Alqueries",
-          via: "ALQUERIES (ses Alqueries - 00153)",
-          lat: 39.62891,
-          lng: 2.84412,
-          prioritat: "normal",
-          operariIds: [4],
-          activa: true,
-          darreraExecucio: "2026-10-10",
-          properaExecucio: "2026-11-10",
-          totalExecucions: 5
-        },
-        {
-          id: 'PROG-005',
-          titol: "Manteniment trimestral de climatització i filtres d'aire",
-          descripcio: "Revisió d'unitats exteriors, desinfecció d'evaporadors i neteja de filtres antipols als despatxos de l'Ajuntament.",
-          categoria: "climatitzacio",
-          frequencia: "trimestral",
-          diaPreferent: "Inici de trimestre natural",
-          nucli: "Santa Eugènia (Vila)",
-          via: "Edifici Ajuntament (Carrer Major)",
-          lat: 39.62354,
-          lng: 2.83685,
-          prioritat: "baixa",
-          operariIds: [4, 1],
-          activa: false,
-          darreraExecucio: "2026-08-01",
-          properaExecucio: "2026-11-01",
-          totalExecucions: 3
-        }
-      ]
+      // Manteniment preventiu (comença buit, sincronitzat des de Firestore per a admin)
+      tasquesProgramades: []
     };
     window.APP_STATE = APP_STATE;
 
@@ -2189,6 +1956,16 @@
     }
 
     function getOperariDisponibilitat(op) {
+      if (!op) {
+        return {
+          actiu: false,
+          isTempAbsent: false,
+          status: 'desconegut',
+          label: 'Desconegut',
+          badgeClass: 'bg-gray-100 text-gray-800 border-gray-200'
+        };
+      }
+
       if (!op.actiu) {
         return {
           actiu: false,
@@ -2196,6 +1973,36 @@
           status: 'baixa_permanent',
           label: 'De Baixa Permanent',
           badgeClass: 'bg-red-100 text-red-800 border-red-200'
+        };
+      }
+
+      const isAdmin = APP_STATE.currentUser && APP_STATE.currentUser.role === 'admin';
+      const isSelf = APP_STATE.currentUser && APP_STATE.currentUser.role === 'operari' && String(APP_STATE.currentUser.operariId) === String(op.id);
+
+      // RGPD Art. 9: Protecció de dades de salut i motius d'absència
+      // Si la consulta la fa un altre operari, només es mostra si està disponible o no disponible
+      if (!isAdmin && !isSelf) {
+        const isDisponible = op.disponible !== false && (!op.baixes_temporals || !op.baixes_temporals.some(b => {
+          const today = new Date().toISOString().split('T')[0];
+          return b.dataInici <= today && today <= b.dataFi;
+        }));
+
+        if (!isDisponible) {
+          return {
+            actiu: false,
+            isTempAbsent: true,
+            status: 'no_disponible',
+            label: 'No disponible',
+            badgeClass: 'bg-amber-100 text-amber-800 border-amber-200'
+          };
+        }
+
+        return {
+          actiu: true,
+          isTempAbsent: false,
+          status: 'disponible',
+          label: 'Disponible',
+          badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200'
         };
       }
 
@@ -2553,16 +2360,40 @@
         // 2. SINCRONITZACIÓ DE PERSONAL I BAIXES TEMPORALS
         // Tot usuari autenticat pot llegir el directori d'operaris
         const operarisCol = collection(db, 'operaris');
-        unsubscribeOperaris = onSnapshot(operarisCol, (snapshot) => {
+        unsubscribeOperaris = onSnapshot(operarisCol, async (snapshot) => {
           if (!snapshot.empty) {
             const remoteOps = [];
             snapshot.forEach(docSnap => {
               const data = docSnap.data();
               delete data.pin; // Garantir que mai es desa o propaga cap PIN en text pla
+              delete data.baixes_temporals; // Garantir que no es filtren dades antigues de salut
               remoteOps.push(data);
             });
             remoteOps.sort((a, b) => a.id - b.id);
             APP_STATE.operaris = remoteOps;
+
+            // B5: RGPD Art. 9 - Carregar absències només per a qui té autorització (Admin o l'operari mateix)
+            if (APP_STATE.currentUser) {
+              const isAdmin = APP_STATE.currentUser.role === 'admin';
+              const myOpId = APP_STATE.currentUser.operariId;
+
+              for (const op of APP_STATE.operaris) {
+                if (isAdmin || (myOpId && String(myOpId) === String(op.id))) {
+                  try {
+                    const absSnap = await getDocs(collection(db, 'operaris', String(op.id), 'absencies'));
+                    op.baixes_temporals = [];
+                    absSnap.forEach(absDoc => {
+                      op.baixes_temporals.push(absDoc.data());
+                    });
+                  } catch (e) {
+                    op.baixes_temporals = op.baixes_temporals || [];
+                  }
+                } else {
+                  op.baixes_temporals = [];
+                }
+              }
+            }
+
             renderOperatorsCards();
             renderLoginOperatorsSelect();
             renderCreateTaskOperatorsSelect();
@@ -4125,7 +3956,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       document.getElementById('modal-baixa-temporal').classList.add('hidden');
     }
 
-    function saveBaixaTemporal(e) {
+    async function saveBaixaTemporal(e) {
       e.preventDefault();
       const opId = parseInt(document.getElementById('baixa-operari-id').value);
       const op = APP_STATE.operaris.find(o => o.id === opId);
@@ -4145,16 +3976,31 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         op.baixes_temporals = [];
       }
 
-      op.baixes_temporals.push({
-        id: Date.now(),
+      const absId = String(Date.now());
+      const novaAbsencia = {
+        id: absId,
         tipus,
         dataInici,
         dataFi,
         motiu
-      });
+      };
+
+      op.baixes_temporals.push(novaAbsencia);
+
+      const today = new Date().toISOString().split('T')[0];
+      const isAbsentAvui = (dataInici <= today && today <= dataFi);
 
       if (window.FB && window.FB.isReady) {
-        window.FB.setDoc(window.FB.doc(window.FB.db, 'operaris', String(op.id)), { baixes_temporals: op.baixes_temporals }, { merge: true }).catch(() => {});
+        try {
+          const absRef = window.FB.doc(window.FB.db, 'operaris', String(op.id), 'absencies', absId);
+          await window.FB.setDoc(absRef, novaAbsencia);
+          if (isAbsentAvui) {
+            await window.FB.setDoc(window.FB.doc(window.FB.db, 'operaris', String(op.id)), { disponible: false }, { merge: true });
+          }
+        } catch (err) {
+          console.error("Error desant absència a Firestore:", err);
+          showToast("Error en desar l'absència a Firestore.", "error");
+        }
       }
 
       closeModalBaixaTemporal();
@@ -4165,7 +4011,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       renderCreateTaskOperatorsSelect();
     }
 
-    function deleteBaixaTemporal(opId, idx) {
+    async function deleteBaixaTemporal(opId, idx) {
       const op = APP_STATE.operaris.find(o => o.id === opId);
       if (!op || !op.baixes_temporals) return;
 
@@ -4173,9 +4019,17 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       const tipusLabel = TIPUS_BAIXA_LABELS[baixa.tipus]?.label || baixa.tipus;
 
       if (confirm(`Vols eliminar l'absència "${tipusLabel}" (${formatDateShort(baixa.dataInici)} - ${formatDateShort(baixa.dataFi)}) de ${op.nom}?`)) {
-        op.baixes_temporals.splice(idx, 1);
-        if (window.FB && window.FB.isReady) {
-          window.FB.setDoc(window.FB.doc(window.FB.db, 'operaris', String(op.id)), { baixes_temporals: op.baixes_temporals }, { merge: true }).catch(() => {});
+        const removed = op.baixes_temporals.splice(idx, 1)[0];
+        if (window.FB && window.FB.isReady && removed) {
+          try {
+            await window.FB.deleteDoc(window.FB.doc(window.FB.db, 'operaris', String(op.id), 'absencies', String(removed.id)));
+            const today = new Date().toISOString().split('T')[0];
+            const hasActiveBaixa = op.baixes_temporals.some(b => b.dataInici <= today && today <= b.dataFi);
+            await window.FB.setDoc(window.FB.doc(window.FB.db, 'operaris', String(op.id)), { disponible: !hasActiveBaixa }, { merge: true });
+          } catch (err) {
+            console.error("Error eliminant absència a Firestore:", err);
+            showToast("Error en eliminar l'absència a Firestore.", "error");
+          }
         }
         renderOperatorsCards();
         renderAdminTasks();

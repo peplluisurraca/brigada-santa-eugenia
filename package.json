@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node brigada-mantenimiento/server.js",
-    "test": "node --test tests/xss.test.mjs tests/offline.test.mjs tests/adjunts.test.mjs tests/usabilitat.test.mjs tests/informes.test.mjs tests/e2e-login.test.mjs",
+    "test": "node --test tests/xss.test.mjs tests/offline.test.mjs tests/adjunts.test.mjs tests/usabilitat.test.mjs tests/informes.test.mjs tests/e2e-login.test.mjs tests/rules-static.test.mjs",
     "test:rules": "node --test tests/rules.test.mjs",
     "build:css": "tailwindcss -i brigada-mantenimiento/css/input.css -o brigada-mantenimiento/css/dist.css --minify",
     "auth:bootstrap": "node scripts/bootstrap-auth.mjs",

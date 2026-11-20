@@ -115,4 +115,118 @@ describe('Firestore Security Rules - Brigada Santa Eugènia', () => {
     // Esborrar tasca
     await assertSucceeds(adminDb.collection('tasques').doc('T-OP2').delete());
   });
+
+  it('7. Operari: NO pot modificar una tasca que ja està en estat finalitzada (B2)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection('tasques').doc('T-FIN').set({
+        id: 'T-FIN',
+        titol: 'Tasca tancada',
+        estat: 'finalitzada',
+        operariIds: [1],
+        teSignatura: true,
+        nomSignatari: 'Cap de Brigada',
+        tempsTotalSegons: 1200
+      });
+    });
+
+    const op1Db = testEnv.authenticatedContext('uid-op1').firestore();
+    await assertFails(op1Db.collection('tasques').doc('T-FIN').update({
+      tempsTotalSegons: 1500
+    }));
+  });
+
+  it('8. Operari: NO pot finalitzar tasca sense teSignatura i nomSignatari no buit (B2)', async () => {
+    const op1Db = testEnv.authenticatedContext('uid-op1').firestore();
+    // Sense signatura: ha de fallar
+    await assertFails(op1Db.collection('tasques').doc('T-OP1').update({
+      estat: 'finalitzada'
+    }));
+    // Amb signatura però sense nom: ha de fallar
+    await assertFails(op1Db.collection('tasques').doc('T-OP1').update({
+      estat: 'finalitzada',
+      teSignatura: true,
+      nomSignatari: ''
+    }));
+    // Amb signatura i nom vàlid: ha de tenir èxit
+    await assertSucceeds(op1Db.collection('tasques').doc('T-OP1').update({
+      estat: 'finalitzada',
+      teSignatura: true,
+      nomSignatari: 'Joan Responsable'
+    }));
+  });
+
+  it('9. Operari: NO pot escriure fotoInicial a la subcol·lecció adjunts (B3)', async () => {
+    const op1Db = testEnv.authenticatedContext('uid-op1').firestore();
+    await assertFails(op1Db.collection('tasques').doc('T-OP1').collection('adjunts').doc('fotoInicial').set({
+      data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
+    }));
+  });
+
+  it('10. Operari: Pot crear fotoFinal i signatura, però NO sobreescriure ni esborrar (B3)', async () => {
+    const op1Db = testEnv.authenticatedContext('uid-op1').firestore();
+    const validImg = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+    
+    // Create: permès
+    await assertSucceeds(op1Db.collection('tasques').doc('T-OP1').collection('adjunts').doc('fotoFinal').set({
+      data: validImg
+    }));
+    
+    // Update: denegat per a operari
+    await assertFails(op1Db.collection('tasques').doc('T-OP1').collection('adjunts').doc('fotoFinal').update({
+      data: validImg
+    }));
+
+    // Delete: denegat per a operari
+    await assertFails(op1Db.collection('tasques').doc('T-OP1').collection('adjunts').doc('fotoFinal').delete());
+  });
+
+  it('11. Operari inactiu (actiu: false): NO pot accedir a cap recurs (B4)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await db.collection('rols').doc('uid-inactiu').set({ rol: 'operari', operariId: 99, nom: 'Operari Inactiu' });
+      await db.collection('operaris').doc('99').set({ id: 99, nom: 'Operari Inactiu', actiu: false });
+      await db.collection('tasques').doc('T-INACTIU').set({
+        id: 'T-INACTIU',
+        titol: 'Tasca d inactiu',
+        estat: 'pendent',
+        operariIds: [99]
+      });
+    });
+
+    const inactiuDb = testEnv.authenticatedContext('uid-inactiu').firestore();
+    await assertFails(inactiuDb.collection('tasques').doc('T-INACTIU').get());
+    await assertFails(inactiuDb.collection('operaris').doc('99').get());
+  });
+
+  it('12. RGPD: Operari NO pot llegir absències d un altre operari a subcol·lecció (B5)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await db.collection('operaris').doc('1').collection('absencies').doc('abs-op1').set({
+        tipus: 'baixa_medica',
+        motiu: 'Motiu mèdic confidencial Op 1'
+      });
+      await db.collection('operaris').doc('2').collection('absencies').doc('abs-op2').set({
+        tipus: 'baixa_medica',
+        motiu: 'Motiu mèdic confidencial Op 2'
+      });
+    });
+
+    const op1Db = testEnv.authenticatedContext('uid-op1').firestore();
+    // Pot llegir la seva pròpia absència
+    await assertSucceeds(op1Db.collection('operaris').doc('1').collection('absencies').doc('abs-op1').get());
+    // NO pot llegir l'absència d'un altre operari
+    await assertFails(op1Db.collection('operaris').doc('2').collection('absencies').doc('abs-op2').get());
+  });
+
+  it('13. Adjunts: Payload no-imatge és rebutjat per expressió regular (B3)', async () => {
+    const op1Db = testEnv.authenticatedContext('uid-op1').firestore();
+    // Text pla o atac XSS no-imatge
+    await assertFails(op1Db.collection('tasques').doc('T-OP1').collection('adjunts').doc('signatura').set({
+      data: '<script>alert("xss")</script>'
+    }));
+    // URL externa
+    await assertFails(op1Db.collection('tasques').doc('T-OP1').collection('adjunts').doc('signatura').set({
+      data: 'https://malicious.site/exploit.png'
+    }));
+  });
 });
