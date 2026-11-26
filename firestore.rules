@@ -111,16 +111,32 @@ service cloud.firestore {
             isOperari() &&
             adjuntId in ['fotoFinal', 'signatura'] &&
             getOperariId() in get(/databases/$(database)/documents/tasques/$(tascaId)).data.operariIds &&
-            get(/databases/$(database)/documents/tasques/$(tascaId)).data.estat != 'finalitzada' &&
-            request.resource.data.data.matches('^data:image/(png|jpeg|webp);base64,.*')
+            get(/databases/$(database)/documents/tasques/$(tascaId)).data.estat != 'finalitzada'
           )
         ) && (
-          request.resource.data.data is string && request.resource.data.data.size() < 972800
+          request.resource.data.data is string &&
+          request.resource.data.data.size() < 972800 &&
+          request.resource.data.data.matches('^data:image/(png|jpeg|webp);base64,.*')
         );
 
-        // L'operari no pot sobreescriure ni esborrar adjunts existents
-        allow update, delete: if isAdmin();
+        // Només l'administrador pot actualitzar adjunts (amb validació de format i mida)
+        allow update: if isAdmin() &&
+          adjuntId in ['fotoInicial', 'fotoFinal', 'signatura'] &&
+          request.resource.data.data is string &&
+          request.resource.data.data.size() < 972800 &&
+          request.resource.data.data.matches('^data:image/(png|jpeg|webp);base64,.*');
+
+        // Només l'administrador pot esborrar adjunts (sense avaluar request.resource)
+        allow delete: if isAdmin();
       }
+    }
+
+    // Nomenclàtor oficial de vies municipals (altes manuals persistents):
+    // - Lectura permesa per a qualsevol usuari autenticat.
+    // - Escriptura reservada estrictament a l'administrador.
+    match /vies/{viaId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     // Tasques programades (manteniment preventiu):

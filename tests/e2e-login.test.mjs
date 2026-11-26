@@ -129,4 +129,84 @@ describe('Fase 8 - Bloc A: Login i Credencials Segures', () => {
     assert.equal(validatePin(' 123456 '), false, "Ha de rebutjar PIN amb espais");
     assert.equal(validatePin('123456'), true, "Ha d'acceptar PIN vàlid de 6 xifres");
   });
+
+  it('A6. Scripts bootstrap-auth.mjs sense contrasenyes ni PINs per defecte', () => {
+    const bootstrapAuthContent = fs.readFileSync('scripts/bootstrap-auth.mjs', 'utf8');
+    assert.doesNotMatch(bootstrapAuthContent, /'AdminSE2026!'/, "bootstrap-auth.mjs no pot contenir 'AdminSE2026!'");
+    assert.doesNotMatch(bootstrapAuthContent, /'123456'/, "bootstrap-auth.mjs no pot contenir '123456'");
+    assert.match(bootstrapAuthContent, /ADMIN_PASSWORD/, "bootstrap-auth.mjs ha d'exigir ADMIN_PASSWORD");
+    assert.match(bootstrapAuthContent, /PIN_OP_1/, "bootstrap-auth.mjs ha d'exigir PIN_OP_1");
+  });
+
+  it('A7. Revocació immediata d\'operari inactiu (actiu: false) a onSnapshot i tolerància offline a onAuthStateChanged', () => {
+    // 1. Revocació immediata a onSnapshot d'operaris
+    assert.match(htmlContent, /if\s*\(!op \|\| op\.actiu === false\)\s*\{[\s\S]*?signOut\(window\.FB\.auth\)/, "onSnapshot d'operaris ha de revocar immediatament la sessió si actiu === false");
+
+    // 2. Tolerància offline (unavailable) a onAuthStateChanged
+    assert.match(htmlContent, /const isOfflineAuthError = \(err\) =>/, "onAuthStateChanged ha de definir isOfflineAuthError");
+    assert.match(htmlContent, /code === 'unavailable'/, "Ha de detectar errors 'unavailable' de Firestore");
+    assert.match(htmlContent, /if \(isOfflineAuthError\(err\)\)[\s\S]*?return;/, "El catch d'onAuthStateChanged no ha d'executar signOut en mode offline");
+  });
+
+  it('A8. Eliminació segura de tasques (modal propi, data-action, getDocs adjunts + Promise.all, sense confirm natiu)', () => {
+    assert.match(htmlContent, /data-action="open-delete-task" data-id="\$\{esc\(task\.id\)\}"/, "La taula admin ha d'incloure el botó d'eliminar amb data-action i data-id escapat");
+    assert.match(htmlContent, /id="modal-confirmar-eliminar-tasca"/, "Ha d'existir el modal propi de confirmació");
+    assert.match(htmlContent, /async function confirmDeleteTask\(\)/, "Ha d'existir confirmDeleteTask()");
+
+    const delFnMatch = htmlContent.match(/async function confirmDeleteTask\(\) \{([\s\S]*?)\n    \}/);
+    assert.ok(delFnMatch, "confirmDeleteTask ha d'estar definit");
+    const delFn = delFnMatch[1];
+    assert.doesNotMatch(delFn, /confirm\(/, "No es pot fer servir confirm() natiu");
+    assert.match(delFn, /getDocs\(adjuntsColRef\)/, "Ha de llistar tots els documents d'adjunts amb getDocs");
+    assert.match(delFn, /Promise\.all\(/, "Ha d'esborrar els adjunts en paral·lel amb Promise.all");
+    assert.ok(delFn.indexOf('adjuntsSnap') < delFn.indexOf("doc(window.FB.db, 'tasques', taskId)"), "Ha d'esborrar adjunts ABANS de la tasca pare");
+    assert.doesNotMatch(delFn, /\.catch\(\(\)\s*=>\s*\{\}\)/, "No pot silenciar errors amb .catch(() => {})");
+  });
+
+  it('A9. Validació XSS/imatges (openReportModal, renderMapMarkers, SVG exclòs, sense Unsplash)', () => {
+    // openReportModal usa safeImageSrc i esc()
+    const reportMatch = htmlContent.match(/function openReportModal\(taskId\) \{([\s\S]*?)\n    \}/);
+    assert.ok(reportMatch, "openReportModal ha d'estar definit");
+    assert.match(reportMatch[1], /safeImageSrc\(fotoAbans\)/, "openReportModal ha de validar fotoAbans amb safeImageSrc");
+    assert.match(reportMatch[1], /safeImageSrc\(fotoDespres\)/, "openReportModal ha de validar fotoDespres amb safeImageSrc");
+    assert.match(reportMatch[1], /safeImageSrc\(signatura\)/, "openReportModal ha de validar signatura amb safeImageSrc");
+    assert.match(reportMatch[1], /src="\$\{esc\(safeFotoAbans\)\}"/, "openReportModal ha d'escapar safeFotoAbans");
+
+    // safeImageSrc rebutja SVG
+    const safeImgMatch = htmlContent.match(/function safeImageSrc\(v\) \{([\s\S]*?)\n    \}/);
+    assert.ok(safeImgMatch, "safeImageSrc ha d'estar definit");
+    const safeImageSrc = new Function('v', safeImgMatch[1]);
+    assert.equal(safeImageSrc('data:image/svg+xml;base64,PHN2Zy8+'), '', "safeImageSrc ha de rebutjar data:image/svg+xml");
+    assert.equal(safeImageSrc('data:image/png;base64,iVBORw0KGgo='), 'data:image/png;base64,iVBORw0KGgo=', "safeImageSrc ha d'acceptar PNG base64");
+
+    // renderMapMarkers escapa waLink i nom d'operari
+    assert.match(htmlContent, /href="\$\{esc\(waLink \|\| '#'\)\}"/, "renderMapMarkers ha d'escapar waLink");
+    assert.match(htmlContent, /Avisar \$\{esc\(String\(op\.nom \|\| ''\)\.split\(' '\)\[0\]\)\}/, "renderMapMarkers ha d'escapar el nom de l'operari");
+
+    // Sense URLs d'Unsplash
+    assert.doesNotMatch(htmlContent, /images\.unsplash\.com/, "No pot quedar cap URL per defecte d'images.unsplash.com");
+  });
+
+  it('A10. Persistència atòmica (writeBatch a confirmBulkReassignment, handleCreateVia, fallback offline ID, @media print i CI)', () => {
+    // confirmBulkReassignment: deduplicació + writeBatch
+    const bulkMatch = htmlContent.match(/async function confirmBulkReassignment\(\) \{([\s\S]*?)\n    \}/);
+    assert.ok(bulkMatch, "confirmBulkReassignment ha de ser async");
+    assert.match(bulkMatch[1], /new Set\(/, "confirmBulkReassignment ha d'evitar duplicats a operariIds");
+    assert.match(bulkMatch[1], /writeBatch\(/, "confirmBulkReassignment ha d'utilitzar writeBatch per atomicidad");
+
+    // handleCreateVia: persistència Firestore
+    const viaMatch = htmlContent.match(/async function handleCreateVia\(e\) \{([\s\S]*?)\n    \}/);
+    assert.ok(viaMatch, "handleCreateVia ha de ser async");
+    assert.match(viaMatch[1], /doc\(window\.FB\.db, 'vies', viaId\)/, "handleCreateVia ha de persistir la via a Firestore");
+
+    // @media print amaga #view-operari-view
+    assert.match(htmlContent, /#view-operari-view/, "@media print ha d'amagar #view-operari-view");
+    assert.doesNotMatch(htmlContent, /#view-operari,/, "No pot quedar el selector antic #view-operari a @media print");
+
+    // CI workflow (a .github/workflows/ci.yml o plantilla a scripts/ci.yml) amb emuladors
+    const ciPath = fs.existsSync('.github/workflows/ci.yml') ? '.github/workflows/ci.yml' : 'scripts/ci.yml';
+    assert.ok(fs.existsSync(ciPath), "Ha d'existir el fitxer de configuració CI");
+    const ciContent = fs.readFileSync(ciPath, 'utf8');
+    assert.match(ciContent, /firebase emulators:exec --only auth,firestore "npm run test:rules/, "CI ha d'executar npm run test:rules amb emuladors");
+  });
 });

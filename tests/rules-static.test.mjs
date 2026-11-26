@@ -35,18 +35,20 @@ describe('Fase 8 - Bloc B: Validació Estricta de firestore.rules i RGPD', () =>
     assert.ok(rules.includes("request.resource.data.nomSignatari.size() <= 120"), 'nomSignatari ha de tenir màxim 120 caràcters');
   });
 
-  it('B3: Protecció de la subcol·lecció adjunts (fotoFinal i signatura en create, mai fotoInicial per operari)', () => {
+  it('B3: Protecció de la subcol·lecció adjunts (create/update validats, delete separat per admin)', () => {
     assert.ok(rules.includes("match /adjunts/{adjuntId}"), 'Ha de protegir la subcol·lecció adjunts');
     assert.ok(rules.includes("allow create:"), 'Ha de definir allow create específic per a adjunts');
+    assert.ok(rules.includes("allow update: if isAdmin()"), 'Només admin pot actualitzar adjunts amb validació');
+    assert.ok(rules.includes("allow delete: if isAdmin();"), 'allow delete ha d estar separat per permetre esborrat admin sense request.resource');
     assert.ok(rules.includes("adjuntId in ['fotoFinal', 'signatura']"), 'Operari només pot crear fotoFinal o signatura');
     assert.ok(rules.includes("request.resource.data.data.matches('^data:image/(png|jpeg|webp);base64,.*')"), 'Ha d\'exigir que el payload sigui imatge base64 vàlida');
-    assert.ok(rules.includes("allow update, delete: if isAdmin();"), 'Operari mai pot sobreescriure ni eliminar adjunts existents');
   });
 
-  it('B4: Validació d\'estat actiu a isOperari()', () => {
+  it('B4: Validació d\'estat actiu a isOperari() amb comprovació exists()', () => {
     const isOperariMatch = rules.match(/function isOperari\(\)[\s\S]*?\}/);
     assert.ok(isOperariMatch, 'Ha de contenir la funció isOperari()');
     const funcBody = isOperariMatch[0];
+    assert.ok(funcBody.includes('exists(/databases/$(database)/documents/operaris/'), 'isOperari ha de comprovar exists(...) abans de get(...)');
     assert.ok(funcBody.includes('.data.actiu == true'), 'isOperari ha de validar que operaris/{id}.actiu == true');
   });
 
@@ -56,7 +58,8 @@ describe('Fase 8 - Bloc B: Validació Estricta de firestore.rules i RGPD', () =>
     assert.ok(rules.includes("allow write: if isAdmin();"), 'Només l\'administrador pot escriure absències');
   });
 
-  it('E3: Regles per a comptadors transaccionals atòmics', () => {
+  it('E3: Regles per a comptadors transaccionals atòmics i col·lecció vies', () => {
     assert.ok(rules.includes("match /comptadors/{comptadorId}"), 'Ha de definir regles per a comptadors transaccionals');
+    assert.ok(rules.includes("match /vies/{viaId}"), 'Ha de definir regles per a la col·lecció vies');
   });
 });

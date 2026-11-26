@@ -36,7 +36,7 @@
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { 
       getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache,
-      collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where,
+      collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, writeBatch, onSnapshot, query, where,
       runTransaction, connectFirestoreEmulator 
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
@@ -69,6 +69,7 @@
         addDoc,
         updateDoc,
         deleteDoc,
+        writeBatch,
         onSnapshot,
         query,
         where,
@@ -166,7 +167,7 @@
       header, nav, #app-navigation, #main-nav, #conn-status,
       #view-login, #view-admin-dashboard, #view-alta-incidencia,
       #view-gestor-programades, #view-gestor-nomenclator, #view-gestor-operaris,
-      #view-informes-analitica, #view-operari, #bottom-nav,
+      #view-informes-analitica, #view-operari-view, #bottom-nav,
       #toast-container, .no-print, .hidden {
         display: none !important;
       }
@@ -1400,6 +1401,46 @@
     </div>
   </div>
   <!-- ========================================================================= -->
+  <!-- MODAL: CONFIRMACIÓ D'ELIMINACIÓ D'ORDRE DE TREBALL (SENSE confirm() NATIU) -->
+  <!-- ========================================================================= -->
+  <div id="modal-confirmar-eliminar-tasca" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-9 h-9 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
+            <i data-lucide="trash-2" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-[#1D3557]">Eliminar Ordre de Treball</h3>
+            <p id="delete-tasca-codi-badge" class="text-xs text-gray-500 font-mono font-semibold">-</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeDeleteTaskModal()" class="text-gray-400 hover:text-gray-600 p-1 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="bg-red-50 border border-red-200 p-3.5 rounded-xl text-xs text-red-900 space-y-1.5">
+        <p class="font-bold flex items-center space-x-1.5">
+          <i data-lucide="alert-triangle" class="w-4 h-4 text-red-600 flex-shrink-0"></i>
+          <span>Aquesta acció és permanent i no es pot desfer.</span>
+        </p>
+        <p>S'eliminaran tots els adjunts associats (fotografies i signatura) i el registre complet de l'ordre:</p>
+        <p id="delete-tasca-titol-preview" class="font-semibold text-[#1D3557] bg-white/80 px-2.5 py-1.5 rounded-lg border border-red-100">-</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 pt-2">
+        <button type="button" onclick="closeDeleteTaskModal()" class="min-touch py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs">
+          Cancel·lar
+        </button>
+        <button type="button" id="btn-confirmar-eliminar-tasca" onclick="confirmDeleteTask()" class="min-touch py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-md text-xs flex items-center justify-center space-x-1.5">
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
+          <span>Eliminar definitivament</span>
+        </button>
+      </div>
+    </div>
+  </div>
+  <!-- ========================================================================= -->
   <!-- MODAL: PROGRAMAR BAIXA / ASSÈNCIA TEMPORAL (VACANCES, MÈDICA, DIES LLIURES) -->
   <!-- ========================================================================= -->
   <div id="modal-baixa-temporal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
@@ -2304,6 +2345,7 @@
     let unsubscribeTasques = null;
     let unsubscribeOperaris = null;
     let unsubscribeProgramades = null;
+    let unsubscribeVies = null;
 
     function cleanupFirebaseSync() {
       if (unsubscribeTasques) {
@@ -2317,6 +2359,10 @@
       if (unsubscribeProgramades) {
         unsubscribeProgramades();
         unsubscribeProgramades = null;
+      }
+      if (unsubscribeVies) {
+        unsubscribeVies();
+        unsubscribeVies = null;
       }
       isFirebaseConnected = false;
       const statusText = document.getElementById('conn-status-text');
@@ -2420,11 +2466,17 @@
             }
 
             if (APP_STATE.currentUser && APP_STATE.currentUser.role === 'operari') {
-              const op = APP_STATE.operaris.find(o => o.id === APP_STATE.currentUser.operariId);
-              if (op) {
-                APP_STATE.activeOperari = op;
-                updateOperariHeaderUI(op);
+              const op = APP_STATE.operaris.find(o => String(o.id) === String(APP_STATE.currentUser.operariId));
+              if (!op || op.actiu === false) {
+                showToast("Aquest treballador ha estat donat de baixa. S'ha tancat la sessió.", "warning");
+                cleanupFirebaseSync();
+                if (window.FB && window.FB.auth && window.FB.signOut) {
+                  await window.FB.signOut(window.FB.auth);
+                }
+                return;
               }
+              APP_STATE.activeOperari = op;
+              updateOperariHeaderUI(op);
             }
           }
         }, (err) => {
@@ -2446,6 +2498,23 @@
             console.warn('Avís Firestore (Preventiu):', err.message);
           });
         }
+
+        // 4. SINCRONITZACIÓ DE VIES MANUALS DEL NOMENCLÀTOR
+        const viesCol = collection(db, 'vies');
+        unsubscribeVies = onSnapshot(viesCol, (snapshot) => {
+          if (snapshot.empty) return;
+          const baseVies = APP_STATE.vies.filter(v => v.procedencia !== 'Alta Manual Administrador');
+          const remoteVies = [];
+          snapshot.forEach(docSnap => {
+            remoteVies.push({ id: docSnap.id, ...docSnap.data() });
+          });
+          remoteVies.sort((a, b) => (Number(a.num) || 0) - (Number(b.num) || 0));
+          APP_STATE.vies = [...baseVies, ...remoteVies];
+          renderNomenclatorTable();
+          updateStreetSelector();
+        }, (err) => {
+          console.warn('Avís Firestore (Vies):', err.message);
+        });
 
       } catch (e) {
         console.warn('Error inicialitzant sincronització Firebase:', e);
@@ -2583,6 +2652,9 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       switch (action) {
         case 'open-edit-task':
           if (id) openEditTaskModal(id);
+          break;
+        case 'open-delete-task':
+          if (id) openDeleteTaskModal(id);
           break;
         case 'open-report':
           if (id) openReportModal(id);
@@ -2830,8 +2902,8 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           waButtonsHtml = assignedOps.map(op => {
             const waLink = getTaskWhatsAppLink(task, op);
             return `
-              <a href="${waLink}" target="_blank" rel="noopener noreferrer" style="background: #25D366; color: white; padding: 4px 6px; border-radius: 5px; font-size: 9px; font-weight: bold; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 3px; margin-top: 3px;">
-                💬 Avisar ${op.nom.split(' ')[0]} (WhatsApp)
+              <a href="${esc(waLink || '#')}" target="_blank" rel="noopener noreferrer" style="background: #25D366; color: white; padding: 4px 6px; border-radius: 5px; font-size: 9px; font-weight: bold; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 3px; margin-top: 3px;">
+                💬 Avisar ${esc(String(op.nom || '').split(' ')[0])} (WhatsApp)
               </a>
             `;
           }).join('');
@@ -3209,6 +3281,15 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
       const { auth, db, doc, getDoc, signOut, onAuthStateChanged } = window.FB;
 
+      const isOfflineAuthError = (err) => {
+        const code = String(err?.code || '');
+        const msg = String(err?.message || '').toLowerCase();
+        return code === 'unavailable' ||
+          code === 'failed-precondition' ||
+          msg.includes('client is offline') ||
+          (typeof navigator !== 'undefined' && navigator.onLine === false);
+      };
+
       onAuthStateChanged(auth, async (user) => {
         if (user) {
           try {
@@ -3227,6 +3308,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               } catch (err) {
                 lastRoleErr = err;
                 console.warn(`Intent ${attempt}/5 de recuperació de rol fallit:`, err);
+                if (isOfflineAuthError(err)) break;
                 if (attempt < 5) {
                   await new Promise(r => setTimeout(r, attempt * 500));
                 }
@@ -3234,6 +3316,11 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
             }
 
             if (!roleDocSnap || !roleDocSnap.exists()) {
+              if (lastRoleErr && isOfflineAuthError(lastRoleErr)) {
+                console.warn("Sense connexió en verificar el rol; es manté la sessió activa:", lastRoleErr);
+                showToast("Sense cobertura: mantenim la sessió oberta fins a recuperar la connexió.", "warning");
+                return;
+              }
               if (lastRoleErr) {
                 console.error("Error recuperant el document de rol després de 5 intents:", lastRoleErr);
                 showToast("Error de verificació de credencials. Si us plau, torna a iniciar la sessió.", "error");
@@ -3257,16 +3344,19 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               APP_STATE.currentRole = 'admin';
               APP_STATE.activeOperari = null;
             } else if (roleData.rol === 'operari') {
-              // Comprovació de seguretat d'operari actiu (A5 / B4)
-              let op = APP_STATE.operaris.find(o => o.id === roleData.operariId);
-              if (!op) {
-                try {
-                  const opDocSnap = await getDoc(doc(db, 'operaris', String(roleData.operariId)));
-                  if (opDocSnap.exists()) {
-                    op = opDocSnap.data();
-                  }
-                } catch (e) {
-                  console.warn("Avís consultant document d'operari:", e);
+              // Comprovació de seguretat d'operari actiu directament a Firestore operaris/{operariId}
+              let op = null;
+              try {
+                const opDocSnap = await getDoc(doc(db, 'operaris', String(roleData.operariId)));
+                if (opDocSnap.exists()) {
+                  op = opDocSnap.data();
+                }
+              } catch (opErr) {
+                if (isOfflineAuthError(opErr)) {
+                  console.warn("Sense connexió consultant operaris/{id}; s'utilitza estat en memòria:", opErr);
+                  op = APP_STATE.operaris.find(o => String(o.id) === String(roleData.operariId)) || null;
+                } else {
+                  throw opErr;
                 }
               }
 
@@ -3291,6 +3381,10 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
             initFirebaseSync();
           } catch (err) {
             console.error("Error determinant el rol de l'usuari:", err);
+            if (isOfflineAuthError(err)) {
+              showToast("Sense connexió a la xarxa. Es manté la sessió activa fins a recuperar cobertura.", "warning");
+              return;
+            }
             showToast("S'ha produït un error en comprovar els permisos de la sessió.", "error");
             cleanupFirebaseSync();
             await signOut(auth);
@@ -3563,6 +3657,9 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               <button data-action="open-report" data-id="${esc(task.id)}" title="Generar Informe / PDF" class="p-1.5 text-gray-600 hover:text-[#1D3557] rounded-lg hover:bg-gray-100 inline-flex min-touch">
                 <i data-lucide="file-text" class="w-4 h-4"></i>
               </button>
+              <button data-action="open-delete-task" data-id="${esc(task.id)}" title="Eliminar Ordre de Treball" class="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg inline-flex min-touch" aria-label="Eliminar ordre ${esc(task.id)}">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
             </td>
           </tr>
         `;
@@ -3570,6 +3667,99 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
       renderMapMarkers();
       lucide.createIcons();
+    }
+
+    // -------------------------------------------------------------------------
+    // ELIMINACIÓ SEGURA D'ORDRES DE TREBALL I ADJUNTS (PANELL ADMINISTRADOR)
+    // -------------------------------------------------------------------------
+    let pendingDeleteTaskId = null;
+
+    function openDeleteTaskModal(taskId) {
+      if (!APP_STATE.currentUser || APP_STATE.currentUser.role !== 'admin') {
+        showToast("Només l'administrador pot eliminar ordres de treball.", "warning");
+        return;
+      }
+      const task = APP_STATE.tasks.find(t => String(t.id) === String(taskId));
+      if (!task) {
+        showToast("No s'ha trobat l'ordre seleccionada.", "warning");
+        return;
+      }
+      pendingDeleteTaskId = String(task.id);
+      const badgeEl = document.getElementById('delete-tasca-codi-badge');
+      const titleEl = document.getElementById('delete-tasca-titol-preview');
+      if (badgeEl) badgeEl.innerText = `${task.id} · ${task.nucli || 'Santa Eugènia'}`;
+      if (titleEl) titleEl.innerText = task.titol || '-';
+
+      const modal = document.getElementById('modal-confirmar-eliminar-tasca');
+      if (modal) {
+        modal.classList.remove('hidden');
+        lucide.createIcons();
+      }
+    }
+
+    function closeDeleteTaskModal() {
+      pendingDeleteTaskId = null;
+      const modal = document.getElementById('modal-confirmar-eliminar-tasca');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function confirmDeleteTask() {
+      if (!pendingDeleteTaskId) return;
+      if (!APP_STATE.currentUser || APP_STATE.currentUser.role !== 'admin') {
+        showToast("Accés denegat: només l'administrador pot eliminar ordres.", "error");
+        closeDeleteTaskModal();
+        return;
+      }
+
+      const taskId = String(pendingDeleteTaskId);
+      const btn = document.getElementById('btn-confirmar-eliminar-tasca');
+      const originalHtml = btn ? btn.innerHTML : '';
+
+      try {
+        if (btn) {
+          btn.disabled = true;
+          btn.classList.add('opacity-75', 'cursor-not-allowed');
+          btn.innerHTML = `<span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span><span>Eliminant...</span>`;
+        }
+
+        if (window.FB && window.FB.isReady) {
+          // 1. Llegir i eliminar tots els adjunts existents a tasques/{id}/adjunts
+          const adjuntsColRef = window.FB.collection(window.FB.db, 'tasques', taskId, 'adjunts');
+          const adjuntsSnap = await window.FB.getDocs(adjuntsColRef);
+          if (!adjuntsSnap.empty) {
+            await Promise.all(
+              adjuntsSnap.docs.map(adjDoc => window.FB.deleteDoc(adjDoc.ref))
+            );
+          }
+
+          // 2. Eliminar el document principal tasques/{id}
+          await window.FB.deleteDoc(window.FB.doc(window.FB.db, 'tasques', taskId));
+        }
+
+        // 3. Netejar memòria cau local i refrescar vistes
+        ADJUNTS_CACHE.delete(`${taskId}_fotoInicial`);
+        ADJUNTS_CACHE.delete(`${taskId}_fotoFinal`);
+        ADJUNTS_CACHE.delete(`${taskId}_signatura`);
+        APP_STATE.tasks = APP_STATE.tasks.filter(t => String(t.id) !== taskId);
+
+        closeDeleteTaskModal();
+        renderAdminTasks();
+        renderOperariScreen();
+        if (APP_STATE.currentView === 'informes-analitica') {
+          renderInformesAnalitica();
+        }
+        showToast(`Ordre ${taskId} i els seus adjunts eliminats correctament.`, "success");
+      } catch (err) {
+        console.error(`Error eliminant la tasca ${taskId}:`, err);
+        showToast(`Error eliminant l'ordre ${taskId}: ${err?.message || 'Error desconegut'}`, "error");
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.classList.remove('opacity-75', 'cursor-not-allowed');
+          btn.innerHTML = originalHtml;
+          lucide.createIcons();
+        }
+      }
     }
 
     // -------------------------------------------------------------------------
@@ -4139,7 +4329,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       bulkSourceOperariId = null;
     }
 
-    function confirmBulkReassignment() {
+    async function confirmBulkReassignment() {
       const destSelect = document.getElementById('bulk-desti-select');
       const targetOperariId = parseInt(destSelect.value);
       const targetOperari = APP_STATE.operaris.find(o => o.id === targetOperariId);
@@ -4147,26 +4337,70 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
       if (!targetOperari || !sourceOperari) return;
 
-      let transferredCount = 0;
+      const updatedTasks = [];
       APP_STATE.tasks.forEach(task => {
         const ids = task.operariIds && task.operariIds.length > 0 
           ? task.operariIds 
           : (task.operariId ? [task.operariId] : []);
 
         if (ids.includes(bulkSourceOperariId) && (task.estat === 'pendent' || task.estat === 'assignada')) {
-          task.operariIds = ids.map(id => id === bulkSourceOperariId ? targetOperariId : id);
-          task.operariId = task.operariIds[0] || targetOperariId;
-          task.estat = 'assignada';
-          transferredCount++;
+          const newOperariIds = [...new Set(ids.map(id => id === bulkSourceOperariId ? targetOperariId : id))];
+          const newOperariId = newOperariIds[0] || targetOperariId;
+          updatedTasks.push({
+            task,
+            operariIds: newOperariIds,
+            operariId: newOperariId,
+            estat: 'assignada'
+          });
         }
       });
 
-      closeBulkReassignModal();
-      showToast(`Reassignació en bloc exitosa: S'han transferit ${transferredCount} tasques de ${sourceOperari.nom} a ${targetOperari.nom}.`, "success");
+      if (updatedTasks.length === 0) {
+        closeBulkReassignModal();
+        showToast(`No hi ha ordres pendents o assignades per transferir.`, "info");
+        return;
+      }
 
-      renderOperatorsCards();
-      renderAdminTasks();
-      renderOperariScreen();
+      try {
+        if (window.FB && window.FB.isReady) {
+          if (window.FB.writeBatch) {
+            const batch = window.FB.writeBatch(window.FB.db);
+            updatedTasks.forEach(item => {
+              const taskRef = window.FB.doc(window.FB.db, 'tasques', String(item.task.id));
+              batch.update(taskRef, {
+                operariIds: item.operariIds,
+                operariId: item.operariId,
+                estat: item.estat
+              });
+            });
+            await batch.commit();
+          } else {
+            await Promise.all(updatedTasks.map(item =>
+              window.FB.updateDoc(window.FB.doc(window.FB.db, 'tasques', String(item.task.id)), {
+                operariIds: item.operariIds,
+                operariId: item.operariId,
+                estat: item.estat
+              })
+            ));
+          }
+        }
+
+        updatedTasks.forEach(item => {
+          item.task.operariIds = item.operariIds;
+          item.task.operariId = item.operariId;
+          item.task.estat = item.estat;
+        });
+
+        closeBulkReassignModal();
+        showToast(`Reassignació en bloc exitosa: S'han transferit ${updatedTasks.length} tasques de ${sourceOperari.nom} a ${targetOperari.nom}.`, "success");
+
+        renderOperatorsCards();
+        renderAdminTasks();
+        renderOperariScreen();
+      } catch (err) {
+        console.error('Error persistint la reassignació en bloc a Firestore:', err);
+        showToast(`Error desant la reassignació en bloc: ${err?.message || 'Error de xarxa o permisos'}`, "error");
+      }
     }
 
     // -------------------------------------------------------------------------
@@ -4252,9 +4486,10 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
     }
 
     // E3: Generador transaccional atòmic d'identificadors d'ordre municipal (SE-YYYY-NNNN)
+    // Amb fallback segur en mode offline (on runTransaction de Firestore no pot operar)
     async function getNextTaskIdTransactional() {
       const currentYear = new Date().getFullYear();
-      if (!window.FB || !window.FB.isReady || !window.FB.runTransaction) {
+      const generateLocalFallbackId = () => {
         let maxNum = 0;
         APP_STATE.tasks.forEach(t => {
           const m = String(t.id).match(/^SE-(\d{4})-(\d+)$/);
@@ -4264,31 +4499,41 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         });
         const nextNum = maxNum + 1;
         return `SE-${currentYear}-${String(nextNum).padStart(4, '0')}`;
+      };
+
+      const isOffline = (typeof navigator !== 'undefined' && navigator.onLine === false);
+      if (!window.FB || !window.FB.isReady || !window.FB.runTransaction || isOffline) {
+        return generateLocalFallbackId();
       }
 
-      const comptadorRef = window.FB.doc(window.FB.db, 'comptadors', 'tasques');
-      return await window.FB.runTransaction(window.FB.db, async (transaction) => {
-        const comptadorSnap = await transaction.get(comptadorRef);
-        let darrerNumero = 0;
-        let ultimAny = currentYear;
+      try {
+        const comptadorRef = window.FB.doc(window.FB.db, 'comptadors', 'tasques');
+        return await window.FB.runTransaction(window.FB.db, async (transaction) => {
+          const comptadorSnap = await transaction.get(comptadorRef);
+          let darrerNumero = 0;
+          let ultimAny = currentYear;
 
-        if (comptadorSnap.exists()) {
-          const data = comptadorSnap.data();
-          ultimAny = data.ultimAny || currentYear;
-          if (ultimAny === currentYear) {
-            darrerNumero = Number(data.darrerNumero) || 0;
+          if (comptadorSnap.exists()) {
+            const data = comptadorSnap.data();
+            ultimAny = data.ultimAny || currentYear;
+            if (ultimAny === currentYear) {
+              darrerNumero = Number(data.darrerNumero) || 0;
+            }
           }
-        }
 
-        const nouNumero = darrerNumero + 1;
-        transaction.set(comptadorRef, {
-          ultimAny: currentYear,
-          darrerNumero: nouNumero,
-          actualitzatEl: new Date().toISOString()
-        }, { merge: true });
+          const nouNumero = darrerNumero + 1;
+          transaction.set(comptadorRef, {
+            ultimAny: currentYear,
+            darrerNumero: nouNumero,
+            actualitzatEl: new Date().toISOString()
+          }, { merge: true });
 
-        return `SE-${currentYear}-${String(nouNumero).padStart(4, '0')}`;
-      });
+          return `SE-${currentYear}-${String(nouNumero).padStart(4, '0')}`;
+        });
+      } catch (err) {
+        console.warn('Avís runTransaction (possiblement offline), usant fallback local:', err);
+        return generateLocalFallbackId();
+      }
     }
 
     async function handleCreateTask(e) {
@@ -4329,7 +4574,6 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           `;
         }
 
-        let fotoInicialUrl = "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=500&auto=format&fit=crop&q=60";
         let customPhotoData = null;
         const fileInput = document.getElementById('input-foto-inicial');
         if (fileInput && fileInput.files && fileInput.files[0]) {
@@ -4359,7 +4603,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           teFotoInicial: Boolean(customPhotoData),
           teFotoFinal: false,
           teSignatura: false,
-          fotoInicial: customPhotoData ? null : fotoInicialUrl,
+          fotoInicial: null,
           fotoFinal: null,
           signatura: null,
           creatEl: new Date().toISOString()
@@ -5373,19 +5617,22 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         carregarAdjunt(task.id, 'fotoFinal'),
         carregarAdjunt(task.id, 'signatura')
       ]).then(([fotoAbans, fotoDespres, signatura]) => {
+        const safeFotoAbans = safeImageSrc(fotoAbans);
+        const safeFotoDespres = safeImageSrc(fotoDespres);
+        const safeSignatura = safeImageSrc(signatura);
         if (fotoAbansBox) {
-          fotoAbansBox.innerHTML = fotoAbans 
-            ? `<img src="${fotoAbans}" class="w-full h-full object-cover" />`
+          fotoAbansBox.innerHTML = safeFotoAbans
+            ? `<img src="${esc(safeFotoAbans)}" class="w-full h-full object-cover" />`
             : `<span class="text-xs text-gray-400">Sense foto inicial</span>`;
         }
         if (fotoDespresBox) {
-          fotoDespresBox.innerHTML = fotoDespres 
-            ? `<img src="${fotoDespres}" class="w-full h-full object-cover" />`
+          fotoDespresBox.innerHTML = safeFotoDespres
+            ? `<img src="${esc(safeFotoDespres)}" class="w-full h-full object-cover" />`
             : `<span class="text-xs text-gray-400">Sense foto final</span>`;
         }
         if (firmaBox) {
-          firmaBox.innerHTML = signatura 
-            ? `<img src="${signatura}" class="max-h-16 mx-auto object-contain" />`
+          firmaBox.innerHTML = safeSignatura
+            ? `<img src="${esc(safeSignatura)}" class="max-h-16 mx-auto object-contain" />`
             : `<span class="text-xs text-gray-400 italic">Signatura electrònica municipal</span>`;
         }
       });
@@ -5484,16 +5731,21 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       document.getElementById('modal-afegir-via').classList.add('hidden');
     }
 
-    function handleCreateVia(e) {
+    async function handleCreateVia(e) {
       e.preventDefault();
       const nucli = document.getElementById('via-nucli').value;
       const tipus = document.getElementById('via-tipus').value;
-      const nom = document.getElementById('via-nom').value;
+      const nom = document.getElementById('via-nom').value.trim();
       const codiMun = document.getElementById('via-codi-mun').value || '—';
       const codiIne = document.getElementById('via-codi-ine').value || '—';
 
+      const maxNum = APP_STATE.vies.reduce((acc, v) => Math.max(acc, Number(v.num) || 0), 0);
+      const nextNum = maxNum + 1;
+      const viaId = `via-${nextNum}-${Date.now()}`;
+
       const newEntry = {
-        num: APP_STATE.vies.length + 1,
+        id: viaId,
+        num: nextNum,
         codiMun,
         tipus,
         codiIne,
@@ -5502,14 +5754,26 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         procedencia: 'Alta Manual Administrador',
         alts: '',
         lat: 39.62354,
-        lng: 2.83685
+        lng: 2.83685,
+        creatEl: new Date().toISOString()
       };
 
-      APP_STATE.vies.push(newEntry);
-      closeModalAddVia();
-      renderNomenclatorTable();
-      updateStreetSelector();
-      showToast(`Via "${nom}" afegida correctament al nomenclàtor.`, 'success');
+      try {
+        if (window.FB && window.FB.isReady) {
+          await window.FB.setDoc(window.FB.doc(window.FB.db, 'vies', viaId), newEntry);
+        }
+
+        if (!APP_STATE.vies.some(v => v.id === viaId)) {
+          APP_STATE.vies.push(newEntry);
+        }
+        closeModalAddVia();
+        renderNomenclatorTable();
+        updateStreetSelector();
+        showToast(`Via "${nom}" afegida i desada correctament al nomenclàtor.`, 'success');
+      } catch (err) {
+        console.error('Error desant la nova via a Firestore:', err);
+        showToast(`Error desant la via "${nom}": ${err?.message || 'Error de permisos o xarxa'}`, 'error');
+      }
     }
 
     // -------------------------------------------------------------------------

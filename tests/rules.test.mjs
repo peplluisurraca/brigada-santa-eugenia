@@ -228,5 +228,44 @@ describe('Firestore Security Rules - Brigada Santa Eugènia', () => {
     await assertFails(op1Db.collection('tasques').doc('T-OP1').collection('adjunts').doc('signatura').set({
       data: 'https://malicious.site/exploit.png'
     }));
+    // SVG (bloquejat per prevenció XSS)
+    await assertFails(op1Db.collection('tasques').doc('T-OP1').collection('adjunts').doc('signatura').set({
+      data: 'data:image/svg+xml;base64,PHN2Zy8+'
+    }));
+  });
+
+  it('14. Admin pot esborrar adjunts i la tasca pare en cascada (operari denegat)', async () => {
+    const validImg = 'data:image/jpeg;base64,/9j/4AAQSkZJRg==';
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await db.collection('tasques').doc('T-OP1').collection('adjunts').doc('fotoInicial').set({ data: validImg });
+      await db.collection('tasques').doc('T-OP1').collection('adjunts').doc('fotoFinal').set({ data: validImg });
+    });
+
+    const op1Db = testEnv.authenticatedContext('uid-op1').firestore();
+    const adminDb = testEnv.authenticatedContext('uid-admin').firestore();
+
+    // Operari no pot esborrar adjunts ni tasques
+    await assertFails(op1Db.collection('tasques').doc('T-OP1').collection('adjunts').doc('fotoInicial').delete());
+    await assertFails(op1Db.collection('tasques').doc('T-OP1').delete());
+
+    // Admin sí que pot esborrar adjunts (allow delete separat) i després la tasca
+    await assertSucceeds(adminDb.collection('tasques').doc('T-OP1').collection('adjunts').doc('fotoInicial').delete());
+    await assertSucceeds(adminDb.collection('tasques').doc('T-OP1').collection('adjunts').doc('fotoFinal').delete());
+    await assertSucceeds(adminDb.collection('tasques').doc('T-OP1').delete());
+  });
+
+  it('15. Vies municipals i comptadors: lectura autenticada a vies, escriptura només admin', async () => {
+    const op1Db = testEnv.authenticatedContext('uid-op1').firestore();
+    const adminDb = testEnv.authenticatedContext('uid-admin').firestore();
+
+    // Admin pot crear una via i escriure comptadors
+    await assertSucceeds(adminDb.collection('vies').doc('via-99').set({ nom: 'CARRER NOU', nucli: 'Santa Eugènia (Vila)' }));
+    await assertSucceeds(adminDb.collection('comptadors').doc('tasques').set({ ultimAny: 2026, darrerNumero: 1 }));
+
+    // Operari actiu pot llegir vies però NO escriure vies ni comptadors
+    await assertSucceeds(op1Db.collection('vies').doc('via-99').get());
+    await assertFails(op1Db.collection('vies').doc('via-100').set({ nom: 'NO PERMÈS' }));
+    await assertFails(op1Db.collection('comptadors').doc('tasques').get());
   });
 });
