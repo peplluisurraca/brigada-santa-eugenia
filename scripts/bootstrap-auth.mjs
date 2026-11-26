@@ -46,18 +46,36 @@ if (process.env.SERVICE_ACCOUNT_KEY && fs.existsSync(process.env.SERVICE_ACCOUNT
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// Validació estricta de variables d'entorn (sense contrasenyes ni PINs per defecte)
+const initialOpPin = process.env.OPERARI_INITIAL_PIN || '';
+const getOpPin = (num) => process.env[`PIN_OP_${num}`] || initialOpPin;
+
+const missingEnv = [];
+if (!process.env.ADMIN_PASSWORD) missingEnv.push('ADMIN_PASSWORD');
+for (let i = 1; i <= 6; i++) {
+  if (!getOpPin(i)) missingEnv.push(`PIN_OP_${i} (o OPERARI_INITIAL_PIN)`);
+}
+
+if (missingEnv.length > 0) {
+  console.error(`❌ Error de seguretat: Falten variables d'entorn obligatòries: ${missingEnv.join(', ')}`);
+  console.error("   No es permeten contrasenyes per defecte. Defineix-les abans d'executar el script.");
+  process.exit(1);
+}
+
 const ADMIN_USER = {
-  email: process.env.ADMIN_EMAIL || 'admin@brigada-santa-eugenia.local',
-  password: process.env.ADMIN_PASSWORD || 'AdminSE2026!',
+  email: process.env.ADMIN_EMAIL || 'peplluisurraca@ajsantaeugenia.net',
+  password: process.env.ADMIN_PASSWORD,
   displayName: 'Cap de Brigada',
   rol: 'admin'
 };
 
 const OPERARIS = [
-  { id: 1, nom: 'Toni Coll', pin: process.env.PIN_OP_1 || '123456', rol: 'operari' },
-  { id: 2, nom: 'Joan Bibiloni', pin: process.env.PIN_OP_2 || '123456', rol: 'operari' },
-  { id: 3, nom: 'Biel Pou', pin: process.env.PIN_OP_3 || '123456', rol: 'operari' },
-  { id: 4, nom: 'Pere Ramis', pin: process.env.PIN_OP_4 || '123456', rol: 'operari' }
+  { id: 1, nom: 'Nofre Torrens', pin: getOpPin(1), rol: 'operari' },
+  { id: 2, nom: 'Joan Bibiloni', pin: getOpPin(2), rol: 'operari' },
+  { id: 3, nom: 'Carlos Ferriol', pin: getOpPin(3), rol: 'operari' },
+  { id: 4, nom: 'Miquel Roca', pin: getOpPin(4), rol: 'operari' },
+  { id: 5, nom: 'Juan Carlos Alfonso', pin: getOpPin(5), rol: 'operari' },
+  { id: 6, nom: 'Juan Carlos Dols', pin: getOpPin(6), rol: 'operari' }
 ];
 
 async function upsertUser(email, password, displayName) {

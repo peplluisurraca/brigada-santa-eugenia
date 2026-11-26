@@ -21,11 +21,23 @@ jobs:
           node-version: 22
           cache: 'npm'
 
+      - name: Configuració de Java per als emuladors Firebase
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
       - name: Instal·lació de dependències
         run: npm ci
+
+      - name: Instal·lació de Firebase CLI
+        run: npm install -g firebase-tools
 
       - name: Compilació d'estils Tailwind CSS
         run: npm run build:css
 
-      - name: Execució de la suite de proves automatitzada
+      - name: Execució de la suite de proves estàtiques i de components
         run: npm test
+
+      - name: Execució de proves de regles i integració amb emuladors
+        run: firebase emulators:exec --only auth,firestore "npm run test:rules && npm run test:e2e"

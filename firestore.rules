@@ -17,10 +17,13 @@ service cloud.firestore {
         getUserRoleData().rol == 'admin';
     }
     
+    // B4: Comprovació que l'operari està donat d'alta i actiu a operaris/{id}
     function isOperari() {
       return isAuthenticated() && 
         exists(/databases/$(database)/documents/rols/$(request.auth.uid)) &&
-        getUserRoleData().rol == 'operari';
+        getUserRoleData().rol == 'operari' &&
+        exists(/databases/$(database)/documents/operaris/$(string(getUserRoleData().operariId))) &&
+        get(/databases/$(database)/documents/operaris/$(string(getUserRoleData().operariId))).data.actiu == true;
     }
     
     function getOperariId() {
@@ -36,21 +39,27 @@ service cloud.firestore {
     }
 
     // Col·lecció d'operaris (personal municipal de la brigada):
-    // - Lectura permesa per a qualsevol usuari autenticat (necessari per a selectors i llistat de contacte).
+    // - Lectura permesa només a l'administrador o a operaris actius (bloqueja operaris donats de baixa).
     // - Escriptura reservada estrictament a l'administrador (Cap de Brigada).
     match /operaris/{operariId} {
-      allow read: if isAuthenticated();
+      allow read: if isAdmin() || isOperari();
       allow write: if isAdmin();
+
+      // B5: Subcol·lecció d'absències i dades de salut (RGPD Art. 9)
+      // L'operari només pot llegir el seu propi historial; cap altre operari pot accedir-hi.
+      match /absencies/{absenciaId} {
+        allow read: if isAdmin() || (isOperari() && string(getOperariId()) == operariId);
+        allow write: if isAdmin();
+      }
     }
 
     // Col·lecció de tasques (ordres de treball municipals):
-    // - Lectura: admin o l'operari inclòs a l'array 'operariIds'.
+    // - B1: Lectura permesa a admin o a l'operari assignat (sense condició estàtica 'is list' que bloqueja consultes)
     // - Creació i eliminació: exclusivament admin.
-    // - Actualització: admin, o l'operari assignat modificant ÚNICAMENT camps de progrés i tancament.
+    // - B2: Actualització per operari: denegada si estat == 'finalitzada', camps restringits i validació de signatura
     match /tasques/{tascaId} {
       allow read: if isAdmin() || (
         isOperari() && 
-        resource.data.operariIds is list && 
         getOperariId() in resource.data.operariIds
       );
       
@@ -58,8 +67,8 @@ service cloud.firestore {
       
       allow update: if isAdmin() || (
         isOperari() &&
-        resource.data.operariIds is list &&
         getOperariId() in resource.data.operariIds &&
+        resource.data.estat != 'finalitzada' &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'estat', 
           'tempsTotalSegons', 
@@ -67,44 +76,77 @@ service cloud.firestore {
           'tempsPausa', 
           'tempsFinalitzacio',
           'finalitzadaEl',
-          'fotoFinal', 
-          'signatura', 
           'nomSignatari', 
           'observacionsTancament',
-          'teFotoInicial',
           'teFotoFinal',
-          'teSignatura',
-          'téFotoInicial',
-          'téFotoFinal',
-          'téSignatura'
-        ])
+          'teSignatura'
+        ]) &&
+        (!('estat' in request.resource.data.diff(resource.data).affectedKeys()) ||
+          request.resource.data.estat in ['en_curs', 'pendent_material', 'finalitzada']) &&
+        (request.resource.data.estat != 'finalitzada' || (
+          request.resource.data.teSignatura == true &&
+          request.resource.data.nomSignatari is string &&
+          request.resource.data.nomSignatari.size() > 0 &&
+          request.resource.data.nomSignatari.size() <= 120
+        )) &&
+        (!('tempsTotalSegons' in request.resource.data.diff(resource.data).affectedKeys()) || (
+          request.resource.data.tempsTotalSegons is number &&
+          request.resource.data.tempsTotalSegons >= 0 &&
+          request.resource.data.tempsTotalSegons < 2592000
+        ))
       );
 
-      // Subcol·lecció d'adjunts pesats (fotografies i signatures en Base64 fora del document principal)
+      // B3: Subcol·lecció d'adjunts pesats (fotografies i signatures en Base64)
       match /adjunts/{adjuntId} {
-        // Lectura permesa a l'administrador i als operaris assignats a la tasca pare
+        // Lectura permesa a admin i als operaris assignats a la tasca pare
         allow read: if isAdmin() || (
           isOperari() &&
-          get(/databases/$(database)/documents/tasques/$(tascaId)).data.operariIds is list &&
           getOperariId() in get(/databases/$(database)/documents/tasques/$(tascaId)).data.operariIds
         );
 
-        // Escriptura permesa a l'administrador o operari assignat (fotoInicial, fotoFinal, signatura)
-        allow write: if (isAdmin() || (
-          isOperari() &&
-          get(/databases/$(database)/documents/tasques/$(tascaId)).data.operariIds is list &&
-          getOperariId() in get(/databases/$(database)/documents/tasques/$(tascaId)).data.operariIds &&
-          adjuntId in ['fotoInicial', 'fotoFinal', 'signatura']
-        )) && (
-          // Comprovació de seguretat: màxim 950 KB per fitxer per no superar mai la quota Firestore
-          request.resource.data.data is string && request.resource.data.data.size() < 972800
+        // Validació d'identificadors permesos: fotoInicial, fotoFinal, signatura.
+        // Operari només pot CREAR fotoFinal i signatura si la tasca no està finalitzada. Mai fotoInicial.
+        allow create: if adjuntId in ['fotoInicial', 'fotoFinal', 'signatura'] && (
+          isAdmin() || (
+            isOperari() &&
+            adjuntId in ['fotoFinal', 'signatura'] &&
+            getOperariId() in get(/databases/$(database)/documents/tasques/$(tascaId)).data.operariIds &&
+            get(/databases/$(database)/documents/tasques/$(tascaId)).data.estat != 'finalitzada'
+          )
+        ) && (
+          request.resource.data.data is string &&
+          request.resource.data.data.size() < 972800 &&
+          request.resource.data.data.matches('^data:image/(png|jpeg|webp);base64,.*')
         );
+
+        // Només l'administrador pot actualitzar adjunts (amb validació de format i mida)
+        allow update: if isAdmin() &&
+          adjuntId in ['fotoInicial', 'fotoFinal', 'signatura'] &&
+          request.resource.data.data is string &&
+          request.resource.data.data.size() < 972800 &&
+          request.resource.data.data.matches('^data:image/(png|jpeg|webp);base64,.*');
+
+        // Només l'administrador pot esborrar adjunts (sense avaluar request.resource)
+        allow delete: if isAdmin();
       }
+    }
+
+    // Nomenclàtor oficial de vies municipals (altes manuals persistents):
+    // - Lectura permesa només a l'administrador o a operaris actius.
+    // - Escriptura reservada estrictament a l'administrador.
+    match /vies/{viaId} {
+      allow read: if isAdmin() || isOperari();
+      allow write: if isAdmin();
     }
 
     // Tasques programades (manteniment preventiu):
     // - Accés exclusiu de l'administrador.
     match /tasques_programades/{progId} {
+      allow read, write: if isAdmin();
+    }
+
+    // E3: Comptadors atòmics per a identificadors transaccionals
+    match /comptadors/{comptadorId} {
       allow read, write: if isAdmin();
     }
   }

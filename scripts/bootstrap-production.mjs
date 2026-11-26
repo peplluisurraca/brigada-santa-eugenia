@@ -24,11 +24,27 @@ if (!cliAccessToken) {
   process.exit(1);
 }
 
+// Validació estricta de variables d'entorn a Producció (sense contrasenyes per defecte)
+const initialOpPin = process.env.OPERARI_INITIAL_PIN || '';
+const getOpPin = (num) => process.env[`PIN_OP_${num}`] || initialOpPin;
+
+const missingEnv = [];
+if (!process.env.ADMIN_PASSWORD) missingEnv.push('ADMIN_PASSWORD');
+for (let i = 1; i <= 6; i++) {
+  if (!getOpPin(i)) missingEnv.push(`PIN_OP_${i} (o OPERARI_INITIAL_PIN)`);
+}
+
+if (missingEnv.length > 0) {
+  console.error(`❌ Error crític: Falten les següents variables d'entorn obligatòries a producció: ${missingEnv.join(', ')}.`);
+  console.error("   Per motius de seguretat no es permeten credencials ni PINs per defecte codificats al programa.");
+  process.exit(1);
+}
+
 const USUARIS = [
   {
     tipus: 'admin',
-    email: 'admin@brigada-santa-eugenia.local',
-    password: process.env.ADMIN_PASSWORD || 'AdminSE2026!',
+    email: process.env.ADMIN_EMAIL || 'peplluisurraca@ajsantaeugenia.net',
+    password: process.env.ADMIN_PASSWORD,
     nom: 'Cap de Brigada',
     rol: 'admin'
   },
@@ -36,15 +52,15 @@ const USUARIS = [
     tipus: 'operari',
     operariId: 1,
     email: 'op-1@brigada-santa-eugenia.local',
-    password: process.env.PIN_OP_1 || '123456',
-    nom: 'Toni Coll',
+    password: getOpPin(1),
+    nom: 'Nofre Torrens',
     rol: 'operari'
   },
   {
     tipus: 'operari',
     operariId: 2,
     email: 'op-2@brigada-santa-eugenia.local',
-    password: process.env.PIN_OP_2 || '123456',
+    password: getOpPin(2),
     nom: 'Joan Bibiloni',
     rol: 'operari'
   },
@@ -52,16 +68,32 @@ const USUARIS = [
     tipus: 'operari',
     operariId: 3,
     email: 'op-3@brigada-santa-eugenia.local',
-    password: process.env.PIN_OP_3 || '123456',
-    nom: 'Biel Pou',
+    password: getOpPin(3),
+    nom: 'Carlos Ferriol',
     rol: 'operari'
   },
   {
     tipus: 'operari',
     operariId: 4,
     email: 'op-4@brigada-santa-eugenia.local',
-    password: process.env.PIN_OP_4 || '123456',
-    nom: 'Pere Ramis',
+    password: getOpPin(4),
+    nom: 'Miquel Roca',
+    rol: 'operari'
+  },
+  {
+    tipus: 'operari',
+    operariId: 5,
+    email: 'op-5@brigada-santa-eugenia.local',
+    password: getOpPin(5),
+    nom: 'Juan Carlos Alfonso',
+    rol: 'operari'
+  },
+  {
+    tipus: 'operari',
+    operariId: 6,
+    email: 'op-6@brigada-santa-eugenia.local',
+    password: getOpPin(6),
+    nom: 'Juan Carlos Dols',
     rol: 'operari'
   }
 ];

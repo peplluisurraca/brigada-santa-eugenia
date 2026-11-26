@@ -32,11 +32,13 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { 
-      getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged 
+      getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, connectAuthEmulator,
+      sendPasswordResetEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { 
       getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache,
-      collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where 
+      collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, writeBatch, onSnapshot, query, where,
+      runTransaction, connectFirestoreEmulator 
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -60,6 +62,10 @@
         signInWithEmailAndPassword,
         signOut,
         onAuthStateChanged,
+        sendPasswordResetEmail,
+        updatePassword,
+        reauthenticateWithCredential,
+        EmailAuthProvider,
         collection,
         doc,
         getDoc,
@@ -68,9 +74,11 @@
         addDoc,
         updateDoc,
         deleteDoc,
+        writeBatch,
         onSnapshot,
         query,
         where,
+        runTransaction,
         persistentLocalCache,
         persistentMultipleTabManager,
         memoryLocalCache,
@@ -101,6 +109,19 @@
 
       window.FB.db = db;
       window.FB.isReady = true;
+
+      // E4: Connexió als emuladors NOMÉS en localhost si s'especifica ?emulador=1 explícitament a la URL
+      const isLocalHost = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'));
+      const hasEmulatorParam = (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('emulador') === '1');
+      if (isLocalHost && hasEmulatorParam) {
+        try {
+          connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+          if (db) connectFirestoreEmulator(db, '127.0.0.1', 8080);
+          console.log("✓ Connectat als emuladors locals de Firebase Auth (9099) i Firestore (8080).");
+        } catch (emuErr) {
+          console.warn("Avís connectant als emuladors locals:", emuErr);
+        }
+      }
 
       console.log("✓ Firebase SDK carregat i inicialitzat correctament.");
       window.dispatchEvent(new CustomEvent('firebase-ready'));
@@ -151,7 +172,7 @@
       header, nav, #app-navigation, #main-nav, #conn-status,
       #view-login, #view-admin-dashboard, #view-alta-incidencia,
       #view-gestor-programades, #view-gestor-nomenclator, #view-gestor-operaris,
-      #view-informes-analitica, #view-operari, #bottom-nav,
+      #view-informes-analitica, #view-operari-view, #bottom-nav,
       #toast-container, .no-print, .hidden {
         display: none !important;
       }
@@ -340,19 +361,21 @@
           <div>
             <label for="unified-login-operari-select" class="block text-xs font-semibold text-gray-700 mb-1.5">Selecciona el teu Nom *</label>
             <select id="unified-login-operari-select" name="operari" class="w-full p-3 border border-gray-300 rounded-xl bg-gray-50 text-sm font-medium focus:border-[#2A9D8F] focus:outline-none">
-              <option value="1">Toni Coll — Oficial 1ª Obra / Paleteria</option>
-              <option value="2">Joan Bibiloni — Especialista Electricitat</option>
-              <option value="3">Biel Pou — Peó / Neteja Viària</option>
-              <option value="4">Pere Ramis — Oficial Climatització i Calefacció</option>
+              <option value="1">Nofre Torrens — Oficial 1ª Obra / Paleteria</option>
+              <option value="2">Joan Bibiloni — Cap de brigada</option>
+              <option value="3">Carlos Ferriol — Peó / Neteja Viària</option>
+              <option value="4">Miquel Roca — Oficial Climatització i Calefacció</option>
+              <option value="5">Juan Carlos Alfonso — Peó / Neteja Viària</option>
+              <option value="6">Juan Carlos Dols — Peó / Neteja Viària</option>
             </select>
           </div>
 
           <div>
-            <label for="unified-login-operari-pin" class="block text-xs font-semibold text-gray-700 mb-1.5">Codi PIN d'Accés (4 o 6 xifres) *</label>
+            <label for="unified-login-operari-pin" class="block text-xs font-semibold text-gray-700 mb-1.5">Codi PIN d'Accés (6 xifres) *</label>
             <div class="flex justify-center my-1">
-              <input type="password" id="unified-login-operari-pin" name="pin" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="current-password" placeholder="••••" onkeyup="if(event.key==='Enter') submitUnifiedLogin('operari')" class="tracking-widest text-center text-3xl font-mono font-bold w-56 py-2.5 border-2 border-gray-300 focus:border-[#2A9D8F] focus:outline-none rounded-xl bg-white shadow-inner" />
+              <input type="password" id="unified-login-operari-pin" name="pin" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="current-password" placeholder="••••••" onkeyup="if(event.key==='Enter') submitUnifiedLogin('operari')" class="tracking-widest text-center text-3xl font-mono font-bold w-56 py-2.5 border-2 border-gray-300 focus:border-[#2A9D8F] focus:outline-none rounded-xl bg-white shadow-inner" />
             </div>
-            <p class="text-xs text-gray-500 text-center mt-1">Introdueix el teu PIN (admet 1234 o 123456)</p>
+            <p class="text-xs text-gray-500 text-center mt-1">Introdueix el teu PIN de 6 dígits</p>
           </div>
 
           <button type="button" id="btn-login-operari-submit" onclick="submitUnifiedLogin('operari')" class="w-full min-touch min-h-[44px] py-3.5 bg-[#2A9D8F] hover:bg-[#238276] text-white font-bold rounded-xl shadow-md flex items-center justify-center space-x-2 transition-all">
@@ -370,19 +393,24 @@
 
           <div>
             <label for="unified-login-admin-email" class="block text-xs font-semibold text-gray-700 mb-1.5">Correu Electrònic d'Administrador *</label>
-            <input type="email" id="unified-login-admin-email" name="email" value="admin@brigada-santa-eugenia.local" placeholder="nom@santaeugenia.cat" class="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-sm font-medium text-gray-800 focus:border-[#1D3557] focus:outline-none" />
+            <input type="email" id="unified-login-admin-email" name="email" placeholder="nom@santaeugenia.cat" class="w-full p-2.5 border border-gray-300 rounded-xl bg-white text-sm font-medium text-gray-800 focus:border-[#1D3557] focus:outline-none" />
           </div>
 
           <div>
             <label for="unified-login-admin-pass" class="block text-xs font-semibold text-gray-700 mb-1.5">Contrasenya d'Accés *</label>
             <input type="password" id="unified-login-admin-pass" name="password" placeholder="••••••••" onkeyup="if(event.key==='Enter') submitUnifiedLogin('admin')" class="w-full p-2.5 border border-gray-300 focus:border-[#1D3557] focus:outline-none rounded-xl bg-white text-sm font-medium" />
-            <p class="text-[11px] text-gray-500 mt-1">Admet tant '1234' com 'AdminSE2026!'</p>
           </div>
 
           <button type="button" id="btn-login-admin-submit" onclick="submitUnifiedLogin('admin')" class="w-full min-touch min-h-[44px] py-3.5 bg-[#1D3557] hover:bg-[#152741] text-white font-bold rounded-xl shadow-md flex items-center justify-center space-x-2 transition-all">
             <i data-lucide="shield-check" class="w-5 h-5"></i>
             <span>Accedir al Panell de Gestió</span>
           </button>
+
+          <div class="text-center pt-1">
+            <button type="button" id="btn-reset-admin-pass" onclick="requestAdminPasswordReset()" class="text-xs font-semibold text-[#1D3557] hover:text-[#2A9D8F] underline underline-offset-2 min-touch px-2 py-1">
+              He oblidat la contrasenya
+            </button>
+          </div>
         </div>
 
         <!-- Footer segell Ajuntament -->
@@ -569,10 +597,14 @@
                   Operari en torn
                 </span>
               </div>
-              <h3 id="operari-current-name" class="font-bold text-base sm:text-lg text-[#1D3557] leading-tight mt-0.5">Toni Coll</h3>
+              <h3 id="operari-current-name" class="font-bold text-base sm:text-lg text-[#1D3557] leading-tight mt-0.5">Nofre Torrens</h3>
               <p id="operari-current-role" class="text-xs text-gray-500 font-medium">Oficial 1ª Obra / Paleteria</p>
             </div>
           </div>
+          <button type="button" id="btn-open-canviar-pin" onclick="openModalCanviarPin()" class="min-touch px-3 py-2 text-xs font-semibold text-[#1D3557] bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl flex items-center space-x-1.5 flex-shrink-0 transition-colors" title="Canviar el meu PIN d'accés">
+            <i data-lucide="key-round" class="w-3.5 h-3.5 text-[#2A9D8F]"></i>
+            <span>Canviar PIN</span>
+          </button>
         </div>
 
         <!-- Finestra de descans (compacta i amb franja real d'esmorzar 10:00 - 10:30) -->
@@ -1384,6 +1416,91 @@
     </div>
   </div>
   <!-- ========================================================================= -->
+  <!-- MODAL: CONFIRMACIÓ D'ELIMINACIÓ D'ORDRE DE TREBALL (SENSE confirm() NATIU) -->
+  <!-- ========================================================================= -->
+  <div id="modal-confirmar-eliminar-tasca" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-9 h-9 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
+            <i data-lucide="trash-2" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-[#1D3557]">Eliminar Ordre de Treball</h3>
+            <p id="delete-tasca-codi-badge" class="text-xs text-gray-500 font-mono font-semibold">-</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeDeleteTaskModal()" class="text-gray-400 hover:text-gray-600 p-1 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="bg-red-50 border border-red-200 p-3.5 rounded-xl text-xs text-red-900 space-y-1.5">
+        <p class="font-bold flex items-center space-x-1.5">
+          <i data-lucide="alert-triangle" class="w-4 h-4 text-red-600 flex-shrink-0"></i>
+          <span>Aquesta acció és permanent i no es pot desfer.</span>
+        </p>
+        <p>S'eliminaran tots els adjunts associats (fotografies i signatura) i el registre complet de l'ordre:</p>
+        <p id="delete-tasca-titol-preview" class="font-semibold text-[#1D3557] bg-white/80 px-2.5 py-1.5 rounded-lg border border-red-100">-</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 pt-2">
+        <button type="button" onclick="closeDeleteTaskModal()" class="min-touch py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs">
+          Cancel·lar
+        </button>
+        <button type="button" id="btn-confirmar-eliminar-tasca" onclick="confirmDeleteTask()" class="min-touch py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-md text-xs flex items-center justify-center space-x-1.5">
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
+          <span>Eliminar definitivament</span>
+        </button>
+      </div>
+    </div>
+  </div>
+  <!-- ========================================================================= -->
+  <!-- MODAL: CANVIAR PIN D'ACCÉS DE L'OPERARI                                   -->
+  <!-- ========================================================================= -->
+  <div id="modal-canviar-pin-operari" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-9 h-9 rounded-lg bg-teal-50 text-[#2A9D8F] flex items-center justify-center">
+            <i data-lucide="key-round" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-[#1D3557]">Canviar el meu PIN</h3>
+            <p class="text-xs text-gray-500">Codi numèric personal de 6 xifres</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeModalCanviarPin()" class="text-gray-400 hover:text-gray-600 p-1 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="form-canviar-pin-operari" onsubmit="submitCanviarPinOperari(event)" class="space-y-3">
+        <div>
+          <label for="pin-actual" class="block text-xs font-semibold text-gray-700 mb-1">PIN actual (6 dígits) *</label>
+          <input type="password" id="pin-actual" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" required placeholder="••••••" autocomplete="current-password" class="w-full p-2.5 text-center text-lg font-mono tracking-widest border border-gray-300 rounded-xl focus:border-[#2A9D8F] focus:outline-none" />
+        </div>
+        <div>
+          <label for="pin-nou" class="block text-xs font-semibold text-gray-700 mb-1">Nou PIN (6 dígits) *</label>
+          <input type="password" id="pin-nou" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" required placeholder="••••••" autocomplete="new-password" class="w-full p-2.5 text-center text-lg font-mono tracking-widest border border-gray-300 rounded-xl focus:border-[#2A9D8F] focus:outline-none" />
+        </div>
+        <div>
+          <label for="pin-nou-confirm" class="block text-xs font-semibold text-gray-700 mb-1">Confirmar nou PIN (6 dígits) *</label>
+          <input type="password" id="pin-nou-confirm" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" required placeholder="••••••" autocomplete="new-password" class="w-full p-2.5 text-center text-lg font-mono tracking-widest border border-gray-300 rounded-xl focus:border-[#2A9D8F] focus:outline-none" />
+        </div>
+        <div class="grid grid-cols-2 gap-2 pt-2">
+          <button type="button" onclick="closeModalCanviarPin()" class="min-touch py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs">
+            Cancel·lar
+          </button>
+          <button type="submit" id="btn-submit-canviar-pin" class="min-touch py-2.5 bg-[#2A9D8F] hover:bg-[#238276] text-white font-bold rounded-xl shadow-md text-xs flex items-center justify-center space-x-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Desar PIN</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- ========================================================================= -->
   <!-- MODAL: PROGRAMAR BAIXA / ASSÈNCIA TEMPORAL (VACANCES, MÈDICA, DIES LLIURES) -->
   <!-- ========================================================================= -->
   <div id="modal-baixa-temporal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
@@ -1870,49 +1987,8 @@
       operatorsFilter: 'all',
       kpiFilter: null, // 'obertes' | 'urgents' | 'importants' | 'actius'
       
-      // Personal de manteniment de la brigada (CRUD complet + Bajas temporals en franges de temps)
-      operaris: [
-        { 
-          id: 1, 
-          nom: "Toni Coll", 
-          rol: "Oficial 1ª Obra / Paleteria", 
-          especialitat: "obra_albanileria", 
-          telefon: "611223344", 
-          actiu: true,
-          baixes_temporals: [] 
-        },
-        { 
-          id: 2, 
-          nom: "Joan Bibiloni", 
-          rol: "Especialista Electricitat", 
-          especialitat: "electricitat", 
-          telefon: "622334455", 
-          actiu: true,
-          baixes_temporals: [
-            { id: 101, tipus: "dies_lliures", dataInici: "2026-11-05", dataFi: "2026-11-06", motiu: "Assumptes propis / Permís" }
-          ]
-        },
-        { 
-          id: 3, 
-          nom: "Biel Pou", 
-          rol: "Peó / Neteja Viària", 
-          especialitat: "peo_neteja", 
-          telefon: "633445566", 
-          actiu: true,
-          baixes_temporals: [
-            { id: 102, tipus: "vacances", dataInici: "2026-10-28", dataFi: "2026-11-04", motiu: "Vacances de tardor" }
-          ]
-        },
-        { 
-          id: 4, 
-          nom: "Pere Ramis", 
-          rol: "Oficial Climatització i Calefacció", 
-          especialitat: "climatitzacio", 
-          telefon: "644556677", 
-          actiu: true,
-          baixes_temporals: [] 
-        }
-      ],
+      // Personal de manteniment de la brigada (comença buit, sincronitzat des de Firestore)
+      operaris: [],
 
       // Vies oficials integrades (37)
       vies: [
@@ -1955,203 +2031,11 @@
         { num: 37, codiMun: '—', tipus: 'CAMÍ', codiIne: '—', nom: "Camí de s'Hostalet", nucli: 'Santa Eugènia (Vila)', procedencia: 'Incorporació complementària', alts: '', lat: 39.61750, lng: 2.83800 }
       ],
 
-      tasks: [
-        {
-          id: 'SE-2026-0001',
-          titol: "Reparació de fanal i presa de terra al carrer principal",
-          descripcio: "Fanal intermitent amb perill elèctric davant l'Escoleta municipal. Requereix equip de 2 persones per alçada i seguretat elèctrica.",
-          categoria: "electricitat",
-          prioritat: "urgent",
-          nucli: "Santa Eugènia (Vila)",
-          via: "MAJOR (00103)",
-          lat: 39.62410,
-          lng: 2.83720,
-          estat: "en_curs",
-          operariIds: [2, 1], // Treball en equip: Joan Bibiloni + Toni Coll
-          operariId: 2,
-          esImportant: true,
-          tempsTranscorregut: 3600,
-          fotoInicial: "https://images.unsplash.com/photo-1544724569-5f546fd6f2b5?w=500&auto=format&fit=crop&q=60",
-          fotoFinal: null,
-          signatura: null,
-          creatEl: "2026-10-26T08:30:00Z"
-        },
-        {
-          id: 'SE-2026-0002',
-          titol: "Avaria bomba de calor i aire condicionat a l'Escoleta Infantil",
-          descripcio: "Unitat exterior amb fallada de compressor i fuita de gas refrigerant.",
-          categoria: "climatitzacio",
-          prioritat: "urgent",
-          nucli: "Santa Eugènia (Vila)",
-          via: "ESCOLES, SES (00156)",
-          lat: 39.62580,
-          lng: 2.83850,
-          estat: "assignada",
-          operariIds: [4],
-          operariId: 4,
-          esImportant: true,
-          tempsTranscorregut: 0,
-          fotoInicial: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=500&auto=format&fit=crop&q=60",
-          fotoFinal: null,
-          signatura: null,
-          creatEl: "2026-10-26T09:00:00Z"
-        },
-        {
-          id: 'SE-2026-0003',
-          titol: "Neteja d'esbarzers i manteniment al Camí de Son Mascaró",
-          descripcio: "Visibilitat reduïda a la corba per vegetació salvatge abundant. Feina conjunta de desbrossadora i càrrega.",
-          categoria: "jardineria",
-          prioritat: "alta",
-          nucli: "Santa Eugènia (Vila)",
-          via: "Camí de Son Mascaró",
-          lat: 39.63100,
-          lng: 2.84200,
-          estat: "assignada",
-          operariIds: [1, 3], // Treball en equip: Toni Coll + Biel Pou
-          operariId: 1,
-          esImportant: false,
-          tempsTranscorregut: 0,
-          fotoInicial: "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?w=500&auto=format&fit=crop&q=60",
-          fotoFinal: null,
-          signatura: null,
-          creatEl: "2026-10-26T09:15:00Z"
-        },
-        {
-          id: 'SE-2026-0004',
-          titol: "Fuita a la canonada secundària de la font pública",
-          descripcio: "Pèrdua d'aigua contínua a l'accés rural de Ses Coves.",
-          categoria: "fontaneria",
-          prioritat: "urgent",
-          nucli: "Ses Coves",
-          via: "COVES (ses Coves - 00154)",
-          lat: 39.61189,
-          lng: 2.83104,
-          estat: "pendent",
-          operariIds: [],
-          operariId: null,
-          esImportant: true,
-          tempsTranscorregut: 0,
-          fotoInicial: "https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=500&auto=format&fit=crop&q=60",
-          fotoFinal: null,
-          signatura: null,
-          creatEl: "2026-10-26T07:45:00Z"
-        },
-        {
-          id: 'SE-2026-0005',
-          titol: "Buidatge i reposició de paperes malmeses a la plaça",
-          descripcio: "Revisió general de les paperes i contenidors del nucli d'Olleries.",
-          categoria: "paperes_residus",
-          prioritat: "normal",
-          nucli: "Ses Olleries",
-          via: "OLLERIES (ses Olleries - 00155)",
-          lat: 39.61461,
-          lng: 2.85312,
-          estat: "finalitzada",
-          operariIds: [3],
-          operariId: 3,
-          esImportant: false,
-          tempsTranscorregut: 4500,
-          fotoInicial: "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=500&auto=format&fit=crop&q=60",
-          fotoFinal: "https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=500&auto=format&fit=crop&q=60",
-          signatura: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='40'><path d='M10 20 Q 30 5, 60 25 T 90 20' stroke='black' stroke-width='2' fill='none'/></svg>",
-          nomSignatari: "Miquel Amengual (Cap de Brigada)",
-          creatEl: "2026-10-25T10:00:00Z",
-          tempsFinalitzacio: "2026-10-25T12:00:00Z"
-        }
-      ],
+      // Ordres de treball (comencen buides, sincronitzades en viu des de Firestore)
+      tasks: [],
       programadesFilter: 'all',
-      tasquesProgramades: [
-        {
-          id: 'PROG-001',
-          titol: "Buidatge periòdic de paperes i neteja d'entorns públics",
-          descripcio: "Buidatge i desinfecció de paperes municipals, reposició de bosses de residus i revisió de contenidors als nuclis i zones verdes.",
-          categoria: "paperes_residus",
-          frequencia: "setmanal",
-          diaPreferent: "Dilluns i Divendres",
-          nucli: "Santa Eugènia (Vila)",
-          via: "Plaça Bernat de Santa Eugènia / Carrer Major",
-          lat: 39.62410,
-          lng: 2.83750,
-          prioritat: "normal",
-          operariIds: [3],
-          activa: true,
-          darreraExecucio: "2026-10-24",
-          properaExecucio: "2026-10-31",
-          totalExecucions: 14
-        },
-        {
-          id: 'PROG-002',
-          titol: "Neteja i canvi de filtres del sistema d'osmosi",
-          descripcio: "Revisió de pressió, desinfecció del dipòsit i purga de filtres de sediments i carbó actiu dels punts d'aigua potable.",
-          categoria: "fontaneria",
-          frequencia: "mensual",
-          diaPreferent: "Primer dia feiner de mes",
-          nucli: "Santa Eugènia (Vila)",
-          via: "Edifici Ajuntament i CEIP Santa Eugènia",
-          lat: 39.62354,
-          lng: 2.83685,
-          prioritat: "alta",
-          operariIds: [2, 1],
-          activa: true,
-          darreraExecucio: "2026-10-01",
-          properaExecucio: "2026-11-01",
-          totalExecucions: 8
-        },
-        {
-          id: 'PROG-003',
-          titol: "Control de clor, pH i neteja de bombes de la font municipal",
-          descripcio: "Mesura de nivell de clor i pH, neteja de skimmers i comprovació de filtres a la font ornamental de la plaça i accés a Ses Coves.",
-          categoria: "fontaneria",
-          frequencia: "setmanal",
-          diaPreferent: "Dimecres",
-          nucli: "Ses Coves",
-          via: "Font de ses Coves (00154)",
-          lat: 39.61189,
-          lng: 2.83104,
-          prioritat: "normal",
-          operariIds: [2],
-          activa: true,
-          darreraExecucio: "2026-10-22",
-          properaExecucio: "2026-10-29",
-          totalExecucions: 11
-        },
-        {
-          id: 'PROG-004',
-          titol: "Revisió de quadres elèctrics i fanals de l'enllumenat públic",
-          descripcio: "Inspecció visual de lluminàries LED, rellotges astronòmics i comprovació de línies de baixa tensió al llogaret.",
-          categoria: "electricitat",
-          frequencia: "mensual",
-          diaPreferent: "Segon dimarts de mes",
-          nucli: "Ses Alqueries",
-          via: "ALQUERIES (ses Alqueries - 00153)",
-          lat: 39.62891,
-          lng: 2.84412,
-          prioritat: "normal",
-          operariIds: [4],
-          activa: true,
-          darreraExecucio: "2026-10-10",
-          properaExecucio: "2026-11-10",
-          totalExecucions: 5
-        },
-        {
-          id: 'PROG-005',
-          titol: "Manteniment trimestral de climatització i filtres d'aire",
-          descripcio: "Revisió d'unitats exteriors, desinfecció d'evaporadors i neteja de filtres antipols als despatxos de l'Ajuntament.",
-          categoria: "climatitzacio",
-          frequencia: "trimestral",
-          diaPreferent: "Inici de trimestre natural",
-          nucli: "Santa Eugènia (Vila)",
-          via: "Edifici Ajuntament (Carrer Major)",
-          lat: 39.62354,
-          lng: 2.83685,
-          prioritat: "baixa",
-          operariIds: [4, 1],
-          activa: false,
-          darreraExecucio: "2026-08-01",
-          properaExecucio: "2026-11-01",
-          totalExecucions: 3
-        }
-      ]
+      // Manteniment preventiu (comença buit, sincronitzat des de Firestore per a admin)
+      tasquesProgramades: []
     };
     window.APP_STATE = APP_STATE;
 
@@ -2190,6 +2074,16 @@
     }
 
     function getOperariDisponibilitat(op) {
+      if (!op) {
+        return {
+          actiu: false,
+          isTempAbsent: false,
+          status: 'desconegut',
+          label: 'Desconegut',
+          badgeClass: 'bg-gray-100 text-gray-800 border-gray-200'
+        };
+      }
+
       if (!op.actiu) {
         return {
           actiu: false,
@@ -2197,6 +2091,36 @@
           status: 'baixa_permanent',
           label: 'De Baixa Permanent',
           badgeClass: 'bg-red-100 text-red-800 border-red-200'
+        };
+      }
+
+      const isAdmin = APP_STATE.currentUser && APP_STATE.currentUser.role === 'admin';
+      const isSelf = APP_STATE.currentUser && APP_STATE.currentUser.role === 'operari' && String(APP_STATE.currentUser.operariId) === String(op.id);
+
+      // RGPD Art. 9: Protecció de dades de salut i motius d'absència
+      // Si la consulta la fa un altre operari, només es mostra si està disponible o no disponible
+      if (!isAdmin && !isSelf) {
+        const isDisponible = op.disponible !== false && (!op.baixes_temporals || !op.baixes_temporals.some(b => {
+          const today = new Date().toISOString().split('T')[0];
+          return b.dataInici <= today && today <= b.dataFi;
+        }));
+
+        if (!isDisponible) {
+          return {
+            actiu: false,
+            isTempAbsent: true,
+            status: 'no_disponible',
+            label: 'No disponible',
+            badgeClass: 'bg-amber-100 text-amber-800 border-amber-200'
+          };
+        }
+
+        return {
+          actiu: true,
+          isTempAbsent: false,
+          status: 'disponible',
+          label: 'Disponible',
+          badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200'
         };
       }
 
@@ -2481,6 +2405,7 @@
     let unsubscribeTasques = null;
     let unsubscribeOperaris = null;
     let unsubscribeProgramades = null;
+    let unsubscribeVies = null;
 
     function cleanupFirebaseSync() {
       if (unsubscribeTasques) {
@@ -2494,6 +2419,10 @@
       if (unsubscribeProgramades) {
         unsubscribeProgramades();
         unsubscribeProgramades = null;
+      }
+      if (unsubscribeVies) {
+        unsubscribeVies();
+        unsubscribeVies = null;
       }
       isFirebaseConnected = false;
       const statusText = document.getElementById('conn-status-text');
@@ -2554,16 +2483,40 @@
         // 2. SINCRONITZACIÓ DE PERSONAL I BAIXES TEMPORALS
         // Tot usuari autenticat pot llegir el directori d'operaris
         const operarisCol = collection(db, 'operaris');
-        unsubscribeOperaris = onSnapshot(operarisCol, (snapshot) => {
+        unsubscribeOperaris = onSnapshot(operarisCol, async (snapshot) => {
           if (!snapshot.empty) {
             const remoteOps = [];
             snapshot.forEach(docSnap => {
               const data = docSnap.data();
               delete data.pin; // Garantir que mai es desa o propaga cap PIN en text pla
+              delete data.baixes_temporals; // Garantir que no es filtren dades antigues de salut
               remoteOps.push(data);
             });
             remoteOps.sort((a, b) => a.id - b.id);
             APP_STATE.operaris = remoteOps;
+
+            // B5: RGPD Art. 9 - Carregar absències només per a qui té autorització (Admin o l'operari mateix)
+            if (APP_STATE.currentUser) {
+              const isAdmin = APP_STATE.currentUser.role === 'admin';
+              const myOpId = APP_STATE.currentUser.operariId;
+
+              for (const op of APP_STATE.operaris) {
+                if (isAdmin || (myOpId && String(myOpId) === String(op.id))) {
+                  try {
+                    const absSnap = await getDocs(collection(db, 'operaris', String(op.id), 'absencies'));
+                    op.baixes_temporals = [];
+                    absSnap.forEach(absDoc => {
+                      op.baixes_temporals.push(absDoc.data());
+                    });
+                  } catch (e) {
+                    op.baixes_temporals = op.baixes_temporals || [];
+                  }
+                } else {
+                  op.baixes_temporals = [];
+                }
+              }
+            }
+
             renderOperatorsCards();
             renderLoginOperatorsSelect();
             renderCreateTaskOperatorsSelect();
@@ -2573,15 +2526,28 @@
             }
 
             if (APP_STATE.currentUser && APP_STATE.currentUser.role === 'operari') {
-              const op = APP_STATE.operaris.find(o => o.id === APP_STATE.currentUser.operariId);
-              if (op) {
-                APP_STATE.activeOperari = op;
-                updateOperariHeaderUI(op);
+              const op = APP_STATE.operaris.find(o => String(o.id) === String(APP_STATE.currentUser.operariId));
+              if (!op || op.actiu === false) {
+                showToast("Aquest treballador ha estat donat de baixa. S'ha tancat la sessió.", "warning");
+                cleanupFirebaseSync();
+                if (window.FB && window.FB.auth && window.FB.signOut) {
+                  await window.FB.signOut(window.FB.auth);
+                }
+                return;
               }
+              APP_STATE.activeOperari = op;
+              updateOperariHeaderUI(op);
             }
           }
         }, (err) => {
           console.warn('Avís Firestore (Operaris):', err.message);
+          if (err?.code === 'permission-denied' && APP_STATE.currentUser && APP_STATE.currentUser.role === 'operari') {
+            showToast("Aquest treballador ha estat donat de baixa. S'ha tancat la sessió.", "warning");
+            cleanupFirebaseSync();
+            if (window.FB && window.FB.auth && window.FB.signOut) {
+              window.FB.signOut(window.FB.auth);
+            }
+          }
         });
 
         // 3. SINCRONITZACIÓ DE TASQUES PROGRAMADES (PREVENTIU)
@@ -2599,6 +2565,23 @@
             console.warn('Avís Firestore (Preventiu):', err.message);
           });
         }
+
+        // 4. SINCRONITZACIÓ DE VIES MANUALS DEL NOMENCLÀTOR
+        const viesCol = collection(db, 'vies');
+        unsubscribeVies = onSnapshot(viesCol, (snapshot) => {
+          if (snapshot.empty) return;
+          const baseVies = APP_STATE.vies.filter(v => v.procedencia !== 'Alta Manual Administrador');
+          const remoteVies = [];
+          snapshot.forEach(docSnap => {
+            remoteVies.push({ id: docSnap.id, ...docSnap.data() });
+          });
+          remoteVies.sort((a, b) => (Number(a.num) || 0) - (Number(b.num) || 0));
+          APP_STATE.vies = [...baseVies, ...remoteVies];
+          renderNomenclatorTable();
+          updateStreetSelector();
+        }, (err) => {
+          console.warn('Avís Firestore (Vies):', err.message);
+        });
 
       } catch (e) {
         console.warn('Error inicialitzant sincronització Firebase:', e);
@@ -2654,6 +2637,16 @@
       return '#';
     }
 
+    // C1: Sanititzador segur d'orígens d'imatges (preveu injeccions javascript:, onerror= o dominis no autoritzats)
+    function safeImageSrc(v) {
+      if (!v || typeof v !== 'string') return '';
+      const t = v.trim();
+      if (/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(t)) return t;
+      if (/^https:\/\/[^\s"']+$/.test(t)) return t;
+      return '';
+    }
+    window.safeImageSrc = safeImageSrc;
+
     // -------------------------------------------------------------------------
     // INTEGRACIÓ WHATSAPP OFICIAL (AJUNTAMENT DE SANTA EUGÈNIA)
     // Enllaços directes format: https://wa.me/34TEL?text=MENSAJE
@@ -2682,6 +2675,10 @@
         teamLine = `👥 *Treball en equip amb:* ${otherTeammates.join(', ')}\n`;
       }
 
+      const appOrigin = (typeof window !== 'undefined' && window.location && window.location.origin) 
+        ? `${window.location.origin}/` 
+        : 'https://brigada-santa-eugenia.web.app/';
+
       const text = 
 `🏛️ *Ajuntament de Santa Eugènia - Brigada Municipal*
 Hola ${operari.nom}, tens una nova ordre de treball assignada:
@@ -2689,11 +2686,11 @@ Hola ${operari.nom}, tens una nova ordre de treball assignada:
 📋 *Tasca:* ${task.id}
 📌 *Títol:* ${task.titol}
 📍 *Ubicació:* ${task.nucli} - ${task.via}
-⚠️ *Prioritat:* ${task.prioritat.toUpperCase()}
+⚠️ *Prioritat:* ${(task.prioritat || '').toUpperCase()}
 🔧 *Especialitat:* ${CATEGORIA_LABELS[task.categoria] || task.categoria}
 ${teamLine}📝 *Descripció:* ${task.descripcio || 'Sense observacions addicionals'}
 ${task.esImportant ? '⭐ *IMPORTANT:* Retenció indefinida d\'imatges municipals\n' : ''}
-📲 *Gestió PWA:* http://localhost:8080/`;
+📲 *Gestió PWA:* ${appOrigin}`;
 
       return generateWhatsAppLink(operari.telefon, text);
     }
@@ -2722,6 +2719,9 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       switch (action) {
         case 'open-edit-task':
           if (id) openEditTaskModal(id);
+          break;
+        case 'open-delete-task':
+          if (id) openDeleteTaskModal(id);
           break;
         case 'open-report':
           if (id) openReportModal(id);
@@ -2818,6 +2818,14 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           break;
         default:
           break;
+      }
+    });
+
+    document.addEventListener('change', (e) => {
+      const actionEl = e.target.closest('[data-action="edit-operari-change"]');
+      if (actionEl) {
+        const taskId = actionEl.getAttribute('data-task-id');
+        if (taskId) updateEditTaskWhatsAppButtons(taskId);
       }
     });
 
@@ -2961,8 +2969,8 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           waButtonsHtml = assignedOps.map(op => {
             const waLink = getTaskWhatsAppLink(task, op);
             return `
-              <a href="${waLink}" target="_blank" rel="noopener noreferrer" style="background: #25D366; color: white; padding: 4px 6px; border-radius: 5px; font-size: 9px; font-weight: bold; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 3px; margin-top: 3px;">
-                💬 Avisar ${op.nom.split(' ')[0]} (WhatsApp)
+              <a href="${esc(waLink || '#')}" target="_blank" rel="noopener noreferrer" style="background: #25D366; color: white; padding: 4px 6px; border-radius: 5px; font-size: 9px; font-weight: bold; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 3px; margin-top: 3px;">
+                💬 Avisar ${esc(String(op.nom || '').split(' ')[0])} (WhatsApp)
               </a>
             `;
           }).join('');
@@ -3032,10 +3040,25 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       const select = document.getElementById('unified-login-operari-select');
       if (!select) return;
       const activeOps = APP_STATE.operaris.filter(o => o.actiu);
+      if (activeOps.length === 0) {
+        // Si encara no s'han sincronitzat els operaris de Firestore (pre-login),
+        // conservem les opcions municipals oficials de l'HTML per garantir que el selector mai quedi buit
+        if (select.children.length > 0) return;
+        const fallbackOps = [
+          { id: 1, nom: "Nofre Torrens", rol: "Oficial 1ª Obra / Paleteria", actiu: true },
+          { id: 2, nom: "Joan Bibiloni", rol: "Cap de brigada", actiu: true },
+          { id: 3, nom: "Carlos Ferriol", rol: "Peó / Neteja Viària", actiu: true },
+          { id: 4, nom: "Miquel Roca", rol: "Oficial Climatització i Calefacció", actiu: true },
+          { id: 5, nom: "Juan Carlos Alfonso", rol: "Peó / Neteja Viària", actiu: true },
+          { id: 6, nom: "Juan Carlos Dols", rol: "Peó / Neteja Viària", actiu: true }
+        ];
+        select.innerHTML = fallbackOps.map(op => `<option value="${esc(op.id)}">${esc(op.nom)} — ${esc(op.rol)}</option>`).join('');
+        return;
+      }
       select.innerHTML = activeOps.map(op => {
-        const disp = getOperariDisponibilitat(op);
-        const absentNote = disp.isTempAbsent ? ` (${disp.label})` : '';
-        return `<option value="${op.id}">${op.nom} — ${op.rol}${absentNote}</option>`;
+        const disp = (typeof getOperariDisponibilitat === 'function') ? getOperariDisponibilitat(op) : { isTempAbsent: false };
+        const absentNote = disp && disp.isTempAbsent ? ` (${disp.label})` : '';
+        return `<option value="${esc(op.id)}">${esc(op.nom)} — ${esc(op.rol)}${esc(absentNote)}</option>`;
       }).join('');
     }
 
@@ -3113,9 +3136,6 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           return;
         }
 
-        // Suport transparent tant per a la contrasenya habitual '1234' com 'AdminSE2026!'
-        const passToAuth = (pass === '1234') ? 'AdminSE2026!' : pass;
-
         try {
           if (btn) {
             btn.disabled = true;
@@ -3125,7 +3145,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               <span>Accedint...</span>
             `;
           }
-          await signInWithEmailAndPassword(auth, email, passToAuth);
+          await signInWithEmailAndPassword(auth, email, pass);
           // La sessió i el rol es configuren automàticament a l'observador onAuthStateChanged
         } catch (err) {
           console.error("Error autenticació administrador:", err);
@@ -3150,24 +3170,11 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           return;
         }
 
-        const op = APP_STATE.operaris.find(o => o.id === operariId);
-        if (!op) {
-          showToast("Treballador no trobat a la base de dades.", "error");
+        if (!pin || pin.length !== 6 || !/^\d{6}$/.test(pin)) {
+          showToast("El PIN d'accés ha de tenir exactament 6 dígits numèrics.", "warning");
           return;
         }
 
-        if (!op.actiu) {
-          showToast("Aquest treballador està de baixa i no pot accedir al sistema.", "warning");
-          return;
-        }
-
-        if (!pin || pin.length < 4) {
-          showToast("El PIN d'accés ha de tenir un mínim de 4 dígits.", "warning");
-          return;
-        }
-
-        // Suport transparent per al PIN habitual de 4 xifres '1234' (mapat a '123456' a Auth)
-        const pinToAuth = (pin === '1234') ? '123456' : (pin.length < 6 ? pin.padEnd(6, '0') : pin);
         const syntheticEmail = `op-${operariId}@brigada-santa-eugenia.local`;
 
         try {
@@ -3179,7 +3186,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               <span>Entrant al torn...</span>
             `;
           }
-          await signInWithEmailAndPassword(auth, syntheticEmail, pinToAuth);
+          await signInWithEmailAndPassword(auth, syntheticEmail, pin);
           // La sessió i el rol es configuren automàticament a l'observador onAuthStateChanged
         } catch (err) {
           console.error("Error autenticació operari:", err);
@@ -3195,7 +3202,129 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       }
     }
 
+    async function requestAdminPasswordReset() {
+      const emailInput = document.getElementById('unified-login-admin-email');
+      const email = emailInput ? emailInput.value.trim() : '';
+
+      if (!email || !email.includes('@')) {
+        showToast("Introdueix primer el teu correu electrònic d'administrador al camp superior.", "warning");
+        emailInput?.focus();
+        return;
+      }
+
+      if (email.endsWith('.local')) {
+        showToast("Aquest correu intern no rep missatges. Restableix la contrasenya des de la Consola de Firebase.", "warning");
+        return;
+      }
+
+      const authReady = await ensureFirebaseAuthReady(8000);
+      if (!authReady || !window.FB?.sendPasswordResetEmail) {
+        showToast("Servei d'autenticació no disponible en aquest moment.", "error");
+        return;
+      }
+
+      const btn = document.getElementById('btn-reset-admin-pass');
+      try {
+        if (btn) btn.disabled = true;
+        await window.FB.sendPasswordResetEmail(window.FB.auth, email);
+        showToast("Si el correu està registrat, rebràs un enllaç per restablir la contrasenya (revisa també correu brossa).", "success");
+      } catch (err) {
+        console.error("Error enviant correu de recuperació:", err);
+        if (err?.code === 'auth/invalid-email') {
+          showToast("El format del correu electrònic no és vàlid.", "error");
+        } else if (err?.code === 'auth/too-many-requests') {
+          showToast("Massa intents seguits. Espera uns minuts abans de tornar-ho a provar.", "warning");
+        } else {
+          showToast("Si el correu està registrat, rebràs un enllaç per restablir la contrasenya.", "info");
+        }
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    function openModalCanviarPin() {
+      const form = document.getElementById('form-canviar-pin-operari');
+      if (form) form.reset();
+      const modal = document.getElementById('modal-canviar-pin-operari');
+      if (modal) {
+        modal.classList.remove('hidden');
+        lucide.createIcons();
+        setTimeout(() => document.getElementById('pin-actual')?.focus(), 50);
+      }
+    }
+
+    function closeModalCanviarPin() {
+      const modal = document.getElementById('modal-canviar-pin-operari');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function submitCanviarPinOperari(e) {
+      e.preventDefault();
+      const pinActual = document.getElementById('pin-actual')?.value?.trim() || '';
+      const pinNou = document.getElementById('pin-nou')?.value?.trim() || '';
+      const pinConfirm = document.getElementById('pin-nou-confirm')?.value?.trim() || '';
+
+      if (!/^\d{6}$/.test(pinActual) || !/^\d{6}$/.test(pinNou) || !/^\d{6}$/.test(pinConfirm)) {
+        showToast("Tots els PIN han de tenir exactament 6 dígits numèrics.", "warning");
+        return;
+      }
+      if (pinNou !== pinConfirm) {
+        showToast("El nou PIN i la confirmació no coincideixen.", "warning");
+        return;
+      }
+      if (pinNou === pinActual) {
+        showToast("El nou PIN ha de ser diferent del PIN actual.", "warning");
+        return;
+      }
+
+      const authUser = window.FB?.auth?.currentUser;
+      if (!authUser || !authUser.email || !window.FB?.EmailAuthProvider || !window.FB?.reauthenticateWithCredential || !window.FB?.updatePassword) {
+        showToast("No hi ha cap sessió activa de Firebase per canviar el PIN.", "error");
+        return;
+      }
+
+      const btn = document.getElementById('btn-submit-canviar-pin');
+      const originalHtml = btn ? btn.innerHTML : '';
+      try {
+        if (btn) {
+          btn.disabled = true;
+          btn.classList.add('opacity-75', 'cursor-not-allowed');
+          btn.innerHTML = `<span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span><span>Desant...</span>`;
+        }
+
+        const credential = window.FB.EmailAuthProvider.credential(authUser.email, pinActual);
+        await window.FB.reauthenticateWithCredential(authUser, credential);
+        await window.FB.updatePassword(authUser, pinNou);
+
+        closeModalCanviarPin();
+        showToast("PIN actualitzat correctament! Fes servir el nou PIN al pròxim accés.", "success");
+      } catch (err) {
+        console.error("Error canviant el PIN de l'operari:", err);
+        if (err?.code === 'auth/wrong-password' || err?.code === 'auth/invalid-credential') {
+          showToast("El PIN actual introduït no és correcte.", "error");
+        } else if (err?.code === 'auth/too-many-requests') {
+          showToast("Massa intents erronis. Espera uns minuts abans de tornar-ho a provar.", "warning");
+        } else {
+          showToast(`No s'ha pogut actualitzar el PIN: ${err?.message || 'Error de connexió'}`, "error");
+        }
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.classList.remove('opacity-75', 'cursor-not-allowed');
+          btn.innerHTML = originalHtml;
+          lucide.createIcons();
+        }
+      }
+    }
+
     async function logoutUnified() {
+      // 1. Netejar subscripcions i listeners de Firestore abans de tancar sessió
+      cleanupFirebaseSync();
+
+      APP_STATE.currentUser = null;
+      APP_STATE.activeOperari = null;
+      APP_STATE.currentView = 'login';
+
       if (window.FB && window.FB.auth && window.FB.signOut) {
         try {
           await window.FB.signOut(window.FB.auth);
@@ -3203,10 +3332,6 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           console.warn("Avís tancant sessió Firebase:", e);
         }
       }
-
-      APP_STATE.currentUser = null;
-      APP_STATE.activeOperari = null;
-      cleanupFirebaseSync();
 
       const pinOp = document.getElementById('unified-login-operari-pin');
       if (pinOp) pinOp.value = '';
@@ -3294,7 +3419,8 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           `;
         }
 
-        const targetView = (APP_STATE.currentView && APP_STATE.currentView !== 'login') ? APP_STATE.currentView : 'admin-dashboard';
+        // L'administrador no ha de ser redirigit mai a la vista d'operari
+        const targetView = (APP_STATE.currentView && APP_STATE.currentView !== 'login' && APP_STATE.currentView !== 'operari-view') ? APP_STATE.currentView : 'admin-dashboard';
         navigateView(targetView);
       } else if (user.role === 'operari') {
         // 👷 PERFIL OPERARI: amagar la barra de navegació d'administració
@@ -3337,50 +3463,123 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
       const { auth, db, doc, getDoc, signOut, onAuthStateChanged } = window.FB;
 
+      const isOfflineAuthError = (err) => {
+        const code = String(err?.code || '');
+        const msg = String(err?.message || '').toLowerCase();
+        return code === 'unavailable' ||
+          code === 'failed-precondition' ||
+          msg.includes('client is offline') ||
+          (typeof navigator !== 'undefined' && navigator.onLine === false);
+      };
+
       onAuthStateChanged(auth, async (user) => {
         if (user) {
           try {
             // Recuperar el rol de l'usuari des de Firestore col·lecció 'rols/{uid}'
+            // Reintenta fins a 5 vegades amb espera creixent per concurrència multi-pestanya
             const roleDocRef = doc(db, 'rols', user.uid);
-            const roleDocSnap = await getDoc(roleDocRef);
+            let roleDocSnap = null;
+            let lastRoleErr = null;
 
-            if (roleDocSnap.exists()) {
-              const roleData = roleDocSnap.data();
-              if (roleData.rol === 'admin') {
-                APP_STATE.currentUser = {
-                  role: 'admin',
-                  nom: roleData.nom || 'Administrador (Cap de Brigada)',
-                  uid: user.uid,
-                  email: user.email
-                };
-                APP_STATE.currentRole = 'admin';
-                APP_STATE.activeOperari = null;
-              } else if (roleData.rol === 'operari') {
-                const op = APP_STATE.operaris.find(o => o.id === roleData.operariId);
-                APP_STATE.currentUser = {
-                  role: 'operari',
-                  operariId: roleData.operariId,
-                  nom: op ? op.nom : (roleData.nom || 'Operari'),
-                  uid: user.uid,
-                  email: user.email
-                };
-                APP_STATE.activeOperari = op || null;
-                APP_STATE.currentRole = 'operari';
+            for (let attempt = 1; attempt <= 5; attempt++) {
+              try {
+                roleDocSnap = await getDoc(roleDocRef);
+                if (roleDocSnap.exists()) {
+                  break;
+                }
+              } catch (err) {
+                lastRoleErr = err;
+                console.warn(`Intent ${attempt}/5 de recuperació de rol fallit:`, err);
+                if (isOfflineAuthError(err)) break;
+                if (attempt < 5) {
+                  await new Promise(r => setTimeout(r, attempt * 500));
+                }
               }
-              applySessionPermissions();
-              initFirebaseSync();
-            } else {
-              console.warn("L'usuari autenticat no té document de rol a rols/{uid}:", user.uid);
-              showToast("Aquest compte no té cap rol associat a la base de dades. Contacta amb l'administrador.", "error");
-              await signOut(auth);
             }
+
+            if (!roleDocSnap || !roleDocSnap.exists()) {
+              if (lastRoleErr && isOfflineAuthError(lastRoleErr)) {
+                console.warn("Sense connexió en verificar el rol; es manté la sessió activa:", lastRoleErr);
+                showToast("Sense cobertura: mantenim la sessió oberta fins a recuperar la connexió.", "warning");
+                return;
+              }
+              if (lastRoleErr) {
+                console.error("Error recuperant el document de rol després de 5 intents:", lastRoleErr);
+                showToast("Error de verificació de credencials. Si us plau, torna a iniciar la sessió.", "error");
+              } else {
+                console.warn("L'usuari autenticat no té document de rol a rols/{uid}:", user.uid);
+                showToast("Aquest compte no té cap rol associat a la base de dades. Contacta amb l'administrador.", "error");
+              }
+              cleanupFirebaseSync();
+              await signOut(auth);
+              return;
+            }
+
+            const roleData = roleDocSnap.data();
+            if (roleData.rol === 'admin') {
+              APP_STATE.currentUser = {
+                role: 'admin',
+                nom: roleData.nom || 'Administrador (Cap de Brigada)',
+                uid: user.uid,
+                email: user.email
+              };
+              APP_STATE.currentRole = 'admin';
+              APP_STATE.activeOperari = null;
+            } else if (roleData.rol === 'operari') {
+              // Comprovació de seguretat d'operari actiu directament a Firestore operaris/{operariId}
+              let op = null;
+              try {
+                const opDocSnap = await getDoc(doc(db, 'operaris', String(roleData.operariId)));
+                if (opDocSnap.exists()) {
+                  op = opDocSnap.data();
+                }
+              } catch (opErr) {
+                if (isOfflineAuthError(opErr)) {
+                  console.warn("Sense connexió consultant operaris/{id}; s'utilitza estat en memòria:", opErr);
+                  op = APP_STATE.operaris.find(o => String(o.id) === String(roleData.operariId)) || null;
+                } else if (opErr?.code === 'permission-denied') {
+                  showToast("Aquest treballador està donat de baixa i no pot accedir al sistema.", "warning");
+                  cleanupFirebaseSync();
+                  await signOut(auth);
+                  return;
+                } else {
+                  throw opErr;
+                }
+              }
+
+              if (op && op.actiu === false) {
+                showToast("Aquest treballador està donat de baixa i no pot accedir al sistema.", "warning");
+                cleanupFirebaseSync();
+                await signOut(auth);
+                return;
+              }
+
+              APP_STATE.currentUser = {
+                role: 'operari',
+                operariId: roleData.operariId,
+                nom: op ? op.nom : (roleData.nom || 'Operari'),
+                uid: user.uid,
+                email: user.email
+              };
+              APP_STATE.activeOperari = op || null;
+              APP_STATE.currentRole = 'operari';
+            }
+            applySessionPermissions();
+            initFirebaseSync();
           } catch (err) {
             console.error("Error determinant el rol de l'usuari:", err);
+            if (isOfflineAuthError(err)) {
+              showToast("Sense connexió a la xarxa. Es manté la sessió activa fins a recuperar cobertura.", "warning");
+              return;
+            }
+            showToast("S'ha produït un error en comprovar els permisos de la sessió.", "error");
+            cleanupFirebaseSync();
             await signOut(auth);
           }
         } else {
           APP_STATE.currentUser = null;
           APP_STATE.activeOperari = null;
+          APP_STATE.currentView = 'login';
           cleanupFirebaseSync();
           applySessionPermissions();
         }
@@ -3396,10 +3595,14 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         setupFirebaseAuthObserver();
       } else {
         window.addEventListener('firebase-ready', () => setupFirebaseAuthObserver(), { once: true });
+        let safetyAttempts = 0;
         const safetyPoll = setInterval(() => {
+          safetyAttempts++;
           if (window.FB && window.FB.isReady) {
             clearInterval(safetyPoll);
             setupFirebaseAuthObserver();
+          } else if (safetyAttempts > 50) {
+            clearInterval(safetyPoll);
           }
         }, 100);
       }
@@ -3542,9 +3745,9 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           const disp = getOperariDisponibilitat(op);
           operarisHtml = `
             <div>
-              <span class="font-bold text-[#1D3557] ${!op.actiu ? 'line-through text-gray-400' : ''}">${op.nom}</span>
+              <span class="font-bold text-[#1D3557] ${!op.actiu ? 'line-through text-gray-400' : ''}">${esc(op.nom)}</span>
               <span class="block text-[10px] ${disp.actiu ? 'text-teal-700 font-medium' : 'text-purple-700 font-bold'}">
-                ${op.rol} ${disp.isTempAbsent ? '🏖️ (Absent)' : !op.actiu ? '(De Baixa)' : ''}
+                ${esc(op.rol)} ${disp.isTempAbsent ? '🏖️ (Absent)' : !op.actiu ? '(De Baixa)' : ''}
               </span>
             </div>
           `;
@@ -3562,8 +3765,8 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                   return `
                     <div class="text-[11px] text-gray-800 flex items-center space-x-1">
                       <span class="w-1.5 h-1.5 rounded-full ${disp.actiu ? 'bg-teal-500' : 'bg-purple-500'}"></span>
-                      <span class="font-medium">${op.nom}</span>
-                      <span class="text-[10px] text-gray-500">(${op.rol.split(' ')[0]})</span>
+                      <span class="font-medium">${esc(op.nom)}</span>
+                      <span class="text-[10px] text-gray-500">(${esc(op.rol.split(' ')[0])})</span>
                       ${disp.isTempAbsent ? '<span class="text-[9px] text-purple-600 font-bold">🏖️</span>' : ''}
                     </div>
                   `;
@@ -3590,7 +3793,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                 ${(task.fotoInicial || task.teFotoInicial) ? `
                   <div class="w-12 h-12 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0 cursor-pointer group relative bg-gray-100 flex items-center justify-center" data-action="open-photo-viewer" data-id="${esc(task.id)}" title="Clica per ampliar la fotografia">
                     ${(task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)) ? `
-                      <img src="${task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)}" alt="Foto" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                      <img src="${esc(safeImageSrc(task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)))}" alt="Foto" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                     ` : `
                       <i data-lucide="camera" class="w-5 h-5 text-[#2A9D8F]"></i>
                     `}
@@ -3607,7 +3810,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                   <div class="font-bold text-[#1D3557] flex items-center space-x-1.5 flex-wrap gap-y-1">
                     <span>${esc(task.id)}</span>
                     ${task.esImportant ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 font-bold border border-amber-300">★ IMPORTANT</span>' : ''}
-                    ${task.esProgramada ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-purple-100 text-purple-900 font-bold border border-purple-300 flex items-center space-x-0.5"><span>🔄</span><span>Preventiu (${FREQUENCIA_LABELS[task.frequencia]?.label || task.frequencia})</span></span>` : ''}
+                    ${task.esProgramada ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-purple-100 text-purple-900 font-bold border border-purple-300 flex items-center space-x-0.5"><span>🔄</span><span>Preventiu (${esc(FREQUENCIA_LABELS[task.frequencia]?.label || task.frequencia)})</span></span>` : ''}
                     ${assignedOps.length > 1 ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-teal-50 text-teal-700 font-semibold border border-teal-200">👥 Equip</span>' : ''}
                   </div>
                   <p class="text-xs text-gray-900 font-medium mt-0.5">${esc(task.titol)}</p>
@@ -3617,7 +3820,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
             </td>
             <td class="px-4 py-3 text-xs">
               <span class="px-2 py-0.5 rounded-full font-semibold text-[11px] ${isClima ? 'bg-cyan-50 text-cyan-800 border border-cyan-200' : 'bg-gray-100 text-gray-700'}">
-                ${CATEGORIA_LABELS[task.categoria] || task.categoria}
+                ${esc(CATEGORIA_LABELS[task.categoria] || task.categoria)}
               </span>
             </td>
             <td class="px-4 py-3 text-xs">
@@ -3625,12 +3828,12 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               <p class="text-gray-500 font-mono text-[11px]">${esc(task.via)}</p>
             </td>
             <td class="px-4 py-3 text-xs">
-              <span class="capitalize font-semibold ${task.prioritat === 'urgent' ? 'text-red-600 font-bold' : 'text-gray-700'}">${task.prioritat}</span>
+              <span class="capitalize font-semibold ${task.prioritat === 'urgent' ? 'text-red-600 font-bold' : 'text-gray-700'}">${esc(task.prioritat)}</span>
             </td>
             <td class="px-4 py-3 text-xs">${operarisHtml}</td>
             <td class="px-4 py-3">
               <span class="px-2.5 py-1 text-xs rounded-full border font-semibold ${statusBadges[task.estat]}">
-                ${task.estat.replace('_', ' ').toUpperCase()}
+                ${esc(task.estat.replace('_', ' ').toUpperCase())}
               </span>
             </td>
             <td class="px-4 py-3 text-right space-x-1 whitespace-nowrap">
@@ -3641,6 +3844,9 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               <button data-action="open-report" data-id="${esc(task.id)}" title="Generar Informe / PDF" class="p-1.5 text-gray-600 hover:text-[#1D3557] rounded-lg hover:bg-gray-100 inline-flex min-touch">
                 <i data-lucide="file-text" class="w-4 h-4"></i>
               </button>
+              <button data-action="open-delete-task" data-id="${esc(task.id)}" title="Eliminar Ordre de Treball" class="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg inline-flex min-touch" aria-label="Eliminar ordre ${esc(task.id)}">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
             </td>
           </tr>
         `;
@@ -3648,6 +3854,99 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
       renderMapMarkers();
       lucide.createIcons();
+    }
+
+    // -------------------------------------------------------------------------
+    // ELIMINACIÓ SEGURA D'ORDRES DE TREBALL I ADJUNTS (PANELL ADMINISTRADOR)
+    // -------------------------------------------------------------------------
+    let pendingDeleteTaskId = null;
+
+    function openDeleteTaskModal(taskId) {
+      if (!APP_STATE.currentUser || APP_STATE.currentUser.role !== 'admin') {
+        showToast("Només l'administrador pot eliminar ordres de treball.", "warning");
+        return;
+      }
+      const task = APP_STATE.tasks.find(t => String(t.id) === String(taskId));
+      if (!task) {
+        showToast("No s'ha trobat l'ordre seleccionada.", "warning");
+        return;
+      }
+      pendingDeleteTaskId = String(task.id);
+      const badgeEl = document.getElementById('delete-tasca-codi-badge');
+      const titleEl = document.getElementById('delete-tasca-titol-preview');
+      if (badgeEl) badgeEl.innerText = `${task.id} · ${task.nucli || 'Santa Eugènia'}`;
+      if (titleEl) titleEl.innerText = task.titol || '-';
+
+      const modal = document.getElementById('modal-confirmar-eliminar-tasca');
+      if (modal) {
+        modal.classList.remove('hidden');
+        lucide.createIcons();
+      }
+    }
+
+    function closeDeleteTaskModal() {
+      pendingDeleteTaskId = null;
+      const modal = document.getElementById('modal-confirmar-eliminar-tasca');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function confirmDeleteTask() {
+      if (!pendingDeleteTaskId) return;
+      if (!APP_STATE.currentUser || APP_STATE.currentUser.role !== 'admin') {
+        showToast("Accés denegat: només l'administrador pot eliminar ordres.", "error");
+        closeDeleteTaskModal();
+        return;
+      }
+
+      const taskId = String(pendingDeleteTaskId);
+      const btn = document.getElementById('btn-confirmar-eliminar-tasca');
+      const originalHtml = btn ? btn.innerHTML : '';
+
+      try {
+        if (btn) {
+          btn.disabled = true;
+          btn.classList.add('opacity-75', 'cursor-not-allowed');
+          btn.innerHTML = `<span class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span><span>Eliminant...</span>`;
+        }
+
+        if (window.FB && window.FB.isReady) {
+          // 1. Llegir i eliminar tots els adjunts existents a tasques/{id}/adjunts
+          const adjuntsColRef = window.FB.collection(window.FB.db, 'tasques', taskId, 'adjunts');
+          const adjuntsSnap = await window.FB.getDocs(adjuntsColRef);
+          if (!adjuntsSnap.empty) {
+            await Promise.all(
+              adjuntsSnap.docs.map(adjDoc => window.FB.deleteDoc(adjDoc.ref))
+            );
+          }
+
+          // 2. Eliminar el document principal tasques/{id}
+          await window.FB.deleteDoc(window.FB.doc(window.FB.db, 'tasques', taskId));
+        }
+
+        // 3. Netejar memòria cau local i refrescar vistes
+        ADJUNTS_CACHE.delete(`${taskId}_fotoInicial`);
+        ADJUNTS_CACHE.delete(`${taskId}_fotoFinal`);
+        ADJUNTS_CACHE.delete(`${taskId}_signatura`);
+        APP_STATE.tasks = APP_STATE.tasks.filter(t => String(t.id) !== taskId);
+
+        closeDeleteTaskModal();
+        renderAdminTasks();
+        renderOperariScreen();
+        if (APP_STATE.currentView === 'informes-analitica') {
+          renderInformesAnalitica();
+        }
+        showToast(`Ordre ${taskId} i els seus adjunts eliminats correctament.`, "success");
+      } catch (err) {
+        console.error(`Error eliminant la tasca ${taskId}:`, err);
+        showToast(`Error eliminant l'ordre ${taskId}: ${err?.message || 'Error desconegut'}`, "error");
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.classList.remove('opacity-75', 'cursor-not-allowed');
+          btn.innerHTML = originalHtml;
+          lucide.createIcons();
+        }
+      }
     }
 
     // -------------------------------------------------------------------------
@@ -3675,7 +3974,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           fotoPreview.innerHTML = `
             <div class="flex items-center space-x-3 p-2.5 bg-gray-50 rounded-xl border border-gray-200">
               ${cached ? `
-                <img src="${cached}" class="w-16 h-16 rounded-lg object-cover border border-gray-300 cursor-pointer shadow-xs" data-action="open-photo-viewer" data-id="${esc(task.id)}" />
+                <img src="${esc(safeImageSrc(cached))}" class="w-16 h-16 rounded-lg object-cover border border-gray-300 cursor-pointer shadow-xs" data-action="open-photo-viewer" data-id="${esc(task.id)}" />
               ` : `
                 <div class="w-16 h-16 rounded-lg bg-teal-50 border border-teal-200 flex items-center justify-center text-[#2A9D8F] cursor-pointer shadow-xs" data-action="open-photo-viewer" data-id="${esc(task.id)}">
                   <i data-lucide="camera" class="w-6 h-6"></i>
@@ -3706,11 +4005,11 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
         return `
           <label class="flex items-center space-x-2.5 p-2 rounded-lg border ${isChecked ? 'bg-teal-50/70 border-teal-300' : 'bg-gray-50 border-gray-200'} hover:bg-gray-100 cursor-pointer text-xs">
-            <input type="checkbox" name="edit-operari-checkbox" value="${op.id}" ${isChecked} ${disabled} onchange="updateEditTaskWhatsAppButtons('${task.id}')" class="w-4 h-4 text-[#2A9D8F] rounded border-gray-300 focus:ring-[#2A9D8F]" />
+            <input type="checkbox" name="edit-operari-checkbox" value="${esc(op.id)}" ${isChecked} ${disabled} data-action="edit-operari-change" data-task-id="${esc(task.id)}" class="w-4 h-4 text-[#2A9D8F] rounded border-gray-300 focus:ring-[#2A9D8F]" />
             <div class="flex-1">
-              <div class="font-bold text-[#1D3557] ${!op.actiu ? 'line-through text-gray-400' : ''}">${op.nom}</div>
-              <div class="text-[10px] text-gray-500">${op.rol}</div>
-              ${disp.isTempAbsent ? `<span class="inline-block mt-0.5 text-[9px] px-1.5 py-0.2 rounded font-bold bg-purple-100 text-purple-800">${disp.label}</span>` : ''}
+              <div class="font-bold text-[#1D3557] ${!op.actiu ? 'line-through text-gray-400' : ''}">${esc(op.nom)}</div>
+              <div class="text-[10px] text-gray-500">${esc(op.rol)}</div>
+              ${disp.isTempAbsent ? `<span class="inline-block mt-0.5 text-[9px] px-1.5 py-0.2 rounded font-bold bg-purple-100 text-purple-800">${esc(disp.label)}</span>` : ''}
               ${!op.actiu ? `<span class="inline-block mt-0.5 text-[9px] px-1.5 py-0.2 rounded font-bold bg-red-100 text-red-800">De Baixa Permanent</span>` : ''}
             </div>
           </label>
@@ -3883,7 +4182,10 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       if (window.FB && window.FB.isReady) {
         const opSaved = idStr ? APP_STATE.operaris.find(o => o.id === parseInt(idStr)) : APP_STATE.operaris[APP_STATE.operaris.length - 1];
         if (opSaved) {
-          window.FB.setDoc(window.FB.doc(window.FB.db, 'operaris', String(opSaved.id)), opSaved, { merge: true }).catch(() => {});
+          window.FB.setDoc(window.FB.doc(window.FB.db, 'operaris', String(opSaved.id)), opSaved, { merge: true }).catch(err => {
+            console.error('Error sincronitzant operari a Firestore:', err);
+            showToast("Error en desar l'operari a Firestore.", "error");
+          });
         }
       }
 
@@ -3912,7 +4214,10 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         if (confirm(msg)) {
           op.actiu = false;
           if (window.FB && window.FB.isReady) {
-            window.FB.setDoc(window.FB.doc(window.FB.db, 'operaris', String(op.id)), { actiu: false }, { merge: true }).catch(() => {});
+            window.FB.setDoc(window.FB.doc(window.FB.db, 'operaris', String(op.id)), { actiu: false }, { merge: true }).catch(err => {
+              console.error('Error desactivant operari a Firestore:', err);
+              showToast("Error en desactivar l'operari a Firestore.", "error");
+            });
           }
           showToast(`${op.nom} ha estat donat de BAIXA PERMANENT.`, 'info');
         }
@@ -3920,7 +4225,10 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         if (confirm(`Vols reactivar a ${op.nom} com a personal actiu de la brigada?`)) {
           op.actiu = true;
           if (window.FB && window.FB.isReady) {
-            window.FB.setDoc(window.FB.doc(window.FB.db, 'operaris', String(op.id)), { actiu: true }, { merge: true }).catch(() => {});
+            window.FB.setDoc(window.FB.doc(window.FB.db, 'operaris', String(op.id)), { actiu: true }, { merge: true }).catch(err => {
+              console.error('Error reactivant operari a Firestore:', err);
+              showToast("Error en reactivar l'operari a Firestore.", "error");
+            });
           }
           showToast(`${op.nom} torna a estar ACTIU a la plantilla.`, 'success');
         }
@@ -3971,22 +4279,22 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               <div class="flex items-start justify-between">
                 <div class="flex items-center space-x-3">
                   <div class="w-10 h-10 ${!op.actiu ? 'bg-gray-200 text-gray-500' : disp.isTempAbsent ? 'bg-purple-100 text-purple-800' : isClima ? 'bg-cyan-100 text-cyan-800' : 'bg-teal-50 text-[#2A9D8F]'} rounded-full flex items-center justify-center font-bold">
-                    ${op.nom.charAt(0)}
+                    ${esc(op.nom).charAt(0)}
                   </div>
                   <div>
                     <h4 class="font-bold text-sm text-[#1D3557] ${!op.actiu ? 'line-through text-gray-500' : ''}">${esc(op.nom)}</h4>
                     <p class="text-xs text-gray-500 font-medium">${esc(op.rol)}</p>
                   </div>
                 </div>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${disp.badgeClass}">
-                  ${disp.label}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${esc(disp.badgeClass)}">
+                  ${esc(disp.label)}
                 </span>
               </div>
 
               <div class="text-xs text-gray-600 space-y-1 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
-                <p>🔧 Especialitat: <strong class="text-gray-900">${CATEGORIA_LABELS[op.especialitat] || op.especialitat}</strong></p>
+                <p>🔧 Especialitat: <strong class="text-gray-900">${esc(CATEGORIA_LABELS[op.especialitat] || op.especialitat)}</strong></p>
                 <p>📞 Tel: <a href="${sanitizeTel(op.telefon)}" class="font-medium text-[#1D3557] underline">${esc(op.telefon)}</a></p>
-                <p>🔒 Compte Auth: <span class="font-mono text-emerald-800 font-medium">op-${op.id}@brigada-santa-eugenia.local</span></p>
+                <p>🔒 Compte Auth: <span class="font-mono text-emerald-800 font-medium">op-${esc(op.id)}@brigada-santa-eugenia.local</span></p>
                 <p class="text-[11px] pt-1 border-t border-gray-200/60 flex items-center justify-between">
                   <span class="text-gray-500">Tasques en cua:</span>
                   <span class="font-bold px-1.5 py-0.5 rounded ${pendingCount > 0 ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600'}">${pendingCount} pendents</span>
@@ -4015,9 +4323,9 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                       return `
                         <div class="p-1.5 bg-purple-50/80 rounded-lg border border-purple-200 flex items-center justify-between text-[10px] text-purple-950">
                           <div>
-                            <span class="font-bold">${typeInfo.icon} ${typeInfo.label}</span>: 
+                            <span class="font-bold">${esc(typeInfo.icon)} ${esc(typeInfo.label)}</span>: 
                             <span class="font-mono">${formatDateShort(b.dataInici)} al ${formatDateShort(b.dataFi)}</span>
-                            ${b.motiu ? `<p class="text-[9px] text-purple-700 italic truncate max-w-[170px]">${b.motiu}</p>` : ''}
+                            ${b.motiu ? `<p class="text-[9px] text-purple-700 italic truncate max-w-[170px]">${esc(b.motiu)}</p>` : ''}
                           </div>
                           <button data-action="delete-baixa-op" data-id="${esc(op.id)}" data-extra="${bIdx}" title="Eliminar absència" class="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded">
                             <i data-lucide="trash-2" class="w-3 h-3"></i>
@@ -4088,7 +4396,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       document.getElementById('modal-baixa-temporal').classList.add('hidden');
     }
 
-    function saveBaixaTemporal(e) {
+    async function saveBaixaTemporal(e) {
       e.preventDefault();
       const opId = parseInt(document.getElementById('baixa-operari-id').value);
       const op = APP_STATE.operaris.find(o => o.id === opId);
@@ -4108,16 +4416,31 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         op.baixes_temporals = [];
       }
 
-      op.baixes_temporals.push({
-        id: Date.now(),
+      const absId = String(Date.now());
+      const novaAbsencia = {
+        id: absId,
         tipus,
         dataInici,
         dataFi,
         motiu
-      });
+      };
+
+      op.baixes_temporals.push(novaAbsencia);
+
+      const today = new Date().toISOString().split('T')[0];
+      const isAbsentAvui = (dataInici <= today && today <= dataFi);
 
       if (window.FB && window.FB.isReady) {
-        window.FB.setDoc(window.FB.doc(window.FB.db, 'operaris', String(op.id)), { baixes_temporals: op.baixes_temporals }, { merge: true }).catch(() => {});
+        try {
+          const absRef = window.FB.doc(window.FB.db, 'operaris', String(op.id), 'absencies', absId);
+          await window.FB.setDoc(absRef, novaAbsencia);
+          if (isAbsentAvui) {
+            await window.FB.setDoc(window.FB.doc(window.FB.db, 'operaris', String(op.id)), { disponible: false }, { merge: true });
+          }
+        } catch (err) {
+          console.error("Error desant absència a Firestore:", err);
+          showToast("Error en desar l'absència a Firestore.", "error");
+        }
       }
 
       closeModalBaixaTemporal();
@@ -4128,7 +4451,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       renderCreateTaskOperatorsSelect();
     }
 
-    function deleteBaixaTemporal(opId, idx) {
+    async function deleteBaixaTemporal(opId, idx) {
       const op = APP_STATE.operaris.find(o => o.id === opId);
       if (!op || !op.baixes_temporals) return;
 
@@ -4136,9 +4459,17 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       const tipusLabel = TIPUS_BAIXA_LABELS[baixa.tipus]?.label || baixa.tipus;
 
       if (confirm(`Vols eliminar l'absència "${tipusLabel}" (${formatDateShort(baixa.dataInici)} - ${formatDateShort(baixa.dataFi)}) de ${op.nom}?`)) {
-        op.baixes_temporals.splice(idx, 1);
-        if (window.FB && window.FB.isReady) {
-          window.FB.setDoc(window.FB.doc(window.FB.db, 'operaris', String(op.id)), { baixes_temporals: op.baixes_temporals }, { merge: true }).catch(() => {});
+        const removed = op.baixes_temporals.splice(idx, 1)[0];
+        if (window.FB && window.FB.isReady && removed) {
+          try {
+            await window.FB.deleteDoc(window.FB.doc(window.FB.db, 'operaris', String(op.id), 'absencies', String(removed.id)));
+            const today = new Date().toISOString().split('T')[0];
+            const hasActiveBaixa = op.baixes_temporals.some(b => b.dataInici <= today && today <= b.dataFi);
+            await window.FB.setDoc(window.FB.doc(window.FB.db, 'operaris', String(op.id)), { disponible: !hasActiveBaixa }, { merge: true });
+          } catch (err) {
+            console.error("Error eliminant absència a Firestore:", err);
+            showToast("Error en eliminar l'absència a Firestore.", "error");
+          }
         }
         renderOperatorsCards();
         renderAdminTasks();
@@ -4173,7 +4504,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       const otherOperators = APP_STATE.operaris.filter(o => o.id !== sourceOperariId && o.actiu);
 
       destSelect.innerHTML = otherOperators.map(op => {
-        return `<option value="${op.id}">${op.nom} — [${op.rol}]</option>`;
+        return `<option value="${esc(op.id)}">${esc(op.nom)} — [${esc(op.rol)}]</option>`;
       }).join('');
 
       document.getElementById('modal-reassignar-bloc').classList.remove('hidden');
@@ -4185,7 +4516,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       bulkSourceOperariId = null;
     }
 
-    function confirmBulkReassignment() {
+    async function confirmBulkReassignment() {
       const destSelect = document.getElementById('bulk-desti-select');
       const targetOperariId = parseInt(destSelect.value);
       const targetOperari = APP_STATE.operaris.find(o => o.id === targetOperariId);
@@ -4193,26 +4524,70 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
       if (!targetOperari || !sourceOperari) return;
 
-      let transferredCount = 0;
+      const updatedTasks = [];
       APP_STATE.tasks.forEach(task => {
         const ids = task.operariIds && task.operariIds.length > 0 
           ? task.operariIds 
           : (task.operariId ? [task.operariId] : []);
 
         if (ids.includes(bulkSourceOperariId) && (task.estat === 'pendent' || task.estat === 'assignada')) {
-          task.operariIds = ids.map(id => id === bulkSourceOperariId ? targetOperariId : id);
-          task.operariId = task.operariIds[0] || targetOperariId;
-          task.estat = 'assignada';
-          transferredCount++;
+          const newOperariIds = [...new Set(ids.map(id => id === bulkSourceOperariId ? targetOperariId : id))];
+          const newOperariId = newOperariIds[0] || targetOperariId;
+          updatedTasks.push({
+            task,
+            operariIds: newOperariIds,
+            operariId: newOperariId,
+            estat: 'assignada'
+          });
         }
       });
 
-      closeBulkReassignModal();
-      showToast(`Reassignació en bloc exitosa: S'han transferit ${transferredCount} tasques de ${sourceOperari.nom} a ${targetOperari.nom}.`, "success");
+      if (updatedTasks.length === 0) {
+        closeBulkReassignModal();
+        showToast(`No hi ha ordres pendents o assignades per transferir.`, "info");
+        return;
+      }
 
-      renderOperatorsCards();
-      renderAdminTasks();
-      renderOperariScreen();
+      try {
+        if (window.FB && window.FB.isReady) {
+          if (window.FB.writeBatch) {
+            const batch = window.FB.writeBatch(window.FB.db);
+            updatedTasks.forEach(item => {
+              const taskRef = window.FB.doc(window.FB.db, 'tasques', String(item.task.id));
+              batch.update(taskRef, {
+                operariIds: item.operariIds,
+                operariId: item.operariId,
+                estat: item.estat
+              });
+            });
+            await batch.commit();
+          } else {
+            await Promise.all(updatedTasks.map(item =>
+              window.FB.updateDoc(window.FB.doc(window.FB.db, 'tasques', String(item.task.id)), {
+                operariIds: item.operariIds,
+                operariId: item.operariId,
+                estat: item.estat
+              })
+            ));
+          }
+        }
+
+        updatedTasks.forEach(item => {
+          item.task.operariIds = item.operariIds;
+          item.task.operariId = item.operariId;
+          item.task.estat = item.estat;
+        });
+
+        closeBulkReassignModal();
+        showToast(`Reassignació en bloc exitosa: S'han transferit ${updatedTasks.length} tasques de ${sourceOperari.nom} a ${targetOperari.nom}.`, "success");
+
+        renderOperatorsCards();
+        renderAdminTasks();
+        renderOperariScreen();
+      } catch (err) {
+        console.error('Error persistint la reassignació en bloc a Firestore:', err);
+        showToast(`Error desant la reassignació en bloc: ${err?.message || 'Error de xarxa o permisos'}`, "error");
+      }
     }
 
     // -------------------------------------------------------------------------
@@ -4228,11 +4603,11 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
         return `
           <label class="flex items-center space-x-2.5 p-2 rounded-lg border bg-white border-gray-200 hover:bg-gray-50 cursor-pointer text-xs transition-colors">
-            <input type="checkbox" name="create-operari-checkbox" value="${op.id}" ${disabled} class="w-4 h-4 text-[#2A9D8F] rounded border-gray-300 focus:ring-[#2A9D8F]" />
+            <input type="checkbox" name="create-operari-checkbox" value="${esc(op.id)}" ${disabled} class="w-4 h-4 text-[#2A9D8F] rounded border-gray-300 focus:ring-[#2A9D8F]" />
             <div class="flex-1">
-              <div class="font-bold text-[#1D3557] ${!op.actiu ? 'line-through text-gray-400' : ''}">${op.nom}</div>
-              <div class="text-[10px] text-gray-500">${op.rol} · <span class="text-teal-700">${CATEGORIA_LABELS[op.especialitat] || op.especialitat}</span></div>
-              ${disp.isTempAbsent ? `<span class="inline-block mt-0.5 text-[9px] px-1.5 py-0.2 rounded font-bold bg-purple-100 text-purple-800">${disp.label}</span>` : ''}
+              <div class="font-bold text-[#1D3557] ${!op.actiu ? 'line-through text-gray-400' : ''}">${esc(op.nom)}</div>
+              <div class="text-[10px] text-gray-500">${esc(op.rol)} · <span class="text-teal-700">${esc(CATEGORIA_LABELS[op.especialitat] || op.especialitat)}</span></div>
+              ${disp.isTempAbsent ? `<span class="inline-block mt-0.5 text-[9px] px-1.5 py-0.2 rounded font-bold bg-purple-100 text-purple-800">${esc(disp.label)}</span>` : ''}
               ${!op.actiu ? `<span class="inline-block mt-0.5 text-[9px] px-1.5 py-0.2 rounded font-bold bg-red-100 text-red-800">De Baixa Permanent</span>` : ''}
             </div>
           </label>
@@ -4246,10 +4621,23 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       const select = document.getElementById('login-operari-select');
       if (!select) return;
       const activeOps = APP_STATE.operaris.filter(o => o.actiu);
+      if (activeOps.length === 0) {
+        if (select.children.length > 0) return;
+        const fallbackOps = [
+          { id: 1, nom: "Nofre Torrens", rol: "Oficial 1ª Obra / Paleteria", actiu: true },
+          { id: 2, nom: "Joan Bibiloni", rol: "Cap de brigada", actiu: true },
+          { id: 3, nom: "Carlos Ferriol", rol: "Peó / Neteja Viària", actiu: true },
+          { id: 4, nom: "Miquel Roca", rol: "Oficial Climatització i Calefacció", actiu: true },
+          { id: 5, nom: "Juan Carlos Alfonso", rol: "Peó / Neteja Viària", actiu: true },
+          { id: 6, nom: "Juan Carlos Dols", rol: "Peó / Neteja Viària", actiu: true }
+        ];
+        select.innerHTML = fallbackOps.map(op => `<option value="${esc(op.id)}">${esc(op.nom)} — [${esc(op.rol)}]</option>`).join('');
+        return;
+      }
 
       select.innerHTML = activeOps.map(op => {
-        const disp = getOperariDisponibilitat(op);
-        return `<option value="${op.id}">${op.nom} — [${op.rol}] ${disp.isTempAbsent ? '(🏖️ Absent)' : ''}</option>`;
+        const disp = (typeof getOperariDisponibilitat === 'function') ? getOperariDisponibilitat(op) : { isTempAbsent: false };
+        return `<option value="${esc(op.id)}">${esc(op.nom)} — [${esc(op.rol)}] ${disp && disp.isTempAbsent ? '(🏖️ Absent)' : ''}</option>`;
       }).join('');
     }
 
@@ -4267,7 +4655,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
       viaSelect.innerHTML = filteredVies.map(v => {
         const codiText = v.codiMun && v.codiMun !== '—' ? `[${v.codiMun}] ` : '';
-        return `<option value="${v.nom} (${v.codiMun})">${codiText}${v.tipus}: ${v.nom}</option>`;
+        return `<option value="${esc(v.nom)} (${esc(v.codiMun)})">${esc(codiText)}${esc(v.tipus)}: ${esc(v.nom)}</option>`;
       }).join('');
     }
 
@@ -4276,11 +4664,62 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         const reader = new FileReader();
         reader.onload = function(e) {
           document.getElementById('preview-foto-box').innerHTML = `
-            <img src="${e.target.result}" class="h-28 rounded-lg object-cover shadow-sm" />
+            <img src="${esc(safeImageSrc(e.target.result))}" class="h-28 rounded-lg object-cover shadow-sm" />
             <p class="text-xs text-emerald-600 font-semibold mt-1">✓ Imatge carregada (Comprimida a WebP)</p>
           `;
         };
         reader.readAsDataURL(input.files[0]);
+      }
+    }
+
+    // E3: Generador transaccional atòmic d'identificadors d'ordre municipal (SE-YYYY-NNNN)
+    // Amb fallback segur en mode offline (on runTransaction de Firestore no pot operar)
+    async function getNextTaskIdTransactional() {
+      const currentYear = new Date().getFullYear();
+      const generateLocalFallbackId = () => {
+        let maxNum = 0;
+        APP_STATE.tasks.forEach(t => {
+          const m = String(t.id).match(/^SE-(\d{4})-(\d+)$/);
+          if (m && Number(m[1]) === currentYear) {
+            maxNum = Math.max(maxNum, Number(m[2]));
+          }
+        });
+        const nextNum = maxNum + 1;
+        return `SE-${currentYear}-${String(nextNum).padStart(4, '0')}`;
+      };
+
+      const isOffline = (typeof navigator !== 'undefined' && navigator.onLine === false);
+      if (!window.FB || !window.FB.isReady || !window.FB.runTransaction || isOffline) {
+        return generateLocalFallbackId();
+      }
+
+      try {
+        const comptadorRef = window.FB.doc(window.FB.db, 'comptadors', 'tasques');
+        return await window.FB.runTransaction(window.FB.db, async (transaction) => {
+          const comptadorSnap = await transaction.get(comptadorRef);
+          let darrerNumero = 0;
+          let ultimAny = currentYear;
+
+          if (comptadorSnap.exists()) {
+            const data = comptadorSnap.data();
+            ultimAny = data.ultimAny || currentYear;
+            if (ultimAny === currentYear) {
+              darrerNumero = Number(data.darrerNumero) || 0;
+            }
+          }
+
+          const nouNumero = darrerNumero + 1;
+          transaction.set(comptadorRef, {
+            ultimAny: currentYear,
+            darrerNumero: nouNumero,
+            actualitzatEl: new Date().toISOString()
+          }, { merge: true });
+
+          return `SE-${currentYear}-${String(nouNumero).padStart(4, '0')}`;
+        });
+      } catch (err) {
+        console.warn('Avís runTransaction (possiblement offline), usant fallback local:', err);
+        return generateLocalFallbackId();
       }
     }
 
@@ -4302,7 +4741,15 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       const operariId = operariIds.length > 0 ? operariIds[0] : null;
 
       const viaObj = APP_STATE.vies.find(v => via.includes(v.nom)) || { lat: 39.62354, lng: 2.83685 };
-      const newId = `SE-2026-000${APP_STATE.tasks.length + 1}`;
+
+      let newId;
+      try {
+        newId = await getNextTaskIdTransactional();
+      } catch (errTx) {
+        console.warn('Avís generant ID transaccional, utilitzant fallback:', errTx);
+        const currentYear = new Date().getFullYear();
+        newId = `SE-${currentYear}-${String(Date.now()).slice(-4)}`;
+      }
 
       try {
         if (submitBtn) {
@@ -4314,7 +4761,6 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           `;
         }
 
-        let fotoInicialUrl = "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=500&auto=format&fit=crop&q=60";
         let customPhotoData = null;
         const fileInput = document.getElementById('input-foto-inicial');
         if (fileInput && fileInput.files && fileInput.files[0]) {
@@ -4333,17 +4779,18 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           prioritat,
           nucli,
           via,
-          lat: viaObj.lat + (Math.random() - 0.5) * 0.001,
-          lng: viaObj.lng + (Math.random() - 0.5) * 0.001,
+          lat: viaObj.lat,
+          lng: viaObj.lng,
           estat: operariIds.length > 0 ? 'assignada' : 'pendent',
           operariIds,
           operariId,
           esImportant,
+          tempsTotalSegons: 0,
           tempsTranscorregut: 0,
           teFotoInicial: Boolean(customPhotoData),
           teFotoFinal: false,
           teSignatura: false,
-          fotoInicial: customPhotoData ? null : fotoInicialUrl,
+          fotoInicial: null,
           fotoFinal: null,
           signatura: null,
           creatEl: new Date().toISOString()
@@ -4361,8 +4808,9 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               });
             }
           } catch (err) {
-            console.warn('Avís guardant tasca o adjunts a Firestore:', err);
-            APP_STATE.tasks.unshift(newTask);
+            console.error('Error crític guardant tasca a Firestore:', err);
+            showToast("Error en desar l'ordre de treball a Firestore: " + (err.message || 'Error de connexió o permisos'), 'error');
+            return;
           }
         } else {
           APP_STATE.tasks.unshift(newTask);
@@ -4466,7 +4914,12 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
     function getTaskCurrentElapsedSeconds(task) {
       if (!task) return 0;
-      let base = Number(task.tempsTotalSegons ?? task.tempsTranscorregut) || 0;
+      let base = 0;
+      if (typeof task.tempsTotalSegons === 'number' && !isNaN(task.tempsTotalSegons)) {
+        base = Math.max(0, task.tempsTotalSegons);
+      } else if (typeof task.tempsTranscorregut === 'number' && !isNaN(task.tempsTranscorregut)) {
+        base = Math.max(0, task.tempsTranscorregut);
+      }
       if (task.estat === 'en_curs' && task.tempsInici) {
         const startMs = new Date(task.tempsInici).getTime();
         if (!isNaN(startMs)) {
@@ -4593,7 +5046,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                       </span>
                       <div class="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-100 cursor-pointer h-28 group flex items-center justify-center" data-action="open-photo-viewer" data-id="${esc(task.id)}" title="Clica per ampliar">
                         ${(task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)) ? `
-                          <img src="${task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)}" alt="Foto inicial" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                          <img src="${esc(safeImageSrc(task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)))}" alt="Foto inicial" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                         ` : `
                           <div class="flex flex-col items-center justify-center p-2 text-center text-gray-500">
                             <i data-lucide="camera" class="w-6 h-6 text-[#2A9D8F] mb-1"></i>
@@ -4616,7 +5069,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                       </span>
                       <div class="relative rounded-xl overflow-hidden border border-emerald-300 bg-emerald-50/30 cursor-pointer h-28 group flex items-center justify-center" data-action="open-photo-viewer-final" data-id="${esc(task.id)}" title="Clica per ampliar">
                         ${(task.fotoFinal || ADJUNTS_CACHE.get(`${task.id}_fotoFinal`)) ? `
-                          <img src="${task.fotoFinal || ADJUNTS_CACHE.get(`${task.id}_fotoFinal`)}" alt="Foto final" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                          <img src="${esc(safeImageSrc(task.fotoFinal || ADJUNTS_CACHE.get(`${task.id}_fotoFinal`)))}" alt="Foto final" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                         ` : `
                           <div class="flex flex-col items-center justify-center p-2 text-center text-emerald-700">
                             <i data-lucide="check-circle" class="w-6 h-6 text-emerald-600 mb-1"></i>
@@ -4717,15 +5170,15 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                 ${teammates.map(tm => `
                   <div class="flex items-center justify-between flex-wrap gap-2 pt-1.5 border-t border-teal-200/60 first:border-t-0 first:pt-0">
                     <div>
-                      <span class="font-bold text-[#1D3557]">${tm.nom}</span>
-                      <span class="text-xs text-teal-700 ml-1 font-medium">(${tm.rol})</span>
+                      <span class="font-bold text-[#1D3557]">${esc(tm.nom)}</span>
+                      <span class="text-xs text-teal-700 ml-1 font-medium">(${esc(tm.rol)})</span>
                     </div>
                     <div class="flex items-center space-x-1.5">
-                      <a href="tel:${tm.telefon}" title="Trucar a ${tm.nom}" class="min-touch min-h-[36px] px-2.5 py-1.5 bg-white hover:bg-teal-50 text-[#1D3557] border border-teal-300 rounded-lg flex items-center space-x-1 text-xs font-bold shadow-xs transition-colors">
+                      <a href="${sanitizeTel(tm.telefon)}" title="Trucar a ${esc(tm.nom)}" class="min-touch min-h-[36px] px-2.5 py-1.5 bg-white hover:bg-teal-50 text-[#1D3557] border border-teal-300 rounded-lg flex items-center space-x-1 text-xs font-bold shadow-xs transition-colors">
                         <i data-lucide="phone" class="w-3 h-3 text-[#2A9D8F]"></i>
                         <span>Trucar</span>
                       </a>
-                      <a href="https://wa.me/34${tm.telefon}?text=${encodeURIComponent(`Hola ${tm.nom.split(' ')[0]}, et contacto des de la Brigada per coordinar la tasca ${task.id} (${task.titol}).`)}" target="_blank" rel="noopener noreferrer" title="WhatsApp a ${tm.nom}" class="min-touch min-h-[36px] px-2.5 py-1.5 bg-[#25D366] hover:bg-[#20ba5a] text-white rounded-lg flex items-center space-x-1 text-xs font-bold shadow-xs transition-colors">
+                      <a href="${generateWhatsAppLink(tm.telefon, `Hola ${tm.nom.split(' ')[0]}, et contacto des de la Brigada per coordinar la tasca ${task.id} (${task.titol}).`)}" target="_blank" rel="noopener noreferrer" title="WhatsApp a ${esc(tm.nom)}" class="min-touch min-h-[36px] px-2.5 py-1.5 bg-[#25D366] hover:bg-[#20ba5a] text-white rounded-lg flex items-center space-x-1 text-xs font-bold shadow-xs transition-colors">
                         <svg class="w-3 h-3 fill-current flex-shrink-0" viewBox="0 0 24 24">
                           <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.312.045-.634.053-1.688-.383-1.347-.558-2.221-1.921-2.289-2.01-.067-.089-.54-2.18-.54-2.18s-.201-.274-.201-.527c0-.253.136-.379.184-.428.049-.049.108-.061.144-.061.036 0 .073 0 .105.002.035.002.082-.013.128.098.048.113.165.405.18.435.014.03.023.065.005.101-.019.035-.028.057-.056.09-.028.033-.06.074-.085.1-.029.03-.06.063-.026.121.034.058.151.249.324.403.223.199.412.261.47.29.058.03.092.025.127-.015.035-.04.15-.175.19-.235.04-.06.08-.05.134-.03.054.02.343.162.402.191.058.03.098.045.112.07.015.025.015.147-.129.552z"/>
                         </svg>
@@ -4790,7 +5243,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                 </div>
                 <div class="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-100 cursor-pointer group" data-action="open-photo-viewer" data-id="${esc(task.id)}">
                   ${(task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)) ? `
-                    <img src="${task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)}" alt="Foto incidència" class="w-full h-44 object-cover hover:scale-[1.01] transition-transform duration-200" />
+                    <img src="${esc(safeImageSrc(task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)))}" alt="Foto incidència" class="w-full h-44 object-cover hover:scale-[1.01] transition-transform duration-200" />
                   ` : `
                     <div class="w-full h-28 bg-teal-50/60 border border-teal-100 flex flex-col items-center justify-center p-3 text-center">
                       <i data-lucide="camera" class="w-7 h-7 text-[#2A9D8F] mb-1"></i>
@@ -4871,9 +5324,8 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       if (!task) return;
 
       const now = new Date();
-      if (typeof task.tempsTotalSegons !== 'number') {
-        task.tempsTotalSegons = Number(task.tempsTranscorregut) || 0;
-      }
+      task.tempsTotalSegons = getTaskCurrentElapsedSeconds(task);
+      task.tempsTranscorregut = task.tempsTotalSegons;
       task.estat = 'en_curs';
       task.tempsInici = now.toISOString();
       task.tempsPausa = null;
@@ -4899,14 +5351,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       if (!task) return;
 
       const now = new Date();
-      let segonsAcumulats = Number(task.tempsTotalSegons ?? task.tempsTranscorregut) || 0;
-      if (task.tempsInici) {
-        const startMs = new Date(task.tempsInici).getTime();
-        if (!isNaN(startMs)) {
-          const delta = Math.max(0, Math.floor((now.getTime() - startMs) / 1000));
-          segonsAcumulats += delta;
-        }
-      }
+      const segonsAcumulats = getTaskCurrentElapsedSeconds(task);
 
       task.tempsTotalSegons = segonsAcumulats;
       task.tempsTranscorregut = segonsAcumulats;
@@ -5079,7 +5524,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
             ${(task.fotoInicial || task.teFotoInicial) ? `
               <div class="flex flex-col items-center flex-shrink-0 cursor-pointer" data-action="open-photo-viewer" data-id="${esc(task.id)}" title="Clica per ampliar">
                 ${(task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)) ? `
-                  <img src="${task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)}" class="w-14 h-14 rounded-lg object-cover border border-gray-300 shadow-xs" />
+                  <img src="${esc(safeImageSrc(task.fotoInicial || ADJUNTS_CACHE.get(`${task.id}_fotoInicial`)))}" class="w-14 h-14 rounded-lg object-cover border border-gray-300 shadow-xs" />
                 ` : `
                   <div class="w-14 h-14 rounded-lg bg-teal-50 border border-teal-200 flex items-center justify-center text-[#2A9D8F] shadow-xs">
                     <i data-lucide="camera" class="w-5 h-5"></i>
@@ -5143,7 +5588,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           const previewBox = document.getElementById('preview-final-box');
           if (previewBox) {
             previewBox.innerHTML = `
-              <img src="${e.target.result}" class="h-28 rounded-lg object-cover shadow-sm mx-auto" />
+              <img src="${esc(safeImageSrc(e.target.result))}" class="h-28 rounded-lg object-cover shadow-sm mx-auto" />
               <span class="text-xs text-emerald-600 font-semibold mt-1 block">✓ Foto final afegida</span>
             `;
           }
@@ -5335,15 +5780,16 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       if (retencioEl) {
         retencioEl.innerText = task.esImportant 
           ? "★ Tasca marcada com a IMPORTANT: Custòdia i retenció permanent d'imatges a l'arxiu d'obres públiques."
-          : "Tasca ordinària: Imatges emmagatzemades amb purga automàtica de 30 dies post-finalització (Dades preservades).";
+          : "Tasca ordinària: Imatges i registres preservats a l'arxiu d'obres públiques.";
       }
 
-      const duradaMins = task.tempsTranscorregut ? Math.round(task.tempsTranscorregut / 60) : 75;
+      const totalSecs = getTaskCurrentElapsedSeconds(task);
+      const duradaMins = totalSecs > 0 ? Math.round(totalSecs / 60) : 0;
       const duradaEl = document.getElementById('pdf-durada-total');
-      if (duradaEl) duradaEl.innerText = `${duradaMins} min`;
+      if (duradaEl) duradaEl.innerText = duradaMins > 0 ? `${duradaMins} min` : "Sense temps registrat";
 
       const netEl = document.getElementById('pdf-temps-net');
-      if (netEl) netEl.innerText = `${Math.max(duradaMins - 30, 0)} min`;
+      if (netEl) netEl.innerText = duradaMins > 0 ? `${duradaMins} min` : "Sense temps registrat";
 
       const fotoAbansBox = document.getElementById('pdf-foto-abans-box');
       const fotoDespresBox = document.getElementById('pdf-foto-despres-box');
@@ -5358,19 +5804,22 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         carregarAdjunt(task.id, 'fotoFinal'),
         carregarAdjunt(task.id, 'signatura')
       ]).then(([fotoAbans, fotoDespres, signatura]) => {
+        const safeFotoAbans = safeImageSrc(fotoAbans);
+        const safeFotoDespres = safeImageSrc(fotoDespres);
+        const safeSignatura = safeImageSrc(signatura);
         if (fotoAbansBox) {
-          fotoAbansBox.innerHTML = fotoAbans 
-            ? `<img src="${fotoAbans}" class="w-full h-full object-cover" />`
+          fotoAbansBox.innerHTML = safeFotoAbans
+            ? `<img src="${esc(safeFotoAbans)}" class="w-full h-full object-cover" />`
             : `<span class="text-xs text-gray-400">Sense foto inicial</span>`;
         }
         if (fotoDespresBox) {
-          fotoDespresBox.innerHTML = fotoDespres 
-            ? `<img src="${fotoDespres}" class="w-full h-full object-cover" />`
+          fotoDespresBox.innerHTML = safeFotoDespres
+            ? `<img src="${esc(safeFotoDespres)}" class="w-full h-full object-cover" />`
             : `<span class="text-xs text-gray-400">Sense foto final</span>`;
         }
         if (firmaBox) {
-          firmaBox.innerHTML = signatura 
-            ? `<img src="${signatura}" class="max-h-16 mx-auto object-contain" />`
+          firmaBox.innerHTML = safeSignatura
+            ? `<img src="${esc(safeSignatura)}" class="max-h-16 mx-auto object-contain" />`
             : `<span class="text-xs text-gray-400 italic">Signatura electrònica municipal</span>`;
         }
       });
@@ -5469,16 +5918,21 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       document.getElementById('modal-afegir-via').classList.add('hidden');
     }
 
-    function handleCreateVia(e) {
+    async function handleCreateVia(e) {
       e.preventDefault();
       const nucli = document.getElementById('via-nucli').value;
       const tipus = document.getElementById('via-tipus').value;
-      const nom = document.getElementById('via-nom').value;
+      const nom = document.getElementById('via-nom').value.trim();
       const codiMun = document.getElementById('via-codi-mun').value || '—';
       const codiIne = document.getElementById('via-codi-ine').value || '—';
 
+      const maxNum = APP_STATE.vies.reduce((acc, v) => Math.max(acc, Number(v.num) || 0), 0);
+      const nextNum = maxNum + 1;
+      const viaId = `via-${nextNum}-${Date.now()}`;
+
       const newEntry = {
-        num: APP_STATE.vies.length + 1,
+        id: viaId,
+        num: nextNum,
         codiMun,
         tipus,
         codiIne,
@@ -5487,14 +5941,26 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         procedencia: 'Alta Manual Administrador',
         alts: '',
         lat: 39.62354,
-        lng: 2.83685
+        lng: 2.83685,
+        creatEl: new Date().toISOString()
       };
 
-      APP_STATE.vies.push(newEntry);
-      closeModalAddVia();
-      renderNomenclatorTable();
-      updateStreetSelector();
-      showToast(`Via "${nom}" afegida correctament al nomenclàtor.`, 'success');
+      try {
+        if (window.FB && window.FB.isReady) {
+          await window.FB.setDoc(window.FB.doc(window.FB.db, 'vies', viaId), newEntry);
+        }
+
+        if (!APP_STATE.vies.some(v => v.id === viaId)) {
+          APP_STATE.vies.push(newEntry);
+        }
+        closeModalAddVia();
+        renderNomenclatorTable();
+        updateStreetSelector();
+        showToast(`Via "${nom}" afegida i desada correctament al nomenclàtor.`, 'success');
+      } catch (err) {
+        console.error('Error desant la nova via a Firestore:', err);
+        showToast(`Error desant la via "${nom}": ${err?.message || 'Error de permisos o xarxa'}`, 'error');
+      }
     }
 
     // -------------------------------------------------------------------------
@@ -5609,7 +6075,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                     const disp = getOperariDisponibilitat(op);
                     return `
                       <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-lg text-[10px] font-medium ${disp.actiu ? 'bg-teal-50 text-teal-800 border border-teal-200' : 'bg-purple-50 text-purple-800 border border-purple-200'}">
-                        <span>${op.nom}</span>
+                        <span>${esc(op.nom)}</span>
                         ${disp.isTempAbsent ? '<span title="Absent">🏖️</span>' : ''}
                       </span>
                     `;
@@ -5678,10 +6144,10 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
         return `
           <label class="flex items-center space-x-2 p-1.5 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer text-xs">
-            <input type="checkbox" name="prog-operari-checkbox" value="${op.id}" ${isChecked} ${disabled} class="w-4 h-4 text-[#2A9D8F] rounded border-gray-300 focus:ring-[#2A9D8F]" />
+            <input type="checkbox" name="prog-operari-checkbox" value="${esc(op.id)}" ${isChecked} ${disabled} class="w-4 h-4 text-[#2A9D8F] rounded border-gray-300 focus:ring-[#2A9D8F]" />
             <div class="flex-1 truncate">
-              <span class="font-bold text-[#1D3557] ${!op.actiu ? 'line-through text-gray-400' : ''}">${op.nom}</span>
-              <span class="text-[10px] text-gray-500 block truncate">${op.rol}</span>
+              <span class="font-bold text-[#1D3557] ${!op.actiu ? 'line-through text-gray-400' : ''}">${esc(op.nom)}</span>
+              <span class="text-[10px] text-gray-500 block truncate">${esc(op.rol)}</span>
             </div>
             ${disp.isTempAbsent ? '<span class="text-[9px] text-purple-700 font-bold">🏖️</span>' : ''}
           </label>
@@ -5754,7 +6220,10 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       if (window.FB && window.FB.isReady) {
         const itemToSave = idStr ? APP_STATE.tasquesProgramades.find(p => p.id === idStr) : APP_STATE.tasquesProgramades[0];
         if (itemToSave) {
-          window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques_programades', itemToSave.id), itemToSave, { merge: true }).catch(() => {});
+          window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques_programades', itemToSave.id), itemToSave, { merge: true }).catch(err => {
+            console.error('Error desant rutina a Firestore:', err);
+            showToast("Error en desar la rutina programada a Firestore.", "error");
+          });
         }
       }
 
@@ -5768,7 +6237,10 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
       prog.activa = !prog.activa;
       if (window.FB && window.FB.isReady) {
-        window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques_programades', prog.id), { activa: prog.activa }, { merge: true }).catch(() => {});
+        window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques_programades', prog.id), { activa: prog.activa }, { merge: true }).catch(err => {
+          console.error('Error canviant estat de la rutina a Firestore:', err);
+          showToast("Error en actualitzar l'estat de la rutina a Firestore.", "error");
+        });
       }
       renderProgramadesCards();
     }
@@ -5780,7 +6252,10 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       if (confirm(`Vols eliminar definitivament la rutina periòdica "${prog.titol}"?`)) {
         APP_STATE.tasquesProgramades = APP_STATE.tasquesProgramades.filter(p => p.id !== progId);
         if (window.FB && window.FB.isReady) {
-          window.FB.deleteDoc(window.FB.doc(window.FB.db, 'tasques_programades', progId)).catch(() => {});
+          window.FB.deleteDoc(window.FB.doc(window.FB.db, 'tasques_programades', progId)).catch(err => {
+            console.error('Error eliminant rutina de Firestore:', err);
+            showToast("Error en eliminar la rutina de Firestore.", "error");
+          });
         }
         renderProgramadesCards();
       }
@@ -5803,7 +6278,8 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         return null;
       }
 
-      const newId = `SE-PREV-${Math.floor(1000 + Math.random() * 9000)}`;
+      const execNum = (prog.totalExecucions || 0) + 1;
+      const newId = `SE-PREV-${String(execNum).padStart(4, '0')}`;
       const today = new Date().toISOString().split('T')[0];
 
       const newTask = {
@@ -5815,14 +6291,15 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         prioritat: prog.prioritat || 'normal',
         nucli: prog.nucli,
         via: prog.via,
-        lat: (prog.lat || 39.62410) + (Math.random() - 0.5) * 0.001,
-        lng: (prog.lng || 2.83750) + (Math.random() - 0.5) * 0.001,
+        lat: prog.lat || 39.62410,
+        lng: prog.lng || 2.83750,
         estat: (prog.operariIds && prog.operariIds.length > 0) ? 'assignada' : 'pendent',
         operariIds: [...(prog.operariIds || [])],
         operariId: (prog.operariIds && prog.operariIds.length > 0) ? prog.operariIds[0] : null,
         esImportant: false,
         esProgramada: true,
         frequencia: prog.frequencia,
+        tempsTotalSegons: 0,
         tempsTranscorregut: 0,
         teFotoInicial: false,
         teFotoFinal: false,
@@ -5835,13 +6312,19 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
 
       APP_STATE.tasks.unshift(newTask);
       prog.darreraExecucio = today;
-      prog.totalExecucions = (prog.totalExecucions || 0) + 1;
+      prog.totalExecucions = execNum;
       prog.properaExecucio = calcularProperaData(today, prog.frequencia);
 
       if (window.FB && window.FB.isReady) {
         const clean = sanitizeForFirestore(newTask);
-        window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques', newId), clean).catch(() => {});
-        window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques_programades', prog.id), prog, { merge: true }).catch(() => {});
+        window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques', newId), clean).catch(err => {
+          console.error('Error desant ordre preventiva a Firestore:', err);
+          showToast("Error en desar l'ordre preventiva a Firestore.", "error");
+        });
+        window.FB.setDoc(window.FB.doc(window.FB.db, 'tasques_programades', prog.id), prog, { merge: true }).catch(err => {
+          console.error('Error actualitzant darrera execució a Firestore:', err);
+          showToast("Error en actualitzar la tasca programada a Firestore.", "error");
+        });
       }
 
       if (!isSilent) {
@@ -6056,7 +6539,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       // Hores totals: còmput real estricte (sense deducció d'esmorzar per mandat municipal)
       let totalSegons = 0;
       filteredTasks.forEach(t => {
-        totalSegons += (t.tempsTranscorregut || 0);
+        totalSegons += getTaskCurrentElapsedSeconds(t);
       });
       const totalHores = totalSegons / 3600;
       const totalHoresStr = `${totalHores.toFixed(1)} h`;
@@ -6133,7 +6616,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         const cat = t.categoria || 'altres';
         if (!map[cat]) map[cat] = { count: 0, seconds: 0 };
         map[cat].count++;
-        map[cat].seconds += (t.tempsTranscorregut || 0);
+        map[cat].seconds += getTaskCurrentElapsedSeconds(t);
       });
 
       const items = Object.entries(map).map(([cat, d]) => ({
@@ -6181,7 +6664,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         const n = t.nucli || "Santa Eugènia (Vila)";
         if (!counts[n]) counts[n] = { count: 0, seconds: 0 };
         counts[n].count++;
-        counts[n].seconds += (t.tempsTranscorregut || 0);
+        counts[n].seconds += getTaskCurrentElapsedSeconds(t);
       });
 
       container.innerHTML = Object.entries(counts).map(([nom, d]) => {
@@ -6223,7 +6706,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         const totalTancades = opTasks.filter(t => t.estat === 'finalitzada').length;
 
         let totalSegons = 0;
-        opTasks.forEach(t => totalSegons += (t.tempsTranscorregut || 0));
+        opTasks.forEach(t => totalSegons += getTaskCurrentElapsedSeconds(t));
         const totalHores = (totalSegons / 3600).toFixed(1);
 
         const mitjanaMinuts = totalTancades > 0 ? Math.round((totalSegons / totalTancades) / 60) : 0;
@@ -6238,7 +6721,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                 </div>
                 <div>
                   <span class="font-bold text-gray-900 block">${esc(op.nom)}</span>
-                  <span class="text-[10px] text-gray-400 font-mono">op-${op.id}</span>
+                  <span class="text-[10px] text-gray-400 font-mono">op-${esc(op.id)}</span>
                 </div>
               </div>
             </td>
@@ -6283,7 +6766,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         const assignedOps = APP_STATE.operaris.filter(o => assignedIds.includes(o.id));
         const teamNames = assignedOps.map(o => o.nom.split(' ')[0]).join(', ') || 'Sense assignar';
         const dataRegStr = task.creatEl ? new Date(task.creatEl).toLocaleDateString('ca-ES') : '-';
-        const duradaHores = task.tempsTranscorregut ? (task.tempsTranscorregut / 3600).toFixed(1) : '0.0';
+        const duradaHores = (getTaskCurrentElapsedSeconds(task) / 3600).toFixed(1);
 
         const estatBadge = {
           pendent: 'bg-red-100 text-red-800',
@@ -6371,7 +6854,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         const finDate = t.tempsFinalitzacio ? new Date(t.tempsFinalitzacio).toLocaleDateString('ca-ES') : (t.finalitzadaEl || '-');
         const assignedIds = t.operariIds && t.operariIds.length > 0 ? t.operariIds : (t.operariId ? [t.operariId] : []);
         const assignedNames = APP_STATE.operaris.filter(o => assignedIds.includes(o.id)).map(o => o.nom).join(', ');
-        const duradaMins = t.tempsTranscorregut ? Math.round(t.tempsTranscorregut / 60) : 0;
+        const duradaMins = Math.round(getTaskCurrentElapsedSeconds(t) / 60);
         const duradaHoresDec = (duradaMins / 60).toFixed(2);
 
         return [
@@ -6418,7 +6901,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       const taxaResolucio = totalOrdres > 0 ? Math.round((resoltes / totalOrdres) * 100) : 0;
 
       let totalSegons = 0;
-      tasks.forEach(t => totalSegons += (t.tempsTranscorregut || 0));
+      tasks.forEach(t => totalSegons += getTaskCurrentElapsedSeconds(t));
       const totalHoresStr = `${(totalSegons / 3600).toFixed(1)} h`;
 
       const avuiStr = new Date().toLocaleDateString('ca-ES', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -6492,7 +6975,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
               ${["Santa Eugènia (Vila)", "Ses Alqueries", "Ses Olleries", "Ses Coves"].map(n => {
                 const sub = tasks.filter(t => (t.nucli || "Santa Eugènia (Vila)") === n);
                 let segons = 0;
-                sub.forEach(t => segons += (t.tempsTranscorregut || 0));
+                sub.forEach(t => segons += getTaskCurrentElapsedSeconds(t));
                 const perc = totalOrdres > 0 ? Math.round((sub.length / totalOrdres) * 100) : 0;
                 return `
                   <tr>
@@ -6530,7 +7013,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                 const totalAssignades = opTasks.length;
                 const totalTancades = opTasks.filter(t => t.estat === 'finalitzada').length;
                 let segons = 0;
-                opTasks.forEach(t => segons += (t.tempsTranscorregut || 0));
+                opTasks.forEach(t => segons += getTaskCurrentElapsedSeconds(t));
                 const hores = (segons / 3600).toFixed(1);
                 const eficacia = totalAssignades > 0 ? Math.round((totalTancades / totalAssignades) * 100) : 0;
                 return `

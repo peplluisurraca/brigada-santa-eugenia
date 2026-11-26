@@ -148,4 +148,43 @@ describe('Fase 7: Informes i Analítica Municipal (Backoffice P1)', () => {
     assert.ok(html.includes('#print-report-modal:not(.hidden)'), 'Ha de mostrar només el modal actiu');
   });
 
+  test('11. Còmput d\'hores canònic getTaskCurrentElapsedSeconds i certificats (Fase 8 Bloc D)', () => {
+    // Verificar que getTaskCurrentElapsedSeconds existeix i està implementada
+    assert.ok(html.includes('function getTaskCurrentElapsedSeconds(task)'), 'getTaskCurrentElapsedSeconds ha d\'estar definida');
+
+    // Executar en VM per verificar els càlculs exactes
+    const match = html.match(/function getTaskCurrentElapsedSeconds\(task\) \{([\s\S]*?)\n    \}/);
+    assert.ok(match, 'Ha de contenir la funció getTaskCurrentElapsedSeconds');
+    const getTaskCurrentElapsedSeconds = new Function('task', match[1]);
+
+    const task = {
+      id: 'SE-TEST-7200',
+      tempsTotalSegons: 7200,
+      estat: 'finalitzada'
+    };
+
+    const sec = getTaskCurrentElapsedSeconds(task);
+    assert.equal(sec, 7200, 'getTaskCurrentElapsedSeconds ha de retornar 7200');
+
+    // KPI d'hores: 7200 s = 2.0 h
+    const kpiHores = (sec / 3600).toFixed(1);
+    assert.equal(kpiHores, '2.0', 'KPI d\'hores totals ha de ser 2.0 h');
+
+    // Minuts per a CSV i Certificat: 7200 / 60 = 120 min
+    const mins = Math.round(sec / 60);
+    assert.equal(mins, 120, 'Còmput en minuts ha de ser 120');
+
+    // Certificat individual no conté el valor 75 per defecte
+    assert.ok(!html.includes('duradaMins = task.tempsTranscorregut ? Math.round(task.tempsTranscorregut / 60) : 75;'),
+      'S\'ha d\'eliminar el valor fix de 75 minuts');
+
+    // Certificat individual no conté la deducció de 30 minuts per esmorzar
+    assert.ok(!html.includes('Math.max(duradaMins - 30, 0)'),
+      'S\'ha d\'eliminar la resta de 30 minuts d\'esmorzar al certificat');
+
+    // Retirada del text de purga de 30 dies
+    assert.ok(!html.includes('purga automàtica de 30 dies'),
+      'S\'ha d\'eliminar la referència a la purga de 30 dies');
+  });
+
 });
