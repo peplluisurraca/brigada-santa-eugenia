@@ -2481,6 +2481,13 @@
           }
         }, (err) => {
           console.warn('Avís Firestore (Operaris):', err.message);
+          if (err?.code === 'permission-denied' && APP_STATE.currentUser && APP_STATE.currentUser.role === 'operari') {
+            showToast("Aquest treballador ha estat donat de baixa. S'ha tancat la sessió.", "warning");
+            cleanupFirebaseSync();
+            if (window.FB && window.FB.auth && window.FB.signOut) {
+              window.FB.signOut(window.FB.auth);
+            }
+          }
         });
 
         // 3. SINCRONITZACIÓ DE TASQUES PROGRAMADES (PREVENTIU)
@@ -3355,6 +3362,11 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
                 if (isOfflineAuthError(opErr)) {
                   console.warn("Sense connexió consultant operaris/{id}; s'utilitza estat en memòria:", opErr);
                   op = APP_STATE.operaris.find(o => String(o.id) === String(roleData.operariId)) || null;
+                } else if (opErr?.code === 'permission-denied') {
+                  showToast("Aquest treballador està donat de baixa i no pot accedir al sistema.", "warning");
+                  cleanupFirebaseSync();
+                  await signOut(auth);
+                  return;
                 } else {
                   throw opErr;
                 }

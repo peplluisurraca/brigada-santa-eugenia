@@ -39,10 +39,10 @@ service cloud.firestore {
     }
 
     // Col·lecció d'operaris (personal municipal de la brigada):
-    // - Lectura permesa per a qualsevol usuari autenticat (necessari per a selectors i llistat de contacte).
+    // - Lectura permesa només a l'administrador o a operaris actius (bloqueja operaris donats de baixa).
     // - Escriptura reservada estrictament a l'administrador (Cap de Brigada).
     match /operaris/{operariId} {
-      allow read: if isAuthenticated();
+      allow read: if isAdmin() || isOperari();
       allow write: if isAdmin();
 
       // B5: Subcol·lecció d'absències i dades de salut (RGPD Art. 9)
@@ -132,10 +132,10 @@ service cloud.firestore {
     }
 
     // Nomenclàtor oficial de vies municipals (altes manuals persistents):
-    // - Lectura permesa per a qualsevol usuari autenticat.
+    // - Lectura permesa només a l'administrador o a operaris actius.
     // - Escriptura reservada estrictament a l'administrador.
     match /vies/{viaId} {
-      allow read: if isAuthenticated();
+      allow read: if isAdmin() || isOperari();
       allow write: if isAdmin();
     }
 
