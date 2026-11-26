@@ -47,12 +47,14 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 // Validació estricta de variables d'entorn (sense contrasenyes ni PINs per defecte)
+const initialOpPin = process.env.OPERARI_INITIAL_PIN || '';
+const getOpPin = (num) => process.env[`PIN_OP_${num}`] || initialOpPin;
+
 const missingEnv = [];
 if (!process.env.ADMIN_PASSWORD) missingEnv.push('ADMIN_PASSWORD');
-if (!process.env.PIN_OP_1) missingEnv.push('PIN_OP_1');
-if (!process.env.PIN_OP_2) missingEnv.push('PIN_OP_2');
-if (!process.env.PIN_OP_3) missingEnv.push('PIN_OP_3');
-if (!process.env.PIN_OP_4) missingEnv.push('PIN_OP_4');
+for (let i = 1; i <= 6; i++) {
+  if (!getOpPin(i)) missingEnv.push(`PIN_OP_${i} (o OPERARI_INITIAL_PIN)`);
+}
 
 if (missingEnv.length > 0) {
   console.error(`❌ Error de seguretat: Falten variables d'entorn obligatòries: ${missingEnv.join(', ')}`);
@@ -61,17 +63,19 @@ if (missingEnv.length > 0) {
 }
 
 const ADMIN_USER = {
-  email: process.env.ADMIN_EMAIL || 'admin@brigada-santa-eugenia.local',
+  email: process.env.ADMIN_EMAIL || 'peplluisurraca@ajsantaeugenia.net',
   password: process.env.ADMIN_PASSWORD,
   displayName: 'Cap de Brigada',
   rol: 'admin'
 };
 
 const OPERARIS = [
-  { id: 1, nom: 'Nofre Torrens', pin: process.env.PIN_OP_1, rol: 'operari' },
-  { id: 2, nom: 'Joan Bibiloni', pin: process.env.PIN_OP_2, rol: 'operari' },
-  { id: 3, nom: 'Carlos Ferriol', pin: process.env.PIN_OP_3, rol: 'operari' },
-  { id: 4, nom: 'Miquel Roca', pin: process.env.PIN_OP_4, rol: 'operari' }
+  { id: 1, nom: 'Nofre Torrens', pin: getOpPin(1), rol: 'operari' },
+  { id: 2, nom: 'Joan Bibiloni', pin: getOpPin(2), rol: 'operari' },
+  { id: 3, nom: 'Carlos Ferriol', pin: getOpPin(3), rol: 'operari' },
+  { id: 4, nom: 'Miquel Roca', pin: getOpPin(4), rol: 'operari' },
+  { id: 5, nom: 'Juan Carlos Alfonso', pin: getOpPin(5), rol: 'operari' },
+  { id: 6, nom: 'Juan Carlos Dols', pin: getOpPin(6), rol: 'operari' }
 ];
 
 async function upsertUser(email, password, displayName) {

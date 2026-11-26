@@ -35,8 +35,11 @@ describe('Fase 8 - Bloc A: Login i Credencials Segures', () => {
   it('A1.3. Scripts de producció: bootstrap-production.mjs no té contrasenyes per defecte i exigeix variables d\'entorn', () => {
     assert.doesNotMatch(bootstrapProdContent, /'AdminSE2026!'/, "bootstrap-production.mjs no pot contenir 'AdminSE2026!' com a fallback");
     assert.doesNotMatch(bootstrapProdContent, /'123456'/, "bootstrap-production.mjs no pot contenir '123456' com a fallback");
+    assert.doesNotMatch(bootstrapProdContent, /654321/, "bootstrap-production.mjs no pot contenir '654321' hardcodejat");
     assert.match(bootstrapProdContent, /ADMIN_PASSWORD/, "bootstrap-production.mjs ha de comprovar ADMIN_PASSWORD");
-    assert.match(bootstrapProdContent, /PIN_OP_1/, "bootstrap-production.mjs ha de comprovar PIN_OP_1");
+    assert.match(bootstrapProdContent, /PIN_OP_/, "bootstrap-production.mjs ha de comprovar PIN_OP_*");
+    assert.match(bootstrapProdContent, /peplluisurraca@ajsantaeugenia\.net/, "bootstrap-production.mjs ha d'usar el correu oficial de l'administrador");
+    assert.match(bootstrapProdContent, /operariId:\s*6/, "bootstrap-production.mjs ha de suportar els 6 operaris reals");
   });
 
   it('A2. Aïllament de sessions: L\'administrador mai és redirigit a operari-view en entrar a la mateixa pestanya', () => {
@@ -134,8 +137,10 @@ describe('Fase 8 - Bloc A: Login i Credencials Segures', () => {
     const bootstrapAuthContent = fs.readFileSync('scripts/bootstrap-auth.mjs', 'utf8');
     assert.doesNotMatch(bootstrapAuthContent, /'AdminSE2026!'/, "bootstrap-auth.mjs no pot contenir 'AdminSE2026!'");
     assert.doesNotMatch(bootstrapAuthContent, /'123456'/, "bootstrap-auth.mjs no pot contenir '123456'");
+    assert.doesNotMatch(bootstrapAuthContent, /654321/, "bootstrap-auth.mjs no pot contenir '654321' hardcodejat");
     assert.match(bootstrapAuthContent, /ADMIN_PASSWORD/, "bootstrap-auth.mjs ha d'exigir ADMIN_PASSWORD");
-    assert.match(bootstrapAuthContent, /PIN_OP_1/, "bootstrap-auth.mjs ha d'exigir PIN_OP_1");
+    assert.match(bootstrapAuthContent, /PIN_OP_/, "bootstrap-auth.mjs ha d'exigir PIN_OP_*");
+    assert.match(bootstrapAuthContent, /id:\s*6/, "bootstrap-auth.mjs ha de suportar els 6 operaris reals");
   });
 
   it('A7. Revocació immediata d\'operari inactiu (actiu: false) a onSnapshot i tolerància offline a onAuthStateChanged', () => {
@@ -208,5 +213,15 @@ describe('Fase 8 - Bloc A: Login i Credencials Segures', () => {
     assert.ok(fs.existsSync(ciPath), "Ha d'existir el fitxer de configuració CI");
     const ciContent = fs.readFileSync(ciPath, 'utf8');
     assert.match(ciContent, /firebase emulators:exec --only auth,firestore "npm run test:rules/, "CI ha d'executar npm run test:rules amb emuladors");
+  });
+
+  it('A11. Recuperació de contrasenya d\'Admin i canvi de PIN propi per Operari (sense 654321 hardcodejat)', () => {
+    assert.doesNotMatch(htmlContent, /654321/, "index.html no pot contenir cap PIN inicial 654321 hardcodejat");
+    assert.match(htmlContent, /id="btn-reset-admin-pass"/, "El login d'administrador ha de tenir el botó de recuperació de contrasenya");
+    assert.match(htmlContent, /sendPasswordResetEmail\(window\.FB\.auth, email\)/, "Ha de cridar sendPasswordResetEmail per recuperar contrasenya d'admin");
+    assert.match(htmlContent, /id="btn-open-canviar-pin"/, "La vista d'operari ha de tenir el botó Canviar PIN");
+    assert.match(htmlContent, /id="modal-canviar-pin-operari"/, "Ha d'existir el modal propi de canvi de PIN d'operari");
+    assert.match(htmlContent, /reauthenticateWithCredential\(authUser, credential\)/, "El canvi de PIN ha de reautenticar primer l'operari");
+    assert.match(htmlContent, /updatePassword\(authUser, pinNou\)/, "El canvi de PIN ha d'actualitzar la clau amb updatePassword");
   });
 });
