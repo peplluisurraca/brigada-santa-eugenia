@@ -108,4 +108,24 @@ describe('Fase 3: Suport Offline Real i PWA', () => {
     const manifestRule = config.hosting.headers.find(h => h.source && h.source.includes('manifest.json'));
     assert.ok(manifestRule, 'Ha d\'existir una regla de capçalera específica per a manifest.json');
   });
+
+  test('6. Blindatge Safari/CSP: sw.js no intercepta orígens externs i CSP connect-src permet gstatic/unpkg', () => {
+    const swContent = fs.readFileSync(path.join(appDir, 'sw.js'), 'utf8');
+    assert.ok(swContent.includes('url.origin !== self.location.origin'), 'sw.js no ha d\'interceptar peticions cross-origin');
+    assert.ok(swContent.includes("gstatic.com"), 'sw.js ha d\'excloure explícitament gstatic.com');
+
+    const fbConfig = JSON.parse(fs.readFileSync(path.join(rootDir, 'firebase.json'), 'utf8'));
+    const cspHeader = fbConfig.hosting.headers
+      .flatMap(h => h.headers || [])
+      .find(h => h.key === 'Content-Security-Policy');
+    assert.ok(cspHeader, 'Ha d\'existir Content-Security-Policy a firebase.json');
+    const connectSrcMatch = cspHeader.value.match(/connect-src[^;]+/);
+    assert.ok(connectSrcMatch, 'CSP ha de tenir connect-src');
+    assert.ok(connectSrcMatch[0].includes('https://www.gstatic.com'), 'connect-src ha de permetre https://www.gstatic.com');
+    assert.ok(connectSrcMatch[0].includes('https://unpkg.com'), 'connect-src ha de permetre https://unpkg.com');
+
+    const indexContent = fs.readFileSync(path.join(appDir, 'index.html'), 'utf8');
+    assert.ok(indexContent.includes('id="login-error-banner"'), 'Ha d\'existir el banner d\'error inline al login');
+    assert.ok(indexContent.includes('window.lucide = { createIcons: () => {} }'), 'Ha d\'existir fallback segur per a window.lucide');
+  });
 });

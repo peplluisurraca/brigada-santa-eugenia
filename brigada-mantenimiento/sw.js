@@ -1,9 +1,9 @@
 // =============================================================================
 // Service Worker - Brigada Municipal de Santa Eugènia
-// Versió: 1.6.0 (Fase 8: Correcció urgent de seguretat, login i còmput d'hores)
+// Versió: 1.6.1 (Correcció Safari/CSP: no interceptar CDNs ni SDKs externs)
 // =============================================================================
 
-const CACHE_NAME = 'brigada-se-v1.6.0';
+const CACHE_NAME = 'brigada-se-v1.6.1';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -12,10 +12,7 @@ const STATIC_ASSETS = [
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable.png',
-  './css/dist.css',
-  'https://unpkg.com/lucide@0.468.0',
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
-  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+  './css/dist.css'
 ];
 
 self.addEventListener('install', (event) => {
@@ -47,10 +44,13 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // No interceptar trucades a Firebase ni a APIs d'autenticació/Firestore (es gestionen pel SDK natiu)
+  // No interceptar peticions d'altres dominis (Firebase SDK a gstatic.com, unpkg, Google APIs, mapes)
+  // Evita bloquejos de CSP (connect-src) a Safari i navegadors estrictes amb mòduls ES externs
   if (
+    url.origin !== self.location.origin ||
     url.hostname.includes('firebase') ||
     url.hostname.includes('googleapis.com') ||
+    url.hostname.includes('gstatic.com') ||
     url.hostname.includes('identitytoolkit')
   ) {
     return;
