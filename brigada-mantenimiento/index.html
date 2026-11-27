@@ -413,6 +413,12 @@
           </div>
         </div>
 
+        <!-- Avís d'error inline visible dins la targeta de login (especialment per a Safari mòbil) -->
+        <div id="login-error-banner" role="alert" class="hidden mx-6 mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-semibold text-red-800 flex items-start space-x-2">
+          <i data-lucide="alert-circle" class="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5"></i>
+          <span id="login-error-banner-text"></span>
+        </div>
+
         <!-- Footer segell Ajuntament -->
         <div class="bg-gray-50 border-t border-gray-100 py-3 px-6 text-center text-xs text-gray-500">
           🔒 Sistema d'Autenticació Segura · Ajuntament de Santa Eugènia
@@ -1977,6 +1983,11 @@
   <!-- JAVASCRIPT: ESTAT, CRUD PERSONAL, NOMENCLÀTOR I LÒGICA                      -->
   <!-- ========================================================================= -->
   <script>
+    // Fallback segur perquè un error de xarxa carregant Lucide CDN no bloquegi mai el login ni la UI
+    if (typeof window !== 'undefined' && typeof window.lucide === 'undefined') {
+      window.lucide = { createIcons: () => {} };
+    }
+
     const APP_STATE = {
       currentUser: null, // { role: 'admin' | 'operari', operariId: number | null, nom: string }
       currentRole: 'admin',
@@ -3089,7 +3100,22 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
       });
     }
 
+    function showLoginInlineError(msg) {
+      const banner = document.getElementById('login-error-banner');
+      const textEl = document.getElementById('login-error-banner-text');
+      if (banner && textEl) {
+        textEl.innerText = msg;
+        banner.classList.remove('hidden');
+      }
+    }
+
+    function clearLoginInlineError() {
+      const banner = document.getElementById('login-error-banner');
+      if (banner) banner.classList.add('hidden');
+    }
+
     async function submitUnifiedLogin(type) {
+      clearLoginInlineError();
       const btn = document.getElementById(type === 'admin' ? 'btn-login-admin-submit' : 'btn-login-operari-submit');
       const originalContent = btn ? btn.innerHTML : '';
 
@@ -3109,9 +3135,11 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
             btn.disabled = false;
             btn.classList.remove('opacity-75', 'cursor-not-allowed');
             btn.innerHTML = originalContent;
-            lucide.createIcons();
+            if (window.lucide) window.lucide.createIcons();
           }
-          showToast("El servei d'autenticació encara s'està inicialitzant. Espera un moment i torna-ho a provar.", "info");
+          const msg = "El servei d'autenticació encara s'està inicialitzant. Refresca la pàgina i torna-ho a provar.";
+          showLoginInlineError(msg);
+          showToast(msg, "info");
           return;
         }
 
@@ -3119,7 +3147,7 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           btn.disabled = false;
           btn.classList.remove('opacity-75', 'cursor-not-allowed');
           btn.innerHTML = originalContent;
-          lucide.createIcons();
+          if (window.lucide) window.lucide.createIcons();
         }
       }
 
@@ -3149,7 +3177,9 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           // La sessió i el rol es configuren automàticament a l'observador onAuthStateChanged
         } catch (err) {
           console.error("Error autenticació administrador:", err);
-          showToast("Error d'accés: Comprova el correu electrònic i la contrasenya.", "error");
+          const msg = "Error d'accés: Comprova el correu electrònic i la contrasenya.";
+          showLoginInlineError(msg);
+          showToast(msg, "error");
         } finally {
           if (btn) {
             btn.disabled = false;
@@ -3171,7 +3201,9 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
         }
 
         if (!pin || pin.length !== 6 || !/^\d{6}$/.test(pin)) {
-          showToast("El PIN d'accés ha de tenir exactament 6 dígits numèrics.", "warning");
+          const msg = "El PIN d'accés ha de tenir exactament 6 dígits numèrics.";
+          showLoginInlineError(msg);
+          showToast(msg, "warning");
           return;
         }
 
@@ -3190,7 +3222,9 @@ Hola ${operari.nom}, et contactem des de la coordinació de la Brigada Municipal
           // La sessió i el rol es configuren automàticament a l'observador onAuthStateChanged
         } catch (err) {
           console.error("Error autenticació operari:", err);
-          showToast("PIN incorrecte o compte no configurat al sistema.", "error");
+          const msg = "PIN incorrecte o compte no configurat al sistema.";
+          showLoginInlineError(msg);
+          showToast(msg, "error");
         } finally {
           if (btn) {
             btn.disabled = false;
